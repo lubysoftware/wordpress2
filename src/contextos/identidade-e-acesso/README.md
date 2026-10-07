@@ -18,6 +18,15 @@ ninguem decidiu.
 > As duas linhas acima estavam duplicadas, uma listando T005 e outra T007, por um
 > merge que juntou duas worktrees que escreveram o mesmo paragrafo. T013 as
 > fundiu numa so, sem tirar nenhuma tarefa da lista.
+portas), **T002** (forma de armazenamento), **T003** (US-1, entrada), **T005**
+(US-2, saida) e **T015** (US-7, autorizacao por capacidade — cuja decisao mora em
+`plataforma/autorizacao/`, e nao aqui). Este arquivo e a leitura obrigatoria de
+quem pegar a proxima tarefa: ele diz o que ja esta decidido, o que esta decidido
+**em outro lugar**, e o que ninguem decidiu.
+portas), **T002** (forma de armazenamento), **T003** (US-1, autenticar) e
+**T007** (US-3, prazo da sessao). Este arquivo e a leitura obrigatoria de quem
+pegar a tarefa seguinte: ele diz o que ja esta decidido, o que esta decidido
+**em outro lugar**, e o que ninguem decidiu.
 
 > 🔴 **Antes de qualquer coisa, se a sua tarefa toca a matriz de papeis:** o
 > conflito entre `REQ-017` e a resposta 5 **continua aberto**, T002 esbarrou
@@ -472,6 +481,88 @@ da borda).
    senha cercada de espaco recusaria uma senha que o legado aceita.** T013 nao
    mexeu no arquivo de T003: a correcao e de uma linha e muda um ponto de
    substituicao publicado, o que nao e entrega desta tarefa.
+## O que T015 entrega, e so isso
+
+> *o comportamento de US-7 existe e os critérios CA-7.1, CA-7.2, CA-7.3, CA-7.4,
+> CA-7.5 passam contra o sistema novo*
+> — `.specify/specs/001-identidade-e-acesso/tasks.md`, T015
+
+**A decisao nao esta neste modulo, e nunca ia estar.** Ela esta em
+`src/plataforma/autorizacao/`, pela divisao que a secao *Onde a autorizacao mora*
+abaixo ja declarava. Deste lado entrou **so a costura**:
+
+| arquivo | o que e |
+|---|---|
+| `autorizacao/fonte-de-papeis.ts` | o adaptador: le a matriz gravada e a autorizacao da conta pela porta de dados, e as entrega na forma que a politica espera |
+| `autorizacao/fonte-de-papeis.test.ts` | os criterios que precisam do dado **de fabrica** e do **efeito no banco** — CA-7.2, CA-7.4 e CA-7.5, nos dois lados do conflito REQ-017 |
+
+E do outro lado, `plataforma/autorizacao/`: `capacidade.ts` (as duas sinteticas),
+`contexto-de-autorizacao.ts`, `capacidades-do-ator.ts` (o `allcaps`),
+`traducao-de-capacidade.ts`, `revogacao-por-constante.ts` (as quatro constantes),
+`decisao-de-capacidade.ts` (a **ordem** dos seis passos), `quem-tem-capacidade.ts`
+(CA-7.4) e `catalogo-de-capacidades.ts` (CA-7.5). O `index.ts` de lá explica a
+divisao arquivo por arquivo.
+
+**Um arquivo de fora mudou, e so um:** o barril deste modulo passou a exportar
+`autorizacao/fonte-de-papeis.js`. **A interface do modulo composto nao mudou** —
+T015 nao acrescenta operacao a `ModuloDeIdentidadeEAcesso`, e isso e decisao, nao
+esquecimento: *"perguntar permissao"* e operacao da plataforma, que fica abaixo de
+todo contexto, e o que BC-05 acrescenta aqui e leitura de dado. O motivo esta
+escrito no proprio `index.ts`, onde o export entra.
+
+**Tres coisas que a decisao faz e que um porte perde sem o teste notar**, as tres
+com teste nomeado:
+
+1. **A ordem dos seis passos.** Traduzir, atalho do super administrador, montar o
+   mapa, ponto de extensao `user_has_cap`, as duas sinteticas, comparar. ADR-0009
+   recusou por escrito a ordem alternativa (*"permitiria a um plugin remover a
+   negacao"*), e trocar dois passos de lugar nao produz defeito visivel: produz
+   decisao diferente num caso que ninguem testa.
+2. **Lista vazia significa PERMITIDO.** Um alvo que a trate como negacao *"tranca
+   todo mundo fora do proprio perfil"* (BR-MIGRAR-092).
+3. **Caminho de erro FECHA a porta.** `null` e "nao e meu caso", `[]` e
+   "permitido" e `['do_not_allow']` e "negado" — tres coisas diferentes, e
+   BR-MIGRAR-090 avisa que um alvo com tratamento de erro uniforme degradaria
+   para menos garantia **aqui tambem**, abrindo a porta.
+
+**O que T015 nao faz, de proposito:** nao resolve capacidade sobre objeto — os 86
+casos de `PERM-3`, o estado anterior do conteudo descartado, o objeto
+inexistente, a pagina inicial — que e US-8 / **T017**, dependente desta; nao
+declara as quatro capacidades que o legado concede so por ponto de extensao, que
+e US-9 / **T019** (o terceiro argumento de `capacidadesDeclaradas` e o encaixe
+delas, e ha teste mostrando os dois estados); nao porta os dez atalhos de
+nomenclatura de `PERM-6`, que chegam com os casos deles; e **nao** grava papel em
+conta nenhuma — atribuir papel e T023.
+
+### 🔴 Dois pontos que T015 encontrou abertos, e NAO resolveu
+
+**1. A forma numerica depreciada de perguntar permissao.** ADR-0001 registra que
+`has_cap()` *"ainda aceita numero, com aviso de depreciacao"*: o numero vira
+`level_{n}` e e decidido como qualquer capacidade. O **P8** poe superficie
+publicada fora do alcance de quem codifica, logo isto **nao** e descarte — e
+tambem nao foi construido, porque o conteudo de `level_0` a `level_10` e
+exatamente o objeto do conflito REQ-017 contra a resposta 5, e uma das formas de
+conferir o descarte, escrita no card, e *"nenhuma decisao de autorizacao compara
+nivel numerico"*. Construir aqui seria dar razao a uma das duas partes. Fica
+nomeado em `plataforma/autorizacao/decisao-de-capacidade.ts`, com o custo de
+construir depois: e traducao de argumento, nao mexe na ordem, e nao muda desenho.
+
+**2. O recorte de rede de `PERM-10`.** No legado, os mesmos `case` que leem as
+quatro constantes carregam tambem a perda de arquivo, extensao, identidade, idioma
+e HTML bruto do administrador de site em instalacao de rede (BR-MIGRAR-096,
+confianca 🟡 — *"migra com aviso para validacao"*). **O pacote nao enumera quais
+capacidades esse recorte alcanca**, nenhuma tarefa desta feature o recebe, e
+inventar a enumeracao seria inventar dado de analise. Fica nomeado em
+`revogacao-por-constante.ts` com a consequencia declarada: enquanto nao entrar,
+uma instalacao de **rede** e, nesses nomes, mais aberta que o legado para o
+administrador de site. Em site unico — o valor de fabrica da instalacao — nao
+muda nada.
+
+E duas conferencias que ficam para o oraculo, as duas marcadas no codigo: o filtro
+que separa papel de capacidade olha a **chave** e ignora o valor
+(`capacidades-do-ator.ts`), e a leitura estrita de T002 trata *"nao e arranjo"* e
+*"arranjo com valor que nao e booleano"* com o mesmo `null`, o que no segundo caso
+fecha mais que o legado (`autorizacao/fonte-de-papeis.ts`).
 
 ## Por que estas tres portas, e nao outras
 
@@ -518,6 +609,12 @@ vai precisar de uma costura de ligacao tardia entre a decisao, que fica embaixo,
 e o dado do papel, que fica aqui. **Fica declarado, nao construido:** T001 nao
 tem entrega de autorizacao.
 
+> **T015 construiu as duas pontas, e a divisao acima e exatamente a que ela
+> seguiu.** A costura e a interface `FonteDeAutorizacao`, **declarada embaixo** em
+> `plataforma/autorizacao/fonte-de-autorizacao.ts` e **implementada aqui** em
+> `autorizacao/fonte-de-papeis.ts` — a unica direcao que a regra de dependencia 2
+> permite. Ver *O que T015 entrega* acima.
+
 ## O que este modulo nao vai ter, por decisao de outra pessoa
 
 De `do-not-rewrite.md` — escopo recusado, nao trabalho pendente:
@@ -558,10 +655,15 @@ e sem nenhum chamador**, como estao hoje: BR-MIGRAR-111 cita a resposta 7 —
    consequencias que o card REQ-017 nao menciona e quem decidir precisa ter na
    mao: a chave de metadado `{site}user_level` e derivada dessas capacidades, e a
    definicao de papel e legivel pela interface de papeis do produto, logo remover
-   as 11 muda o que um programa de terceiro le.
+   as 11 muda o que um programa de terceiro le. **T015 tambem nao escolheu, e
+   provou que nao precisa:** nenhuma decisao de autorizacao olha nivel numerico, e
+   os testes da autorizacao rodam identicos nos dois lados.
 2. **CA-9.4** exige que nenhuma das 93 capacidades verificadas no codigo fique
    fora da matriz, e `permissions.md` so identifica quatro ausentes. E o unico
-   criterio do pacote sem teste registrado.
+   criterio do pacote sem teste registrado. **T015 entregou a conferencia** —
+   `plataforma/autorizacao/catalogo-de-capacidades.ts` — e **nao fechou a conta**:
+   a lista dos 93 nomes nao esta nesta arvore, e inventa-la seria inventar dado de
+   analise. Fechar e T019 (CA-9.3), depois da decisao humana.
 3. **Escopo da senha de aplicacao** — o legado nao lhe da escopo nem prazo.
    Dar-lhe escopo e divergencia do identico e exige decisao humana registrada
    (P1).
