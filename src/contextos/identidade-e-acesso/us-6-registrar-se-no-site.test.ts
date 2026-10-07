@@ -339,6 +339,11 @@ interface SuperficieDeUS6 {
  * impressa na falha, para que a reconciliação seja de olho.
  */
 const NOMES_ACEITOS_DE_REGISTRAR: readonly string[] = [
+  // T013 entregou com este nome, e esta suite (T014) foi escrita em paralelo
+  // sem saber qual seria. A reconciliacao que o cabecalho declara: "o nome de
+  // T013 ganha, porque o que esta suite protege e o comportamento, nao o
+  // identificador".
+  'cadastrar',
   'registrar',
   'registrarNovaConta',
   'registrarVisitante',
