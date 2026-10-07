@@ -30,8 +30,12 @@
  * - **A busca nao alcanca o que chega por ponto de extensao.** Capacidade
  *   concedida no `user_has_cap` nao esta gravada em lugar nenhum, logo nao esta no
  *   texto que o `LIKE` percorre. No legado e igual, e e por isso que as quatro
- *   capacidades de `PERM-7` (BR-MIGRAR-093) nao aparecem em consulta alguma —
- *   elas sao US-9 / T019.
+ *   capacidades de `PERM-7` (BR-MIGRAR-093) nao aparecem em consulta alguma.
+ *   **T019 declarou e concedeu as quatro, e esta ausencia continua**, de
+ *   proposito: quem tem `activate_plugins` retoma extensao pausada e esta funcao
+ *   devolve lista vazia para `resume_plugins`, porque e isso que o `LIKE` sobre
+ *   texto serializado responde no legado. Quem precisa da resposta completa
+ *   pergunta por `perguntarPermissao`, conta por conta.
  * - **O pacote nao documenta a consulta de usuarios por capacidade do legado.**
  *   `plan.md` e `PERM-2` documentam a busca por **papel**; se o legado, na mesma
  *   versao, responde "quem tem a capacidade X" sem confirmar cada candidato, a

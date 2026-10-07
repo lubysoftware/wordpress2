@@ -564,6 +564,93 @@ que separa papel de capacidade olha a **chave** e ignora o valor
 *"arranjo com valor que nao e booleano"* com o mesmo `null`, o que no segundo caso
 fecha mais que o legado (`autorizacao/fonte-de-papeis.ts`).
 
+## O que T019 entrega, e so isso
+
+> *o comportamento de US-9 existe e os critérios CA-9.1, CA-9.2, CA-9.3, CA-9.4
+> passam contra o sistema novo*
+> — `.specify/specs/001-identidade-e-acesso/tasks.md`, T019
+
+**As quatro capacidades de `PERM-7` nao entraram na matriz: entraram como regra
+declarada.** `install_languages`, `resume_plugins`, `resume_themes` e
+`view_site_health_checks` continuam fora de todo papel — e tem de continuar, porque
+semea-las num papel mudaria o valor gravado em `{site}user_roles`, que a interface
+de papeis do produto le e que o cenario de paridade exige identico byte a byte. O
+que T019 construiu e o **ponto de concessao de prioridade `1`** que o nucleo do
+legado registra, e e dele que elas vem (BR-MIGRAR-093,
+`default-filters.php:771`-`:773`).
+
+A entrega esta quase toda do outro lado, em `plataforma/autorizacao/`:
+`concessao-por-extensao.ts` (as tres concessoes do nucleo, com o nome publicado de
+cada interceptador), o passo 4 de `decisao-de-capacidade.ts` (a ordem: **antes** do
+`user_has_cap` de terceiro, que pode retirar o que o nucleo concedeu),
+`conferirMatrizDeclarada` em `catalogo-de-capacidades.ts` (CA-9.3) e o campo
+`concessoesPorExtensao` do contexto, que e como se descreve a instalacao em que
+elas foram removidas do ponto.
+
+Deste lado entrou **so o teste que precisa da matriz de fabrica**:
+`autorizacao/us-9-instalacao-de-fabrica.test.ts`, onde CA-9.2 fecha — *"existe ao
+menos um ator capaz de retomar uma extensao pausada numa instalacao de fabrica"* —
+nos **dois** lados do conflito REQ-017, porque nenhuma das quatro depende de nivel
+numerico. Nenhum arquivo de fora mudou e a interface do modulo composto nao mudou.
+
+| capacidade | concedida a quem tem | onde o pacote diz |
+|---|---|---|
+| `resume_plugins` | `activate_plugins` | UC-36, excecao *"ninguem tem `resume_plugins`"* |
+| `resume_themes` | `switch_themes` | UC-32, *"retomar um tema pausado"* |
+| `view_site_health_checks` | `install_plugins`, e em rede **so** super administrador | UC-37, linha *Autorizacao* |
+| `install_languages` | `update_core`, `install_plugins` ou `install_themes` | ⚠️ o pacote **nao** diz — ver abaixo |
+
+**Tres coisas que um porte perde sem o teste notar**, as tres com teste nomeado:
+
+1. **A concessao SOBREPOE o valor que estava no mapa.** O legado escreve
+   `$allcaps['resume_plugins'] = true;` sem olhar o que havia antes, logo um papel
+   que **negue** a capacidade a quem tem a de origem nao impede nada. Preencher so
+   o que falta produziria um sistema mais fechado que o legado.
+2. **O recorte de rede e de uma so das quatro.** O diagnostico do site e negado ao
+   administrador de site em rede (UC-37), e retomar extensao **nao** e — o legado
+   comenta a razao: *"even in a multisite, regular administrators should be able to
+   resume plugins"*.
+3. **O curto-circuito de `! is_multisite() || is_super_admin()`.** Fora da rede a
+   segunda metade nunca e avaliada, e reproduzir isso nao e zelo: fora da rede
+   "super administrador" e *quem tem `delete_users`*, que e outra pergunta de
+   permissao — avaliar as duas metades sempre poria a decisao a chamar a si mesma.
+
+### 🔴 Tres pontos que T019 encontrou abertos, e NAO resolveu
+
+**1. A condicao de `install_languages` nao esta no pacote.** Tres das quatro
+condicoes estao escritas no caso de uso que depende delas; esta nao esta em
+documento algum desta arvore — `permissions.md` §4, que a contaria, nao esta aqui,
+e `target_screens.md` lista a capacidade sem dizer de onde ela vem. O que o pacote
+da e a **ancora** (BR-MIGRAR-093 aponta `capabilities.php:1309`), e e dela que a
+condicao foi lida, com o criterio escrito no comentario do proprio legado. Fica
+marcada em `concessao-por-extensao.ts` como enumeracao desta tarefa, que **fecha
+contra o oraculo** (`ESC-ORACULO`), e isolada numa lista: se o oraculo discordar, a
+correcao e nessa lista e em nenhum outro lugar.
+
+**2. CA-9.4 continua aberto.** O critério exige que *"nenhuma das 93 capacidades
+verificadas no codigo fique fora da matriz"*, e **a lista dos 93 nomes nao esta
+nesta arvore**. A primeira *Pergunta em aberto* da `spec.md` poe para uma pessoa
+decidir se a matriz cresce ate cobri-los ou se o critério se reescreve para as que
+tem responsavel — e e o unico critério do pacote sem teste registrado em
+`backlog/tests.md`. T019 entregou o mecanismo que fecha a conta no dia em que a
+lista existir (`conferirMatrizDeclarada`, que recebe as exigidas por argumento) e
+**nao** inventou a lista: inventa-la seria inventar dado de analise. O que **nao**
+esta aberto e o que o pacote de fato identifica: as quatro ausentes de `PERM-7`
+tem responsavel declarado, e e isso que CA-9.1 pedia.
+
+**3. O `case` de traducao de `install_languages`, que e de outra tarefa.** No
+legado a capacidade tambem e tratada no `map_meta_cap`, no mesmo bloco que le as
+constantes do dono do servidor: com `DISALLOW_FILE_MODS` definida — e em rede para
+quem nao e super administrador — `install_languages`, e `update_languages`, que
+nenhum documento deste pacote nomeia, viram `do_not_allow`. A tabela de `PERM-8` em
+`revogacao-por-constante.ts` (T015) nao alcanca esses dois nomes, e o recorte de
+rede do mesmo bloco e o `PERM-10` que aquele arquivo ja declara como nao portado.
+**Consequencia declarada:** hoje, com `DISALLOW_FILE_MODS` definida, quem tem
+`update_core` instala traducao neste sistema e nao instalaria no legado — mais
+aberto que o legado, em um nome. Nao foi corrigido aqui porque a correcao e na
+entrega de outras tarefas, com testes proprios, e porque `update_languages` nao
+esta em documento algum desta arvore. Fica nomeado em `concessao-por-extensao.ts`.
+
 ## Por que estas tres portas, e nao outras
 
 `target_architecture.md` **AD-08** conta cinco portas no sistema todo — dados,
@@ -663,7 +750,9 @@ e sem nenhum chamador**, como estao hoje: BR-MIGRAR-111 cita a resposta 7 —
    criterio do pacote sem teste registrado. **T015 entregou a conferencia** —
    `plataforma/autorizacao/catalogo-de-capacidades.ts` — e **nao fechou a conta**:
    a lista dos 93 nomes nao esta nesta arvore, e inventa-la seria inventar dado de
-   analise. Fechar e T019 (CA-9.3), depois da decisao humana.
+   analise. **T019 entregou a verificacao automatizada de CA-9.3**
+   (`conferirMatrizDeclarada`) e tambem nao fechou a conta, pela mesma razao: a
+   lista continua faltando, e ela e a decisao humana. Ver *O que T019 entrega*.
 3. **Escopo da senha de aplicacao** — o legado nao lhe da escopo nem prazo.
    Dar-lhe escopo e divergencia do identico e exige decisao humana registrada
    (P1).

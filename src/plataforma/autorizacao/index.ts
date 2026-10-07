@@ -25,15 +25,19 @@
  * | `capacidades-do-ator.ts` | o `allcaps`: papeis fundidos, individuais por cima |
  * | `traducao-de-capacidade.ts` | a forma do `map_meta_cap`, e o encaixe dos 86 casos (T017) |
  * | `revogacao-por-constante.ts` | as **quatro constantes** que retiram poder de quem o tem |
- * | `decisao-de-capacidade.ts` | a pergunta, e a **ordem** dos seis passos |
+ * | `concessao-por-extensao.ts` | as **quatro capacidades** que nenhum papel concede, e o ponto de prioridade `1` que as concede (T019) |
+ * | `decisao-de-capacidade.ts` | a pergunta, e a **ordem** dos sete passos |
  * | `quem-tem-capacidade.ts` | CA-7.4, em dois passos: o que o armazenamento alcanca e o que a decisao confirma |
- * | `catalogo-de-capacidades.ts` | CA-7.5, a conferencia — e o que ela **nao** fecha |
+ * | `catalogo-de-capacidades.ts` | CA-7.5 e CA-9.3, a conferencia — e o que ela **nao** fecha |
  *
  * **O que esta pasta nao tem, e de proposito:** os 86 casos de traducao de
- * capacidade sobre objeto (US-8 / T017), as quatro capacidades que o legado concede
- * so por ponto de extensao (US-9 / T019), os dez atalhos de nomenclatura de
+ * capacidade sobre objeto (US-8 / T017), os dez atalhos de nomenclatura de
  * `PERM-6` (chegam com os casos deles) e o recorte de rede de `PERM-10` — este
- * ultimo com a consequencia declarada em `revogacao-por-constante.ts`.
+ * ultimo com a consequencia declarada em `revogacao-por-constante.ts`. E o
+ * **barramento** que dispararia os pontos de extensao continua fora: `REQ-162`
+ * esta em `do-not-rewrite.md`, e por isso a prioridade `1` de T019 e cumprida pela
+ * posicao na ordem da decisao, com o numero declarado em
+ * `concessao-por-extensao.ts`.
  */
 
 export {
@@ -76,6 +80,17 @@ export {
 } from './revogacao-por-constante.js';
 
 export {
+  CAPACIDADES_QUE_HABILITAM_O_IDIOMA,
+  CONCESSOES_POR_EXTENSAO_DE_FABRICA,
+  PRIORIDADE_DA_CONCESSAO_POR_EXTENSAO,
+  aplicarConcessoesPorExtensao,
+  capacidadesConcedidasPorExtensao,
+  type ConcessaoDeclarada,
+  type ConcessaoPorExtensao,
+  type PedidoDeConcessao,
+} from './concessao-por-extensao.js';
+
+export {
   capacidadesExigidas,
   ehSuperAdmin,
   perguntarPermissao,
@@ -96,4 +111,6 @@ export {
   capacidadesDeclaradas,
   capacidadesDeclaradasPorRegra,
   capacidadesExigidasSemDeclaracao,
+  conferirMatrizDeclarada,
+  type ConferenciaDaMatriz,
 } from './catalogo-de-capacidades.js';

@@ -24,6 +24,7 @@ import type {
   ConcessaoDeCapacidade,
   MatrizDePapeis,
 } from './capacidade.js';
+import type { ConcessaoPorExtensao } from './concessao-por-extensao.js';
 import type { ConstantesDoServidor } from './revogacao-por-constante.js';
 import type { CasoDeTraducao } from './traducao-de-capacidade.js';
 
@@ -111,6 +112,11 @@ export interface GanchosDeAutorizacao {
    * logo nem conceder `do_not_allow` por aqui funciona. `decisao-de-capacidade.ts`
    * declara a ordem inteira, e ha teste para ela.
    *
+   * **E este interceptador entra na prioridade de omissao, logo DEPOIS das tres
+   * concessoes de prioridade `1` do nucleo** ({@link concessoesPorExtensao}): o
+   * mapa que ele recebe ja traz as quatro capacidades de `PERM-7`, e ele pode
+   * retira-las. A ordem e a do legado (`default-filters.php:771`-`:773`).
+   *
    * Recebe os mesmos quatro argumentos do legado, na ordem: o mapa, a lista
    * exigida, os argumentos da pergunta e o ator.
    */
@@ -146,6 +152,22 @@ export interface BaseDeAutorizacao {
    * declarada e nao e substituivel — ver `decisao-de-capacidade.ts`.
    */
   readonly casosDeTraducao?: readonly CasoDeTraducao[];
+  /**
+   * As concessoes de **prioridade 1** registradas no ponto `user_has_cap` —
+   * `PERM-7` (BR-MIGRAR-093), entrega de T019 (US-9).
+   *
+   * Omitida, valem as tres que o **proprio nucleo** registra
+   * (`CONCESSOES_POR_EXTENSAO_DE_FABRICA`), porque e assim que uma instalacao de
+   * fabrica se comporta: `install_languages`, `resume_plugins`, `resume_themes` e
+   * `view_site_health_checks` nao estao em papel algum e entram por aqui.
+   *
+   * **Lista vazia e um estado do legado, nao um atalho de teste:** no legado estas
+   * tres sao registro em ponto de extensao, e `remove_filter` existe. E o estado
+   * que o cenario `@substituicao` de `07-autorizacao-por-capacidade.feature`
+   * descreve — *"dado nenhuma extensao registrada no ponto de concessao de
+   * capacidade (...) as duas metades negam"*.
+   */
+  readonly concessoesPorExtensao?: readonly ConcessaoPorExtensao[];
   readonly ganchos?: GanchosDeAutorizacao;
 }
 

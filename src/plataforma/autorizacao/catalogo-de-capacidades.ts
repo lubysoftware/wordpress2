@@ -38,6 +38,33 @@
  * conferencia, e e ali que vive a verificacao automatizada de CA-9.3. Esta tarefa
  * entrega o **mecanismo** e nao fecha a conta: fechar a conta exige a lista que
  * ninguem publicou.
+ *
+ * ---
+ *
+ * # O que T019 acrescentou aqui, e o que ela deixou aberto
+ *
+ * {@link conferirMatrizDeclarada} e a verificacao de **CA-9.3** — *"uma
+ * verificacao automatizada compara as capacidades exigidas no codigo com a matriz
+ * declarada e **falha quando sobra alguma**"*. Ela e a composicao das tres
+ * funcoes abaixo com as concessoes de `concessao-por-extensao.ts` ja embutidas,
+ * logo as quatro capacidades de `PERM-7` passam a ter **declaracao por regra** sem
+ * que ninguem precise lembrar de passa-las a mao (CA-9.1).
+ *
+ * As quatro **nao** entraram em {@link capacidadesDeclaradasPorRegra}, e isso e
+ * escolha: as regras daquela funcao sao as que a **decisao** aplica sempre (as
+ * duas sinteticas e as quatro constantes), e a concessao por extensao e removivel
+ * — no legado e registro em ponto de extensao. Quem passa lista vazia em
+ * `concessoesPorExtensao` descreve uma instalacao em que elas nao existem, e nessa
+ * instalacao elas **nao** estao declaradas. O terceiro argumento de
+ * {@link capacidadesDeclaradas} continua sendo o encaixe, e os testes de T015 e
+ * T016 continuam afirmando os dois estados.
+ *
+ * 🔴 **CA-9.4 continua aberto, e esta tarefa nao o fechou.** O critério exige que
+ * *"nenhuma das 93 capacidades verificadas no codigo fique fora da matriz"*, e a
+ * lista dos 93 nomes nao esta nesta arvore — a primeira *Pergunta em aberto* da
+ * `spec.md` poe para uma pessoa decidir se a matriz cresce ate cobri-los ou se o
+ * critério se reescreve. O mecanismo esta pronto e a resposta cabe em uma lista:
+ * quem decidir passa os 93 nomes em `exigidas` e le `semDeclaracao`.
  */
 
 import {
@@ -45,6 +72,10 @@ import {
   type Capacidade,
   type MatrizDePapeis,
 } from './capacidade.js';
+import {
+  capacidadesConcedidasPorExtensao,
+  type ConcessaoPorExtensao,
+} from './concessao-por-extensao.js';
 import { capacidadesAlcancadasPorConstante } from './revogacao-por-constante.js';
 
 /**
@@ -119,4 +150,49 @@ export function capacidadesExigidasSemDeclaracao(
     }
   }
   return faltantes;
+}
+
+/** O que a conferencia de CA-9.3 devolve. */
+export interface ConferenciaDaMatriz {
+  /** Todo nome declarado: pela matriz, por regra, ou pelo chamador. */
+  readonly declaradas: ReadonlySet<Capacidade>;
+  /** As exigidas sem declaracao, na ordem da entrada e sem repetir. */
+  readonly semDeclaracao: readonly Capacidade[];
+  /** `false` quando sobrou alguma — e o "falha quando sobra alguma" de CA-9.3. */
+  readonly fechou: boolean;
+}
+
+/**
+ * A verificacao de **CA-9.3**: compara as capacidades exigidas com a matriz
+ * declarada e diz se sobrou alguma.
+ *
+ * Entrega de **T019**. Devolve relato e **nao lanca**, pela mesma razao de
+ * {@link capacidadesExigidasSemDeclaracao}: quem transforma "sobrou" em falha e
+ * quem confere — um teste, uma rotina de instalacao, uma revisao —, nunca a
+ * decisao de autorizacao. Perguntar por capacidade que ninguem declarou responde
+ * "nao" no legado, e fazer disso erro de execucao mudaria o observavel (**P1**).
+ *
+ * As concessoes de prioridade 1 entram **por omissao**, com as tres que o nucleo
+ * registra: numa instalacao de fabrica as quatro capacidades de `PERM-7` tem
+ * responsavel declarado (CA-9.1), e a conferencia nao as acusa. Passar lista vazia
+ * descreve a instalacao em que elas foram removidas do ponto de extensao, e ai a
+ * conferencia volta a acusa-las — que e o relato correto para aquela instalacao.
+ */
+export function conferirMatrizDeclarada(pedido: {
+  readonly matriz: MatrizDePapeis;
+  readonly exigidas: readonly Capacidade[];
+  /** Omitida, valem as tres concessoes que o nucleo registra. */
+  readonly concessoesPorExtensao?: readonly ConcessaoPorExtensao[];
+  /** O que a tarefa de quem confere declarar por regra propria. */
+  readonly declaradasPeloChamador?: readonly Capacidade[];
+}): ConferenciaDaMatriz {
+  const declaradas = capacidadesDeclaradas(pedido.matriz, [
+    ...capacidadesConcedidasPorExtensao(pedido.concessoesPorExtensao),
+    ...(pedido.declaradasPeloChamador ?? []),
+  ]);
+  const semDeclaracao = capacidadesExigidasSemDeclaracao(
+    pedido.exigidas,
+    declaradas,
+  );
+  return { declaradas, semDeclaracao, fechou: semDeclaracao.length === 0 };
 }
