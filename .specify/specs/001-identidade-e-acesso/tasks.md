@@ -9,7 +9,7 @@
       *entrega:* as estruturas da seção Modelo de dados do plano existem, são lidas e gravadas pela porta de dados, e a matriz de fábrica é carregada com as mesmas concessões que o legado semeia
       *satisfaz:* — (infraestrutura)
       *depende de:* T001
-- [ ] **T003** Autenticar conta com login ou e-mail e senha (US-1)
+- [x] **T003** Autenticar conta com login ou e-mail e senha (US-1)
       *entrega:* o comportamento de US-1 existe e os critérios CA-1.1, CA-1.2, CA-1.3, CA-1.4, CA-1.5 passam contra o sistema novo
       *satisfaz:* CA-1.1, CA-1.2, CA-1.3, CA-1.4, CA-1.5
       *depende de:* T001, T002

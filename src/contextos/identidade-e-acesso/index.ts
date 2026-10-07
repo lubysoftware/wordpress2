@@ -32,8 +32,47 @@ import type {
   PortaDeRelogio,
 } from './portas/index.js';
 
+import {
+  autenticar,
+  type CredenciaisDeEntrada,
+  type OpcoesDeAutenticacao,
+  type ResultadoDeAutenticacao,
+} from './autenticacao/autenticar.js';
+import type { ContextoDeAutenticacao } from './autenticacao/contexto-de-autenticacao.js';
+
 export * from './portas/index.js';
 export * from './armazenamento/index.js';
+
+/*
+  ── DUAS `Conta`, E A ESCOLHA NÃO É DE QUEM FEZ O MERGE ─────────────────────
+
+  T002 escreveu `armazenamento/conta.ts` e T003 escreveu
+  `conta/leitura-de-conta.ts`, as duas modelando a MESMA entidade — a linha de
+  `wp_users` — com campos parecidos e não iguais. Não é conflito de merge: é
+  trabalho duplicado, porque a worktree da T003 nasceu da main antes de a T002
+  existir. Qual das duas representações fica, e o que acontece com os
+  consumidores da outra, é decisão de produto, e ela está registrada para uma
+  pessoa tomar.
+
+  Até ela ser tomada, o barril reexporta a `Conta` do ARMAZENAMENTO, que é a
+  que a porta de dados usa, e a da leitura entra pelo caminho dela
+  (`./conta/leitura-de-conta.js`) para nada sumir. Ambiguidade de barril não é
+  o defeito; o defeito é haver duas.
+*/
+export * from './conta/leitura-de-conta.js';
+/* Export EXPLÍCITO ganha do `export *`, e é ele que desfaz a ambiguidade sem
+   esconder nenhum dos dois: `Conta` é a do armazenamento, que é a que a porta
+   de dados usa, e a da leitura sai com o nome dela ao lado. */
+export type { Conta } from './armazenamento/conta.js';
+export type { Conta as ContaDaLeitura } from './conta/leitura-de-conta.js';
+export * from './sessao/registro-de-sessoes.js';
+export * from './autenticacao/autenticar.js';
+export * from './autenticacao/cadeia-de-autenticacao.js';
+export * from './autenticacao/contexto-de-autenticacao.js';
+export * from './autenticacao/erro-de-autenticacao.js';
+export * from './autenticacao/normalizacao-de-credencial.js';
+export * from './autenticacao/prazos-de-sessao.js';
+export * from './autenticacao/verificacao-de-senha.js';
 
 /** As tres portas de que este modulo depende, na forma em que ele as recebe. */
 export interface PortasDeIdentidadeEAcesso {
@@ -48,6 +87,10 @@ export interface PortasDeIdentidadeEAcesso {
  * Cada historia acrescenta aqui a sua operacao, com a declaracao explicita de
  * permissao que o P4 da constituicao exige, e nenhuma antes da propria tarefa.
  * Hoje ha duas coisas: as portas, de T001, e o armazenamento, de T002.
+ *
+ * | operacao | historia | tarefa | permissao exigida |
+ * |---|---|---|---|
+ * | `autenticar` | US-1 | T003 | **nenhuma capacidade**, declarada (ver abaixo) |
  */
 export interface ModuloDeIdentidadeEAcesso {
   readonly nome: 'identidade-e-acesso';
@@ -57,6 +100,28 @@ export interface ModuloDeIdentidadeEAcesso {
    * (T002). Le e grava **somente** pela porta de dados.
    */
   readonly armazenamento: Armazenamento;
+
+  /**
+   * Autentica a conta por login **ou** e-mail e senha (US-1, T003).
+   *
+   * **Permissao exigida: nenhuma, e a declaracao e o ponto.** O P4 manda
+   * declarar permissao explicita em toda operacao exposta e preservar o default
+   * de cada camada *"inclusive quando o default e permissivo"*. Aqui o default e
+   * aberto por regra lida do legado: UC-19 fixa que *"nenhuma capacidade e
+   * exigida para entrar: o papel decide o que a pessoa faz depois, nao se ela
+   * entra"*, e o cenario de paridade da tela de login cobra que *"nenhuma das
+   * duas exige capacidade que o legado nao exige"*. Acrescentar verificacao aqui
+   * fecharia o sistema mais que o legado, que e o erro que esta feature existe
+   * para nao cometer.
+   *
+   * O contexto chega por argumento, e nao pela composicao, porque identidade e
+   * estado de rede sao escopo de REQUISICAO (AD-02, BR-MIGRAR-105).
+   */
+  autenticar(
+    credenciais: CredenciaisDeEntrada,
+    contexto: ContextoDeAutenticacao,
+    opcoes?: OpcoesDeAutenticacao,
+  ): ResultadoDeAutenticacao;
 }
 
 /** O que a instalacao informa ao modulo. Ver `armazenamento/index.ts`. */
@@ -88,5 +153,6 @@ export function criarModuloDeIdentidadeEAcesso(
     // Compor o armazenamento monta nome de tabela e nada mais: nenhuma consulta
     // sai daqui, que e o que `EXT-ORDEM` cobra e o que `modulo.test.ts` afirma.
     armazenamento: criarArmazenamento(portas.dados, opcoes),
+    autenticar,
   };
 }
