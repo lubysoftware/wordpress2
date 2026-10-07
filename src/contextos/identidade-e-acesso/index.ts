@@ -21,6 +21,11 @@
  *   trabalho fora da ordem.
  */
 
+import {
+  criarArmazenamento,
+  type Armazenamento,
+  type OpcoesDeArmazenamento,
+} from './armazenamento/index.js';
 import type {
   PortaDeDados,
   PortaDeEmail,
@@ -28,6 +33,7 @@ import type {
 } from './portas/index.js';
 
 export * from './portas/index.js';
+export * from './armazenamento/index.js';
 
 /** As tres portas de que este modulo depende, na forma em que ele as recebe. */
 export interface PortasDeIdentidadeEAcesso {
@@ -39,14 +45,22 @@ export interface PortasDeIdentidadeEAcesso {
 /**
  * O modulo carregado.
  *
- * A superficie e deliberadamente so isto enquanto T001 e a tarefa fechada: cada
- * historia acrescenta aqui a sua operacao, com a declaracao explicita de
+ * Cada historia acrescenta aqui a sua operacao, com a declaracao explicita de
  * permissao que o P4 da constituicao exige, e nenhuma antes da propria tarefa.
+ * Hoje ha duas coisas: as portas, de T001, e o armazenamento, de T002.
  */
 export interface ModuloDeIdentidadeEAcesso {
   readonly nome: 'identidade-e-acesso';
   readonly portas: PortasDeIdentidadeEAcesso;
+  /**
+   * A forma de armazenamento de conta, perfil, sessao e definicao de papel
+   * (T002). Le e grava **somente** pela porta de dados.
+   */
+  readonly armazenamento: Armazenamento;
 }
+
+/** O que a instalacao informa ao modulo. Ver `armazenamento/index.ts`. */
+export type OpcoesDeIdentidadeEAcesso = OpcoesDeArmazenamento;
 
 /**
  * Compoe o modulo sobre as portas recebidas.
@@ -66,9 +80,13 @@ export interface ModuloDeIdentidadeEAcesso {
  */
 export function criarModuloDeIdentidadeEAcesso(
   portas: PortasDeIdentidadeEAcesso,
+  opcoes: OpcoesDeIdentidadeEAcesso = {},
 ): ModuloDeIdentidadeEAcesso {
   return {
     nome: 'identidade-e-acesso',
     portas,
+    // Compor o armazenamento monta nome de tabela e nada mais: nenhuma consulta
+    // sai daqui, que e o que `EXT-ORDEM` cobra e o que `modulo.test.ts` afirma.
+    armazenamento: criarArmazenamento(portas.dados, opcoes),
   };
 }

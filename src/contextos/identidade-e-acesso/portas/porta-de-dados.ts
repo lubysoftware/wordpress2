@@ -75,6 +75,26 @@ export interface PortaDeDados {
    */
   readonly prefixoDeTabela: string;
 
+  /**
+   * Prefixo base da instalacao (o `$wpdb->base_prefix` do legado).
+   *
+   * **Sao dois prefixos, e nao um, porque o legado tem dois.** Numa rede, o
+   * prefixo do site carrega o identificador dele (`wp_2_`) e e com ele que se
+   * montam as tabelas por site e os nomes de chave; mas `users` e `usermeta`
+   * sao **globais** e ficam sempre no prefixo base (`wp_users`, `wp_usermeta`)
+   * — e a tabela de entidades de `target_data_model.md` as poe em "escopo
+   * global, sempre no prefixo base, sem numero de site". Derivar um do outro
+   * por corte de texto nao funciona: um prefixo base pode, ele mesmo, terminar
+   * em digito e sublinhado.
+   *
+   * Em instalacao de site unico os dois sao iguais, e e por isso que a diferenca
+   * passa despercebida ate a primeira rede.
+   *
+   * Acrescentado em T002, que e a primeira tarefa a montar nome de tabela: T001
+   * declarou a porta antes de existir consulta.
+   */
+  readonly prefixoBaseDeTabela: string;
+
   /** Le linhas. */
   selecionar(consulta: Consulta): readonly LinhaDeResultado[];
 

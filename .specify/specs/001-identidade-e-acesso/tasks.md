@@ -5,7 +5,7 @@
 - [x] **T001** Preparar o esqueleto do módulo de identidade e autorização
       *entrega:* o módulo carrega com as portas de dados, de envio de e-mail e de relógio declaradas, e nenhuma regra de negócio implementada
       *satisfaz:* — (infraestrutura)
-- [ ] **T002** Portar a forma de armazenamento de conta, perfil, sessão e definição de papel
+- [x] **T002** Portar a forma de armazenamento de conta, perfil, sessão e definição de papel
       *entrega:* as estruturas da seção Modelo de dados do plano existem, são lidas e gravadas pela porta de dados, e a matriz de fábrica é carregada com as mesmas concessões que o legado semeia
       *satisfaz:* — (infraestrutura)
       *depende de:* T001

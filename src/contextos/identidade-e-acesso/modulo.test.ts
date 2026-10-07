@@ -34,6 +34,7 @@ interface Toques {
 
 function portasDeTeste(
   prefixoDeTabela = 'wp_',
+  prefixoBaseDeTabela = prefixoDeTabela,
   resultadoDeEnvio: ResultadoDeEnvio = { enviado: true },
 ): { portas: PortasDeIdentidadeEAcesso; toques: Toques } {
   const toques: Toques = {
@@ -45,6 +46,7 @@ function portasDeTeste(
 
   const dados: PortaDeDados = {
     prefixoDeTabela,
+    prefixoBaseDeTabela,
     selecionar(consulta) {
       toques.selecionar.push(consulta);
       return [];
@@ -83,16 +85,21 @@ test('o modulo carrega com as tres portas declaradas', () => {
   assert.equal(modulo.portas.relogio, portas.relogio);
 });
 
-test('nenhuma regra de negocio implementada: a superficie do modulo e so o que T001 entrega', () => {
+test('a superficie do modulo e so o que as tarefas fechadas entregam', () => {
   const { portas } = portasDeTeste();
 
   const modulo = criarModuloDeIdentidadeEAcesso(portas);
 
-  // Quando T002 e as historias entrarem, esta lista cresce NA TAREFA DELAS.
-  // Ela esta aqui para que nenhuma operacao chegue antes da propria tarefa, que
-  // e o que o P4 da constituicao cobra: "toda operacao exposta nova nasce com
-  // declaracao explicita de permissao".
-  assert.deepEqual(Object.keys(modulo).sort(), ['nome', 'portas']);
+  // Esta lista cresce NA TAREFA de cada historia, nunca antes: e o que o P4 da
+  // constituicao cobra, "toda operacao exposta nova nasce com declaracao
+  // explicita de permissao". `armazenamento` entrou em T002, que e a forma de
+  // armazenamento de conta, perfil, sessao e definicao de papel — e nao expoe
+  // operacao de dominio nenhuma.
+  assert.deepEqual(Object.keys(modulo).sort(), [
+    'armazenamento',
+    'nome',
+    'portas',
+  ]);
 });
 
 test('criar o modulo nao toca em porta nenhuma (EXT-ORDEM: nada se resolve no carregamento)', () => {
@@ -108,7 +115,7 @@ test('criar o modulo nao toca em porta nenhuma (EXT-ORDEM: nada se resolve no ca
 
 test('duas composicoes nao compartilham estado (EXT-CONTEXTO, BR-MIGRAR-105)', () => {
   const primeira = portasDeTeste('wp_');
-  const segunda = portasDeTeste('wp_2_');
+  const segunda = portasDeTeste('wp_2_', 'wp_');
 
   const moduloA = criarModuloDeIdentidadeEAcesso(primeira.portas);
   const moduloB = criarModuloDeIdentidadeEAcesso(segunda.portas);
@@ -126,7 +133,7 @@ test('duas composicoes nao compartilham estado (EXT-CONTEXTO, BR-MIGRAR-105)', (
 });
 
 test('a porta de e-mail devolve a falha como valor, sem lancar (D3, CA-5.1, CA-5.2)', () => {
-  const { portas } = portasDeTeste('wp_', {
+  const { portas } = portasDeTeste('wp_', 'wp_', {
     enviado: false,
     motivo: 'transporte indisponivel',
   });
