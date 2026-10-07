@@ -94,6 +94,18 @@ export * from './autenticacao/erro-de-autenticacao.js';
 export * from './autenticacao/normalizacao-de-credencial.js';
 export * from './autenticacao/prazos-de-sessao.js';
 export * from './autenticacao/verificacao-de-senha.js';
+/*
+  US-5 / T011 sai SO pelo barril, e nao como operacao do modulo composto: a
+  tabela *Contratos* de `plan.md` nomeia a operacao *"pedir redefinicao de
+  senha"*, que e de T009 (US-4) e nao existe nesta arvore. O que T011 entrega e
+  o passo 3 de UC-20 — o envio e o relato da falha dele —, e por-lo na
+  composicao o faria parecer a operacao inteira. Quem pegar T009 o compoe.
+
+  🔴 Ele carrega um conflito nao resolvido entre a spec e a analise do legado:
+  ver a PARADA no cabecalho de
+  `recuperacao-de-senha/envio-do-email-de-redefinicao.ts` antes de compor.
+*/
+export * from './recuperacao-de-senha/envio-do-email-de-redefinicao.js';
 
 /** As tres portas de que este modulo depende, na forma em que ele as recebe. */
 export interface PortasDeIdentidadeEAcesso {
