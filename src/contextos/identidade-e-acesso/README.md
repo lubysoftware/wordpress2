@@ -31,6 +31,53 @@ numero sem teste de borda.
 fabrica e T015 decide a autorizacao. Ver o conflito aberto abaixo antes de
 comecar T002.
 
+## O que T003 entrega, e so isso
+
+> *o comportamento de US-1 existe e os critérios CA-1.1, CA-1.2, CA-1.3, CA-1.4,
+> CA-1.5 passam contra o sistema novo*
+> — `.specify/specs/001-identidade-e-acesso/tasks.md`, T003
+
+| arquivo | o que e |
+|---|---|
+| `autenticacao/autenticar.ts` | a operacao de entrada, nos passos de UC-19 e na ordem dele |
+| `autenticacao/cadeia-de-autenticacao.ts` | a cadeia filtravel, com as prioridades inteiras do legado |
+| `autenticacao/erro-de-autenticacao.ts` | os codigos e as mensagens — `ESC-ENUMERACAO`, divida herdada |
+| `autenticacao/verificacao-de-senha.ts` | o ponto de substituicao da conferencia de senha (`EXT-SUBST`) |
+| `autenticacao/normalizacao-de-credencial.ts` | o preambulo: sanitizacao do login, espaco da senha, reconhecimento de e-mail |
+| `autenticacao/contexto-de-autenticacao.ts` | o contexto por requisicao (AD-02) e os ganchos de ligacao tardia |
+| `autenticacao/prazos-de-sessao.ts` | o prazo do token: 2 e 14 dias, valores de fabrica |
+| `conta/leitura-de-conta.ts` | as duas leituras e a escrita que a entrada faz |
+| `sessao/registro-de-sessoes.ts` | abrir sessao, somando ao registro que **acumula** |
+| `autenticacao/autenticar.test.ts` | os cinco critérios, mais as regras que a implementacao quebraria em silencio |
+
+**T003 foi construida com T002 ainda aberta.** `tasks.md` poe T002 antes
+(*depende de: T001, T002*) e a linha dela seguia `[ ]`. Duas consequencias, e as
+duas estao marcadas no codigo com o mesmo aviso:
+
+- `conta/leitura-de-conta.ts` e a **fatia minima** de `AGG-Conta` que a entrada
+  le, escrita contra a `PortaDeDados` e com as colunas de
+  `target_data_model.md`. Nada ali serializa valor, logo nada ali depende do
+  codec de `serialize()` (`DB-SER`).
+- `sessao/registro-de-sessoes.ts` tem o **comportamento** de abrir sessao e
+  deixa a **forma gravada** atras de `ArmazenamentoDeSessoes`, porque a sessao
+  vive em metadado serializado e esse codec e da fronteira do banco.
+
+Quem pegar T002 absorve as duas: a forma e dela, o comportamento de entrada e de
+T003. Nenhum dos dois arquivos decide nada que T002 precise desdecidir.
+
+**Tres numeros entram aqui, e nenhum e novo.** Os prazos do token (2 e 14 dias,
+BR-MIGRAR-025) entram porque abrir sessao exige um instante de expiracao; o teto
+de comprimento da senha entra porque a conferencia o aplica antes de conferir.
+Os tres estao em ponto de configuracao nomeado com o valor de fabrica, como o
+**P6** exige. A **carencia de 12 horas nao esta aqui**: ela nao entra no prazo do
+token, e interpretar onde ela entra e a entrega de T007.
+
+**O que T003 nao faz, de proposito:** nao grava cookie, nao monta nonce e nao
+embute o fragmento de 4 caracteres do hash da senha na chave do HMAC — isso e
+T007 (US-3), e o risco 3 de `plan.md` avisa que e *"o tipo de detalhe que um
+porte perde sem o teste notar"*. Nao conta tentativa e nao bloqueia conta:
+REQ-005 esta em `do-not-rewrite.md` e o **P6** poe limite de taxa fora do nucleo.
+
 ## Por que estas tres portas, e nao outras
 
 `target_architecture.md` **AD-08** conta cinco portas no sistema todo — dados,
@@ -93,8 +140,17 @@ E `wp_destroy_other_sessions()` e `wp_destroy_all_sessions()` entram **definidas
 e sem nenhum chamador**, como estao hoje: BR-MIGRAR-111 cita a resposta 7 —
 *"existir sem ser chamada e parte do que se clona"*.
 
-## O que ninguem decidiu, e que T001 nao decidiu tampouco
+## O que ninguem decidiu, e que nem T001 nem T003 decidiram tampouco
 
+0. **Quantos codigos de erro de entrada sao.** `plan.md` (secao Contratos) e
+   BR-MIGRAR-110 dizem **quatro** codigos distintos *"que nomeiam o login ou o
+   e-mail tentado"*. A cadeia que os mesmos documentos descrevem tem dois
+   autenticadores — por login e por e-mail (UC-19, *"Login por e-mail em lugar do
+   login"*) — e os codigos distintos que eles mais a verificacao de spam
+   produzem sao sete. T003 **nao escolheu**: implementou os codigos que a cadeia
+   emite e deixou a divergencia de contagem registrada em
+   `autenticacao/erro-de-autenticacao.ts`, para a conferencia contra o oraculo
+   (`ESC-ORACULO`) fechar a conta.
 1. **REQ-017 e REQ-018 contra a resposta 5** — a matriz de fabrica e portada com
    61 concessoes ou com 50? A spec registra os dois lados como *"conflito
    registrado, nao resolvido"*, e o risco 1 de `plan.md` avisa que comecar pelo

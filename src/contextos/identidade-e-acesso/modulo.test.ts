@@ -83,16 +83,20 @@ test('o modulo carrega com as tres portas declaradas', () => {
   assert.equal(modulo.portas.relogio, portas.relogio);
 });
 
-test('nenhuma regra de negocio implementada: a superficie do modulo e so o que T001 entrega', () => {
+test('a superficie do modulo tem exatamente as operacoes das tarefas fechadas', () => {
   const { portas } = portasDeTeste();
 
   const modulo = criarModuloDeIdentidadeEAcesso(portas);
 
-  // Quando T002 e as historias entrarem, esta lista cresce NA TAREFA DELAS.
-  // Ela esta aqui para que nenhuma operacao chegue antes da propria tarefa, que
-  // e o que o P4 da constituicao cobra: "toda operacao exposta nova nasce com
-  // declaracao explicita de permissao".
-  assert.deepEqual(Object.keys(modulo).sort(), ['nome', 'portas']);
+  // Esta lista cresce NA TAREFA DE CADA HISTORIA. Ela esta aqui para que
+  // nenhuma operacao chegue antes da propria tarefa, que e o que o P4 da
+  // constituicao cobra: "toda operacao exposta nova nasce com declaracao
+  // explicita de permissao".
+  //
+  // T001: nenhuma operacao. T003 (US-1): `autenticar`, com a permissao
+  // declarada na interface do modulo — nenhuma capacidade, porque UC-19 fixa
+  // que o papel decide o que a pessoa faz depois, nao se ela entra.
+  assert.deepEqual(Object.keys(modulo).sort(), ['autenticar', 'nome', 'portas']);
 });
 
 test('criar o modulo nao toca em porta nenhuma (EXT-ORDEM: nada se resolve no carregamento)', () => {
