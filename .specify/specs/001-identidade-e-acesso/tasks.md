@@ -13,7 +13,7 @@
       *entrega:* o comportamento de US-1 existe e os critérios CA-1.1, CA-1.2, CA-1.3, CA-1.4, CA-1.5 passam contra o sistema novo
       *satisfaz:* CA-1.1, CA-1.2, CA-1.3, CA-1.4, CA-1.5
       *depende de:* T001, T002
-- [ ] **T004** [P] Testes de US-1
+- [x] **T004** [P] Testes de US-1
       *entrega:* 8 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-001-1, UT-001-2, UT-001-3, UT-001-4, UT-001-5, UT-001-6, UT-001-7, UT-001-8), com o mesmo dado de entrada, ação e resultado esperado. Os 2 testes de regra de negócio (UT-001-7, UT-001-8) entram na mesma suíte.
       *satisfaz:* CA-1.1, CA-1.2, CA-1.3, CA-1.4, CA-1.5
       *depende de:* T003
