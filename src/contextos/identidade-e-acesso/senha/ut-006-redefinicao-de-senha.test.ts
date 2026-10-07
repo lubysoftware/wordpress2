@@ -8,7 +8,7 @@
  * | caso | o que afirma | fonte |
  * |---|---|---|
  * | `UT-006-1` | CA-4.1 — a chave e guardada com *hash* na conta, e o valor em claro so existe no e-mail enviado | `spec.md`, US-4 · UC-20 passos 2 e 3 |
- * | `UT-006-2` | CA-4.2 — chave com mais de 24 horas e recusada com aviso de prazo vencido | `spec.md`, US-4 · `PT-006` |
+ * | `UT-006-2` | CA-4.2 — chave com mais de 24 horas e recusada com aviso de prazo vencido e oferta de pedir outra | `spec.md`, US-4 · `PT-006` |
  * | `UT-006-3` | CA-4.3 — um pedido novo antes do prazo substitui a chave anterior, que deixa de valer | `spec.md`, US-4 · UC-20, *Pedido repetido antes do prazo* |
  * | `UT-006-4` | CA-4.4 — gravar a senha nova invalida a chave usada | `spec.md`, US-4 · UC-20 passo 6 e pos-condicoes |
  * | `UT-006-5` | CA-4.5 — chave invalida e recusada com erro generico | `spec.md`, US-4 · `SCR-003`, transicao `error=invalidkey` |
@@ -16,11 +16,33 @@
  *
  * ---
  *
- * ## ⚠️ Tres coisas desta tarefa que ninguem resolveu, e que esta suite nao resolve
+ * ## Como esta suite chama US-4
  *
- * **1. `backlog/tests.md` nao existe nesta arvore.** `tasks.md` manda escrever os
- * seis testes *"com o mesmo dado de entrada, acao e resultado esperado"* do caso
- * registrado em `../../../backlog/tests.md`, e esse arquivo **nao veio no
+ * Pelo contrato que **T009 entregou**, importado estaticamente. As duas
+ * operacoes sao `solicitarRedefinicaoDeSenha` (passos 1 a 3 de UC-20) e
+ * `redefinirSenha` (passos 4 a 7), cada uma com o contexto proprio dela —
+ * `ContextoDoPedidoDeRedefinicao` e `ContextoDaRedefinicaoDeSenha`. As quatro
+ * operacoes de dados chegam pela reducao `ContasParaRedefinicao`, e a geracao da
+ * chave (`gerador`), o resumo dela (`hashDaChave`) e a montagem do e-mail
+ * (`montagemDoEmail`) chegam por argumento porque o pacote **nao registra** nem
+ * o alfabeto da chave, nem o algoritmo do resumo, nem um literal do e-mail — ver
+ * os cabecalhos de `../redefinicao-de-senha/chave-de-redefinicao.ts` e de
+ * `../redefinicao-de-senha/contexto-de-redefinicao.ts`.
+ *
+ * **O que os casos leem do resultado e o codigo do erro, nao vocabulario.**
+ * `invalid_key` e `expired_key` levam a telas diferentes
+ * (`DESTINO_POR_CODIGO_DE_CHAVE`), e e **so** por ele que o legado as distingue
+ * (`$user->get_error_code() === 'expired_key'`). E e por isso que "generico"
+ * (CA-4.5) e afirmavel pelo avesso: as recusas genericas tem de ser **iguais
+ * entre si**.
+ *
+ * ---
+ *
+ * ## Duas coisas desta tarefa que ninguem resolveu, e que esta suite nao resolve
+ *
+ * **1. ⚠️ `backlog/tests.md` nao existe nesta arvore.** `tasks.md` manda escrever
+ * os seis testes *"com o mesmo dado de entrada, acao e resultado esperado"* do
+ * caso registrado em `../../../backlog/tests.md`, e esse arquivo **nao veio no
  * pacote**: nem ele, nem a pasta `backlog/` — `UT-006-1` aparece em `tasks.md` e
  * em mais lugar nenhum. `parity_specs.md` descreve o catalogo de fora (*"os **985
  * testes** de `../backlog/tests.md` sao **especificacao, nao evidencia**"*) e e a
@@ -39,95 +61,61 @@
  * `parity_tests/06-autenticacao-e-sessao.feature`, e a origem esta dita no caso;
  * o que nao tem origem declarada nao e cobrado.
  *
- * **2. T009 nao estava na arvore quando esta suite foi escrita.** `tasks.md` poe
- * *"T010 depende de T009"*, e no commit em que esta tarefa comecou a linha de
- * T009 seguia `[ ]`, nenhum arquivo de US-4 existia e a worktree de T009 estava
- * no mesmo commit que esta — as duas tarefas foram disparadas na mesma onda,
- * apesar da dependencia declarada. Entao a superficie de US-4 e resolvida **em
- * execucao** (ver {@link resolverSuperficieDeUS4}), com o contrato **declarado
- * aqui em vez de importado**, que e a mesma costura que T006 usou quando T005
- * nao estava na arvore (ver `../sessao/us-2.test.ts`). Duas consequencias, e
- * nenhuma e escolha desta tarefa:
- *
- * - **enquanto T009 nao entrar, os seis casos falham**, e falham *altos*, dizendo
- *   o nome do que falta. Isto e o estado correto de uma suite cuja implementacao
- *   nao chegou — nao e divergencia de comportamento, e nao e defeito desta
- *   suite. Com `import` estatico a arvore inteira deixaria de compilar e levaria
- *   embora tambem as suites de T002, T003, T005 e T007, que nada tem a ver com
- *   esta tarefa;
- * - a costura com T009 esta **num bloco so**, de proposito: se a forma que T009
- *   entregou for outra, muda-se aquele bloco e os seis casos ficam de pe.
- *
- * **3. O instante exato da borda das 24 horas nao esta fixado no pacote, e esta
- * suite nao o escolhe.** `PT-006` cobra as duas pontas sem nomear o meio — *"o
- * tempo avanca ate um instante antes do prazo → a chave e aceita"* e *"o tempo
- * avanca alem do prazo → a chave e recusada"* —, e nenhum documento diz o que
- * acontece no instante **exatamente** igual a emissao mais 24 horas. Os casos
- * afirmam `emissao + 24 h − 1` aceita e `emissao + 24 h + 1` recusa, que e o que
- * o pacote fixa, e **nao** afirmam o instante do meio. Fecha contra o oraculo de
- * `ESC-ORACULO` (BR-MIGRAR-116), que nesta arvore nao existe, e **nao** e decisao
- * de quem escreve teste.
+ * **2. ⚠️ O instante exato da borda das 24 horas nao esta fixado no pacote, e
+ * esta suite nao o escolhe.** `PT-006` cobra as duas pontas sem nomear o meio —
+ * *"o tempo avanca ate um instante antes do prazo → a chave e aceita"* e *"o
+ * tempo avanca alem do prazo → a chave e recusada"* —, e nenhum documento diz o
+ * que acontece no instante **exatamente** igual a emissao mais 24 horas. Os
+ * casos afirmam `emissao + 24 h − 1` aceita e `emissao + 24 h + 1` recusa, que e
+ * o que o pacote fixa, e **nao** afirmam o instante do meio.
+ * `chave-de-redefinicao.ts` registra pelo lado da implementacao que o ramo
+ * escrito e o estrito e que a borda da sessao compara pelo outro lado; o
+ * desempate fecha contra o oraculo de `ESC-ORACULO` (BR-MIGRAR-116), que nesta
+ * arvore nao existe, e **nao** e decisao de quem escreve teste.
  *
  * ---
  *
  * ## O que esta suite nao afirma, de proposito
  *
- * - **A tela, as mensagens literais e as transicoes.** `SCR-002` e `SCR-003` tem
- *   os 15 e os 8 literais em ingles e as transicoes
- *   `?action=lostpassword&error=expiredkey` e `&error=invalidkey`, e eles sao
- *   contrato de **borda HTTP**, que nao e desta feature. O que os casos cobram do
- *   dominio e o que a tela precisa para escolher a transicao: que a recusa por
- *   prazo seja **distinguivel** da recusa generica. A *"oferta de pedir outra"* de
- *   CA-4.2 e o `lostpassword` da mesma transicao — tela, nao dominio.
+ * - **A tela, as transicoes e a borda HTTP.** `SCR-002` e `SCR-003` tem os
+ *   literais e as transicoes `?action=lostpassword&error=expiredkey` e
+ *   `&error=invalidkey`, e montar a URL absoluta e da borda. O que os casos
+ *   cobram do dominio e o codigo e a mensagem que a borda recebe.
  * - **O comprimento e o alfabeto da chave.** Nenhum documento do pacote os
  *   registra, e o P6 recusa numero que o legado nao tem. A chave desta suite vem
- *   de um gerador injetado, com valor conhecido, e nenhum caso afirma tamanho.
- * - **O formato do *hash* da chave.** O pacote diz duas coisas, e sao as duas que
- *   os casos cobram: a chave e *"guardada com hash"* (UC-20) e a coluna guarda *"o
- *   instante prefixado"* (`plan.md`, Modelo de dados; `../armazenamento/conta.ts`).
- *   Qual funcao de resumo, com que separador, fecha contra o oraculo.
- * - **A falha de envio de e-mail.** E US-5 (CA-5.1 a CA-5.3), tarefas T011 e T012.
- *   A caixa de saida desta suite sempre aceita: um caso de falha aqui invadiria a
- *   historia seguinte.
+ *   do gerador injetado, com valor conhecido, e nenhum caso afirma tamanho.
+ * - **Os bytes do resumo da chave e do *hash* da senha.** O pacote fixa que a
+ *   chave e *"guardada com hash"* (UC-20) e que a coluna guarda *"o instante
+ *   prefixado"* (`plan.md`, Modelo de dados), e e so isso que os casos cobram;
+ *   os bytes fecham contra o oraculo.
+ * - **As duas recusas de senha.** "So espaco" e "senhas diferentes" sao do fluxo
+ *   de gravacao e estao afirmadas na suite de T009; nenhum dos seis casos daqui
+ *   e sobre elas, e por isso todos enviam `pass2` igual a `pass1`.
+ * - **A falha de envio de e-mail.** E US-5 (CA-5.1 a CA-5.3), tarefas T011 e
+ *   T012. A caixa de saida desta suite sempre aceita: um caso de falha aqui
+ *   invadiria a historia seguinte.
  * - **O limite de tentativa de chave.** O legado nao tem nenhum
  *   (BR-MIGRAR-112: *"nenhuma superficie de entrada tem limite de taxa"*), e
- *   inventa-lo cai em [Nao negociavel] da constituicao.
+ *   inventa-lo cai em *Nao negociavel* da constituicao.
  */
 
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 
-import type {
-  MensagemDeEmail,
-  PortaDeEmail,
-  PortaDeRelogio,
-} from '../portas/index.js';
-import type {
-  CamposDeConta,
-  Conta as ContaArmazenada,
-  ContaNova,
-  RepositorioDeContas,
-} from '../armazenamento/conta.js';
-import { DATA_SENTINELA } from '../armazenamento/conta.js';
+import type { MensagemDeEmail, PortaDeEmail } from '../portas/index.js';
 import type {
   Conta as ContaDaLeitura,
   LeituraDeConta,
 } from '../conta/leitura-de-conta.js';
-import type { RemocaoDeAcentos } from '../autenticacao/normalizacao-de-credencial.js';
-import type { EstadoDaRede } from '../autenticacao/contexto-de-autenticacao.js';
-import { REDE_INATIVA } from '../autenticacao/contexto-de-autenticacao.js';
 import {
-  autenticar,
+  REDE_INATIVA,
   type ContextoDeAutenticacao,
-} from '../index.js';
-import {
-  SEGUNDOS_POR_HORA,
-  type PrazosDoTokenDeSessao,
-} from '../autenticacao/prazos-de-sessao.js';
+} from '../autenticacao/contexto-de-autenticacao.js';
+import { autenticar } from '../autenticacao/autenticar.js';
+import { SEGUNDOS_POR_HORA } from '../autenticacao/prazos-de-sessao.js';
 import {
   criarVerificadorDeSenhaDoNucleo,
-  preProcessarSenhaParaBcrypt,
-  type PrimitivaDeBcrypt,
   type VerificadorDeSenha,
 } from '../autenticacao/verificacao-de-senha.js';
 import {
@@ -135,325 +123,35 @@ import {
   type ArmazenamentoDeSessoes,
   type MapaDeSessoes,
 } from '../sessao/registro-de-sessoes.js';
-
-/*
-  ── O CONTRATO DE US-4, COMO ESTA SUITE O COBRA ─────────────────────────────
-
-  Declarado aqui, e nao importado, pelo motivo do item 2 do cabecalho. Cada peca
-  abaixo vem de um documento do pacote, e a origem esta dita no comentario.
-
-  A tabela *Contratos* de `plan.md` declara **duas** operacoes para esta
-  historia, e sao estas duas que os casos exercitam:
-
-  | operacao | entrada | saida | erros |
-  |---|---|---|---|
-  | pedir redefinicao de senha | identificador | confirmacao de envio, sempre com a mesma forma | falha de envio de e-mail, que e estado reportavel e nao excecao |
-  | redefinir senha | chave e senha nova | identidade com senha trocada e chave apagada | chave vencida (24 h), chave ja usada, senha recusada |
-
-  `target_domain_model.md` nomeia os comandos de `AGG-Conta` que as sustentam —
-  `solicitarResetDeSenha`, `consumirChaveDeReset` e `trocarSenha` —, e
-  BR-MIGRAR-024 aponta `U4` para `VO-ChaveDeAtivacao` (24 h) mais
-  `AGG-Conta`.`consumirChaveDeReset`.
-*/
-
-/**
- * O que *pedir redefinicao de senha* recebe.
- *
- * Um campo, porque a entrada declarada em `plan.md` e um: o **identificador**.
- * `SCR-002` o chama `user_login` e `UC-20` passo 1 e literal sobre ele aceitar os
- * dois caminhos — *"informa o login **ou** o e-mail da conta"*.
- */
-interface PedidoDeRedefinicao {
-  readonly identificador: string;
-}
-
-/**
- * O que *redefinir senha* recebe.
- *
- * `plan.md` declara *"chave e senha nova"*; o `login` entra porque a chave nao
- * viaja sozinha em lugar nenhum do fluxo — `SCR-003` tem os dois pontos de
- * interpolacao, `{{rp_key}}` e `{{rp_login}}`, e os campos `rp_key` e `pass1`. Os
- * nomes de campo daquela tela sao contrato **externo** (familia C, modo literal),
- * e a correspondencia fica registrada para que ninguem a invente:
- *
- * | campo de `SCR-003` | aqui |
- * |---|---|
- * | `rp_key` | `chave` |
- * | `rp_login` | `login` |
- * | `pass1` | `senhaNova` |
- */
-interface DadosDaRedefinicao {
-  readonly chave: string;
-  readonly login: string;
-  readonly senhaNova: string;
-}
-
-/**
- * O contexto das duas operacoes: o que elas tocam, e nada mais.
- *
- * A forma espelha `ContextoDeAutenticacao` (T003), que e o contexto que esta
- * arvore ja tem para a mesma historia de identidade — relogio, contas, sessoes,
- * verificador de senha, remocao de acentos, estado de rede e as URLs da tela —
- * mais as tres coisas que **so** US-4 precisa: a porta de e-mail, o gerador da
- * chave e o lado de **escrita** do *hash* de senha.
- *
- * Campo que a implementacao de T009 nao conheca e simplesmente ignorado; campo
- * que ela exija e esta suite nao ofereca aparece como falha com nome. Os tres
- * ultimos sao o motivo de este contexto nao ser o de T003:
- *
- * - `email`: AD-08 poe o envio entre as 5 bordas com porta, e `plan.md` registra
- *   que *"o e-mail carrega UC-20 (recuperar senha)"*. Falha de envio e **valor**,
- *   nunca excecao (`../portas/porta-de-email.ts`).
- * - `gerarChave`: o legado gera a chave por funcao propria, e o manifest de
- *   paridade fixa `seedRandom: 42` justamente porque valor sorteado nao se
- *   compara. Injetar o gerador e o que torna CA-4.1 conferivel: sem conhecer a
- *   chave em claro, nenhum teste pode afirmar que ela **nao** esta no banco.
- * - `hashDeSenha`: `PrimitivaDeBcrypt`, como T003 a declarou, tem **so**
- *   `verificar` — T003 nunca gravou senha. US-4 grava, e por isso o lado de
- *   escrita entra aqui. A lacuna e de T003 e esta registrada, nao resolvida.
- */
-interface ContextoDeRedefinicao {
-  readonly relogio: PortaDeRelogio;
-  readonly contas: ContasDeUS4;
-  readonly email: PortaDeEmail;
-  readonly sessoes: ArmazenamentoDeSessoes;
-  readonly verificadorDeSenha: VerificadorDeSenha;
-  /** O lado de escrita do *hash*: senha em claro para o valor gravavel. */
-  readonly hashDeSenha: (senha: string) => string;
-  /** A chave em claro de um pedido. Ponto de substituicao, nao sorteio solto. */
-  readonly gerarChave: () => string;
-  readonly removerAcentos: RemocaoDeAcentos;
-  readonly rede: EstadoDaRede;
-  /** A URL do pedido de senha perdida (`SCR-002`), que e da tela. */
-  readonly urlDeSenhaPerdida: string;
-  /** A URL da tela de redefinicao (`SCR-003`), onde o link do e-mail aponta. */
-  readonly urlDeRedefinicao: string;
-  readonly urlDoPainel: string;
-  readonly prazosDoToken?: PrazosDoTokenDeSessao;
-}
-
-/**
- * A conta, atras dos **dois** contratos de conta que esta arvore ja tem.
- *
- * `LeituraDeConta` e de T003 (ler por login, ler por e-mail, apagar a chave de
- * ativacao) e `RepositorioDeContas` e de T002 (as leituras e o `atualizar` por
- * campos). Os dois existem, os dois sao documentados, e **nenhum nome colide**:
- * o bloco de merge de `../index.ts` registra que as duas representacoes de conta
- * convivem nesta arvore sem que ninguem tenha decidido qual fica, e decidir isso
- * nao e tarefa de uma suite de teste.
- *
- * Servir os dois e o que torna esta suite independente da escolha de T009: a
- * conta e **uma** linha em memoria, e o efeito e o mesmo caminho por onde ele
- * tenha escrito — `atualizar(id, { chaveDeAtivacao })`,
- * `atualizar(id, { senhaHash })` ou `apagarChaveDeAtivacao(id)` cobrem as tres
- * escritas que `UC-20` tem.
- */
-interface ContasDeUS4 extends LeituraDeConta, RepositorioDeContas {}
-
-/**
- * O que as duas operacoes devolvem.
- *
- * `unknown` **de proposito**: esta suite nao cobra a forma do relato, porque
- * nenhum documento do pacote a fixa. O que ela cobra e o **efeito observavel** —
- * o que ficou gravado na conta, o que saiu pela porta de e-mail, o que
- * continuou valendo — que e o critério de paridade desta area (*"efeito no
- * banco"*, Decisao 2 de `parity_specs.md`). A unica coisa que os casos leem do
- * relato e se ele **nomeia** o vencimento, porque CA-4.2 exige que a recusa por
- * prazo seja distinguivel da generica de CA-4.5; e isso e lido por vocabulario,
- * nao por campo (ver {@link NOMEIA_VENCIMENTO}).
- */
-type RelatoDeUS4 = unknown;
-
-/** As duas operacoes de US-4 que estes seis testes exercitam. */
-interface SuperficieDeUS4 {
-  pedirRedefinicao(
-    pedido: PedidoDeRedefinicao,
-    contexto: ContextoDeRedefinicao,
-  ): RelatoDeUS4;
-  redefinirSenha(
-    dados: DadosDaRedefinicao,
-    contexto: ContextoDeRedefinicao,
-  ): RelatoDeUS4;
-}
-
-/*
-  ── ONDE A IMPLEMENTACAO DE US-4 E PROCURADA ────────────────────────────────
-
-  Os caminhos sao **variaveis**, e nao literais num `import`, exatamente para que
-  a ausencia de T009 seja uma falha de teste com nome em vez de uma falha de
-  compilacao da arvore inteira (item 2 do cabecalho).
-
-  O barril vem primeiro porque e por ele que cada tarefa publicou a sua operacao
-  ate aqui — T003, T005 e T007 todas acrescentaram `export *` a `../index.ts`.
-  Os outros caminhos cobrem a hipotese de T009 ter publicado so no arquivo dela.
-*/
-const MODULOS_DE_US4: readonly string[] = [
-  '../index.js',
-  './redefinicao-de-senha.js',
-  '../senha/redefinicao-de-senha.js',
-  '../conta/redefinicao-de-senha.js',
-  '../autenticacao/redefinicao-de-senha.js',
-];
-
-/**
- * Os nomes aceitos para *pedir redefinicao de senha*.
- *
- * O primeiro e o nome da operacao na tabela *Contratos* de `plan.md`; os outros
- * sao os nomes que o **mesmo pacote** usa para ela em outro documento —
- * `solicitarResetDeSenha` e o comando de `AGG-Conta` em
- * `target_domain_model.md`. A lista existe porque o pacote nomeia a operacao
- * duas vezes, de dois jeitos, e nao porque esta suite tolere qualquer nome: a
- * exigencia dos casos esta nas assercoes, nao no simbolo.
- */
-const NOMES_DO_PEDIDO = [
-  'pedirRedefinicaoDeSenha',
-  'solicitarRedefinicaoDeSenha',
-  'solicitarResetDeSenha',
-  'pedirRedefinicao',
-] as const;
-
-/**
- * Os nomes aceitos para *redefinir senha*.
- *
- * ⚠️ `consumirChaveDeReset` **nao** esta na lista, e a ausencia e deliberada: em
- * `target_domain_model.md` ele e o comando que **consome a chave**, e `trocarSenha`
- * e o que **grava a senha** — dois comandos, nao um. Se T009 entregou o par em vez
- * da operacao inteira que `plan.md` declara, e **neste bloco** que os dois se
- * compoem, na ordem dos passos 5 e 6 de `UC-20` (conferir a chave e o prazo;
- * depois gravar a senha e invalidar a chave). Compor por conta propria aqui seria
- * esta suite implementando a ordem que `UC-20` poe no sistema.
- */
-const NOMES_DA_REDEFINICAO = [
-  'redefinirSenha',
-  'redefinirSenhaComChave',
-] as const;
-
-/**
- * Os nomes aceitos para o ponto de configuracao nomeado do prazo da chave.
- *
- * ⚠️ **Nenhum documento do pacote nomeia esta constante** — o pacote da o valor
- * (*"a chave de reset de senha vale 24 horas"*, BR-MIGRAR-024) e o P6 da
- * constituicao exige que ele more *"num ponto de configuracao nomeado, com o
- * valor de fabrica do legado"*. Por isso `UT-006-6` afirma o valor **se** o ponto
- * existir com um destes nomes, e afirma o efeito da borda de qualquer jeito.
- */
-const NOMES_DO_PRAZO = [
-  'PRAZO_DA_CHAVE_DE_REDEFINICAO_DE_FABRICA',
-  'PRAZO_DE_FABRICA_DA_CHAVE_DE_REDEFINICAO',
-  'PRAZO_DA_CHAVE_DE_REDEFINICAO',
-  'PRAZO_DA_CHAVE_DE_RESET_DE_FABRICA',
-  'PRAZO_DA_CHAVE_DE_RESET',
-] as const;
-
-type Resolucao =
-  | {
-      readonly disponivel: true;
-      readonly us4: SuperficieDeUS4;
-      readonly prazoDeclarado: number | null;
-    }
-  | { readonly disponivel: false; readonly faltando: readonly string[] };
-
-/**
- * Resolve a superficie de US-4 e **confere a forma dela** antes de devolver.
- *
- * A conferencia por `typeof` e o que autoriza a conversao do fim: o que chega de
- * um `import` dinamico e `any`, e so depois de as duas operacoes estarem la, e
- * serem funcao, a conversao deixa de ser aposta. Operacao que falta volta em
- * `faltando` com **todos** os nomes que foram procurados, que e o que o teste
- * imprime — quem for reconciliar precisa saber o que foi pedido, nao so que
- * faltou algo.
- */
-async function resolverSuperficieDeUS4(): Promise<Resolucao> {
-  const encontrado: Record<string, unknown> = {};
-
-  for (const caminho of MODULOS_DE_US4) {
-    let modulo: Record<string, unknown>;
-    try {
-      modulo = (await import(caminho)) as Record<string, unknown>;
-    } catch {
-      continue;
-    }
-    for (const [nome, valor] of Object.entries(modulo)) {
-      if (!(nome in encontrado)) {
-        encontrado[nome] = valor;
-      }
-    }
-  }
-
-  function funcao(nomes: readonly string[]): unknown {
-    return nomes.map((nome) => encontrado[nome]).find((valor) => typeof valor === 'function');
-  }
-
-  const pedido = funcao(NOMES_DO_PEDIDO);
-  const redefinicao = funcao(NOMES_DA_REDEFINICAO);
-
-  const faltando: string[] = [];
-  if (pedido === undefined) {
-    faltando.push(`pedir redefinicao de senha (procurado como: ${NOMES_DO_PEDIDO.join(', ')})`);
-  }
-  if (redefinicao === undefined) {
-    faltando.push(`redefinir senha (procurado como: ${NOMES_DA_REDEFINICAO.join(', ')})`);
-  }
-  if (faltando.length > 0) {
-    return { disponivel: false, faltando };
-  }
-
-  const prazo = NOMES_DO_PRAZO.map((nome) => encontrado[nome]).find(
-    (valor) => typeof valor === 'number',
-  );
-
-  return {
-    disponivel: true,
-    us4: {
-      pedirRedefinicao: pedido as SuperficieDeUS4['pedirRedefinicao'],
-      redefinirSenha: redefinicao as SuperficieDeUS4['redefinirSenha'],
-    },
-    prazoDeclarado: typeof prazo === 'number' ? prazo : null,
-  };
-}
-
-const RESOLUCAO = await resolverSuperficieDeUS4();
-
-/** A superficie, ou uma falha que diz o que falta e de quem e a tarefa. */
-function us4(): SuperficieDeUS4 {
-  if (!RESOLUCAO.disponivel) {
-    assert.fail(
-      `US-4 nao esta nesta arvore: faltam ${RESOLUCAO.faltando.join(' · ')}. ` +
-        'Estes seis testes sao T010, e `tasks.md` poe "T010 depende de T009" — ' +
-        'o comportamento de US-4 e entrega de T009. Esta falha e a dependencia ' +
-        'declarada, nao divergencia de comportamento: ver o item 2 do cabecalho ' +
-        'deste arquivo.',
-    );
-  }
-  return RESOLUCAO.us4;
-}
-
-/**
- * Chama uma operacao de US-4 e cobra que a falha venha como **valor**.
- *
- * Os contratos de `plan.md` chamam a falha desta feature de *"estado reportavel
- * e nao excecao"*, e `../portas/porta-de-email.ts` repete o motivo observavel:
- * quem chama decide o que fazer. Uma excecao aqui nao e so inconveniente para o
- * teste — e o contrato trocado.
- *
- * Falha de assercao passa direto: ela e desta suite, nao da operacao, e
- * reetiqueta-la esconderia o que de fato quebrou.
- */
-function chamar(acao: () => RelatoDeUS4): RelatoDeUS4 {
-  try {
-    return acao();
-  } catch (erro) {
-    if (erro instanceof assert.AssertionError) {
-      throw erro;
-    }
-    assert.fail(
-      'US-4 lancou em vez de devolver estado: ' +
-        `${erro instanceof Error ? `${erro.name}: ${erro.message}` : String(erro)}. ` +
-        'Os contratos de `plan.md` chamam a falha desta feature de "estado ' +
-        'reportavel e nao excecao".',
-    );
-  }
-}
+import {
+  lerChaveGravada,
+  PRAZO_DA_CHAVE_DE_REDEFINICAO_DE_FABRICA,
+  SEPARADOR_DO_INSTANTE,
+  type GeradorDeChaveDeRedefinicao,
+  type HashDeChaveDeRedefinicao,
+} from '../redefinicao-de-senha/chave-de-redefinicao.js';
+import type { ContasParaRedefinicao } from '../redefinicao-de-senha/contas-para-redefinicao.js';
+import type {
+  ContextoDaRedefinicaoDeSenha,
+  ContextoDoPedidoDeRedefinicao,
+  MontagemDoEmailDeRedefinicao,
+} from '../redefinicao-de-senha/contexto-de-redefinicao.js';
+import {
+  DESTINO_POR_CODIGO_DE_CHAVE,
+  MENSAGENS_DA_TELA_DE_PEDIDO,
+  MENSAGENS_DA_TELA_DE_REDEFINICAO,
+  primeiroCodigoDeErroDeRedefinicao,
+  type ErroDeRedefinicao,
+} from '../redefinicao-de-senha/erro-de-redefinicao.js';
+import { criarGeracaoDeHashDeSenhaDoNucleo } from '../redefinicao-de-senha/geracao-de-hash-de-senha.js';
+import {
+  solicitarRedefinicaoDeSenha,
+  type ResultadoDoPedidoDeRedefinicao,
+} from '../redefinicao-de-senha/pedido-de-redefinicao.js';
+import {
+  redefinirSenha,
+  type ResultadoDaRedefinicao,
+} from '../redefinicao-de-senha/redefinir-senha.js';
 
 /*
   ── O DADO DE ENTRADA DOS SEIS CASOS ────────────────────────────────────────
@@ -500,212 +198,165 @@ const CHAVES_EMITIDAS: readonly string[] = [
 /** Uma chave que nunca foi emitida por pedido nenhum (CA-4.5). */
 const CHAVE_NUNCA_EMITIDA = 'chaveQueNinguemEmitiu';
 
-/**
- * O vocabulario pelo qual um relato de recusa **nomeia o vencimento**.
- *
- * Vem do pacote, nao de gosto: `SCR-003` tem a transicao
- * `?action=lostpassword&error=expiredkey` e `SCR-002` tem o literal *"Your
- * password reset link **has expired**"*, contra `error=invalidkey` e *"appears to
- * be **invalid**"*. CA-4.2 e CA-4.5 exigem que as duas recusas sejam
- * distinguiveis, e e essa distincao — e so ela — que os casos leem do relato.
- *
- * ⚠️ O contrario **nao** e cobrado: a recusa por prazo pode nomear tambem a
- * invalidez (no legado o codigo distingue e a mensagem do erro, nessa camada, nao
- * distingue), e um caso que exigisse o contrario afirmaria mais do que o pacote
- * registra.
- */
-const NOMEIA_VENCIMENTO = /expir|vencid/i;
-
-/** Como o relato chega a uma assercao de vocabulario. */
-function marcadoresDe(relato: RelatoDeUS4): string {
-  if (relato instanceof Error) {
-    return `${relato.name}: ${relato.message}`;
-  }
-  try {
-    return JSON.stringify(relato) ?? String(relato);
-  } catch {
-    return String(relato);
-  }
-}
-
 /*
-  ── O HASH DE SENHA DESTA SUITE ─────────────────────────────────────────────
+  ── AS DUAS PRIMITIVAS DE RESUMO, E POR QUE ELAS RESUMEM DE VERDADE ─────────
 
-  A primitiva real e adaptador: `plan.md` escolhe bcrypt por biblioteca nativa e
-  AD-04 poe essa borda em `adaptadores/`. O que esta suite monta e a **forma** do
-  hash do legado — prefixo `$wp`, pre-processamento HMAC-SHA384 em base64,
-  bcrypt —, com as duas pontas, porque US-4 **grava** senha e nao so a confere.
+  As duas sao borda — `chave-de-redefinicao.ts` poe o resumo da chave entre os 42
+  pontos de substituicao de BR-MIGRAR-103, e `plan.md` poe o bcrypt em
+  `adaptadores/` por AD-04 —, e o pacote **nao nomeia o algoritmo de nenhuma das
+  duas**. O que esta suite monta e a **propriedade** de que os casos dependem, e
+  nao os bytes: um resumo que nao devolve a entrada, e que confere so contra ela.
 
-  O corpo embute o valor pre-processado em hexadecimal, e isso nao e decoracao:
-  e o que permite a mesma primitiva gerar e verificar o hash de **qualquer**
-  senha, o que um simulado com senha fixa nao faria. O comprimento resultante
-  passa do teto de 32 caracteres do ramo de resumo antigo, que e o que garante que
-  o verificador do nucleo escolha o ramo de bcrypt, como numa instalacao nova.
+  Por isso o resumo da chave **resume de verdade**: um simulado que devolvesse a
+  chave decorada passaria no teste de formato e esconderia justamente o que
+  CA-4.1 cobra.
 */
 
-function corpoDoHash(valorPreProcessado: string): string {
-  return `$2y$10$${Buffer.from(valorPreProcessado, 'utf8').toString('hex')}`;
+/**
+ * O resumo da chave.
+ *
+ * Sem o separador do instante no resultado, de proposito: o separador e `:`, e um
+ * resumo que o contivesse seria lido por `lerChaveGravada` como se trouxesse
+ * instante prefixado.
+ */
+function resumoDe(chave: string): string {
+  return `resumo-${createHash('sha256').update(chave, 'utf8').digest('hex')}`;
 }
 
-function valorPreProcessadoDe(hash: string): string | null {
-  const marca = /^\$2y\$10\$([0-9a-f]*)$/.exec(hash);
-  if (marca === null) {
-    return null;
-  }
-  return Buffer.from(marca[1] ?? '', 'hex').toString('utf8');
-}
-
-/** O bcrypt desta suite, com o lado de escrita que `PrimitivaDeBcrypt` nao tem. */
-const BCRYPT_DE_TESTE: PrimitivaDeBcrypt & {
-  gerar(valorPreProcessado: string): string;
-} = {
-  verificar(senhaPreProcessada, hash) {
-    return valorPreProcessadoDe(hash) === senhaPreProcessada;
+const HASH_DA_CHAVE: HashDeChaveDeRedefinicao = {
+  gerar(chave) {
+    return resumoDe(chave);
   },
-  gerar(valorPreProcessado) {
-    return corpoDoHash(valorPreProcessado);
+  conferir(chave, resumo) {
+    return resumo === resumoDe(chave);
   },
 };
 
-const VERIFICADOR_DE_SENHA = criarVerificadorDeSenhaDoNucleo({
-  bcrypt: BCRYPT_DE_TESTE,
-});
+/** O bcrypt desta suite, nas duas pontas: gravar e conferir. */
+const BCRYPT_DE_TESTE = {
+  gerar(senhaPreProcessada: string): string {
+    return `bcrypt(${senhaPreProcessada})`;
+  },
+  verificar(senhaPreProcessada: string, hash: string): boolean {
+    return hash === `bcrypt(${senhaPreProcessada})`;
+  },
+};
 
-/** A senha em claro no valor que vai para `users.user_pass`. */
-function hashDeSenha(senha: string): string {
-  return `$wp${BCRYPT_DE_TESTE.gerar(preProcessarSenhaParaBcrypt(senha))}`;
-}
+/** A gravacao do *hash* de senha, montada sobre a primitiva acima. */
+const HASH_DE_SENHA = criarGeracaoDeHashDeSenhaDoNucleo(BCRYPT_DE_TESTE);
+
+/**
+ * O verificador de T003, e **nao** uma comparacao desta suite.
+ *
+ * O que os casos afirmam e que a senha gravada por US-4 autentica pela mesma
+ * operacao que o produto usa para entrar: o risco 3 de `plan.md` avisa que um
+ * byte diferente no *hash* e *"o tipo de detalhe que um porte perde sem o teste
+ * notar, porque o login continua funcionando"*, e comparar texto com texto aqui
+ * nao notaria.
+ */
+const VERIFICADOR_DE_SENHA: VerificadorDeSenha = criarVerificadorDeSenhaDoNucleo(
+  { bcrypt: BCRYPT_DE_TESTE },
+);
 
 /*
-  ── A CONTA EM MEMORIA, ATRAS DOS DOIS CONTRATOS DE CONTA ───────────────────
+  ── A CONTA EM MEMORIA, ATRAS DOS DOIS CONTRATOS QUE OS CASOS USAM ──────────
+
+  `ContasParaRedefinicao` e a reducao de T009 — as quatro operacoes de dados de
+  US-4 — e `LeituraDeConta` e a de T003, que `UT-006-6` precisa porque metade da
+  regra `U4` e a entrada apagando a chave pendente. Nenhum nome colide, e a linha
+  por tras e **uma**: o efeito e o mesmo por onde cada fluxo escreva.
+
+  Uma linha em memoria, e nao a porta falsa de T002, porque os seis casos sao
+  percursos de varios passos — pedir, redefinir, reusar, entrar — e o que eles
+  afirmam e o **estado que sobrou** a cada passo. Qual comando SQL sai de cada
+  escrita e afirmado pela suite de T009, contra `criarPortaDeDadosFalsa`; aqui se
+  afirma o efeito, que e a outra metade do criterio *"efeito no banco"* (Decisao
+  2 de `parity_specs.md`).
 */
+
+/** A linha de `users` nas colunas que os dois contratos leem. */
+type LinhaDeConta = ContaDaLeitura;
+
+/** Os dois contratos sobre a mesma linha. */
+type ContasDeUS4 = LeituraDeConta & ContasParaRedefinicao;
 
 interface BancoDeContas {
   readonly contas: ContasDeUS4;
   /** A linha gravada, que e onde cada caso le o efeito. */
-  linha(id: number): ContaArmazenada;
+  linha(id: number): LinhaDeConta;
   /** Toda escrita de conta, na ordem: e por aqui que se ve o que saiu. */
   readonly escritas: readonly {
     readonly id: number;
-    readonly campos: CamposDeConta;
+    readonly campos: Readonly<Partial<LinhaDeConta>>;
   }[];
 }
 
-function semIndefinidos(campos: CamposDeConta): Partial<ContaArmazenada> {
-  const limpos: Record<string, unknown> = {};
-  for (const [nome, valor] of Object.entries(campos)) {
-    if (valor !== undefined) {
-      limpos[nome] = valor;
-    }
-  }
-  return limpos as Partial<ContaArmazenada>;
-}
-
-function contaInicial(parcial: Partial<ContaArmazenada> = {}): ContaArmazenada {
+function contaInicial(parcial: Partial<LinhaDeConta> = {}): LinhaDeConta {
   return {
     id: ID_DA_CONTA,
     login: LOGIN,
-    senhaHash: hashDeSenha(SENHA),
-    apelido: LOGIN,
+    senhaHash: HASH_DE_SENHA.gerar(SENHA),
     email: EMAIL,
-    url: '',
-    registradoEm: DATA_SENTINELA,
-    // Sem chave pendente: o DDL e `NOT NULL default ''`, e `DB-SENT` registra que
-    // o esquema evita `NULL` e usa sentinela.
-    chaveDeAtivacao: '',
-    // Coluna morta (`DB-DEAD`): lida, escrita em lugar nenhum.
-    status: 0,
+    apelido: LOGIN,
     nomeExibido: 'Ada',
-    // `site-unico` e a variante de fabrica: a rede so existe depois que alguem a
-    // cria, e nenhum caso de US-4 e sobre rede.
-    supervisaoDeRede: null,
+    // Sem chave pendente: o DDL e `NOT NULL default ''`, e `DB-SENT` registra
+    // que o esquema evita `NULL` e usa sentinela.
+    chaveDeAtivacao: '',
     ...parcial,
   };
 }
 
-function bancoDeContas(iniciais: readonly ContaArmazenada[]): BancoDeContas {
-  const linhas = new Map<number, ContaArmazenada>(
+function bancoDeContas(iniciais: readonly LinhaDeConta[]): BancoDeContas {
+  const linhas = new Map<number, LinhaDeConta>(
     iniciais.map((linha) => [linha.id, linha]),
   );
-  const escritas: { readonly id: number; readonly campos: CamposDeConta }[] = [];
-  let proximoId = Math.max(...iniciais.map((linha) => linha.id)) + 1;
+  const escritas: {
+    readonly id: number;
+    readonly campos: Readonly<Partial<LinhaDeConta>>;
+  }[] = [];
 
   function achar(
-    predicado: (linha: ContaArmazenada) => boolean,
-  ): ContaArmazenada | null {
+    predicado: (linha: LinhaDeConta) => boolean,
+  ): LinhaDeConta | null {
+    // A **primeira** linha, como o legado: `users.user_login` nao e `UNIQUE` no
+    // banco e a unicidade e conferida em codigo (BR-MIGRAR-022).
     return [...linhas.values()].find(predicado) ?? null;
   }
 
-  /** A mesma linha, na fatia que `LeituraDeConta` (T003) devolve. */
-  function daLeitura(linha: ContaArmazenada | null): ContaDaLeitura | null {
-    if (linha === null) {
-      return null;
-    }
-    return {
-      id: linha.id,
-      login: linha.login,
-      senhaHash: linha.senhaHash,
-      email: linha.email,
-      apelido: linha.apelido,
-      nomeExibido: linha.nomeExibido,
-      chaveDeAtivacao: linha.chaveDeAtivacao,
-      ...(linha.supervisaoDeRede === null
-        ? {}
-        : {
-            marcadaComoSpam: linha.supervisaoDeRede.spam === 1,
-            marcadaComoApagada: linha.supervisaoDeRede.deleted === 1,
-          }),
-    };
-  }
-
-  function aplicar(id: number, campos: CamposDeConta): number {
+  function aplicar(id: number, campos: Readonly<Partial<LinhaDeConta>>): void {
     const linha = linhas.get(id);
     if (linha === undefined) {
-      return 0;
+      return;
     }
     escritas.push({ id, campos });
-    linhas.set(id, { ...linha, ...semIndefinidos(campos) });
-    return 1;
+    linhas.set(id, { ...linha, ...campos });
   }
 
   const contas: ContasDeUS4 = {
-    // ── LeituraDeConta, de T003 ──
-    porLogin(login) {
-      return daLeitura(achar((linha) => linha.login === login));
+    porLogin(login: string) {
+      return achar((linha) => linha.login === login);
     },
-    porEmail(email) {
-      return daLeitura(achar((linha) => linha.email === email));
+
+    porEmail(email: string) {
+      return achar((linha) => linha.email === email);
     },
-    apagarChaveDeAtivacao(id) {
+
+    // `LeituraDeConta`, de T003: a chave pendente morre no primeiro login
+    // bem-sucedido (CA-1.4, `U4`).
+    apagarChaveDeAtivacao(id: number) {
       aplicar(id, { chaveDeAtivacao: '' });
     },
 
-    // ── RepositorioDeContas, de T002 ──
-    inserir(nova: ContaNova) {
-      const id = proximoId;
-      proximoId += 1;
-      linhas.set(id, contaInicial({ ...nova, id, status: 0, supervisaoDeRede: null }));
-      return id;
+    // `ContasParaRedefinicao`, de T009: gravar **substitui**, e e isso que faz
+    // CA-4.3 valer — a coluna e uma so.
+    gravarChaveDeAtivacao(id: number, valorGravado: string) {
+      aplicar(id, { chaveDeAtivacao: valorGravado });
     },
-    obterPorId(id) {
-      return linhas.get(id) ?? null;
-    },
-    obterPorLogin(login) {
-      return achar((linha) => linha.login === login);
-    },
-    obterPorEmail(email) {
-      return achar((linha) => linha.email === email);
-    },
-    obterPorApelido(apelido) {
-      return achar((linha) => linha.apelido === apelido);
-    },
-    atualizar(id, campos) {
-      return aplicar(id, campos);
-    },
-    atualizarSupervisaoDeRede() {
-      // O mesmo que a implementacao de T002 faz: na variante de site unico as
-      // colunas nao existem, e escrever ali e consulta a coluna inexistente.
-      throw new Error('spam e deleted so existem na variante de rede de users');
+
+    // As duas colunas no mesmo comando (CA-4.4). A sentinela e a vazia, nao
+    // `NULL` (`DB-SENT`).
+    gravarSenhaEApagarChave(id: number, senhaHash: string) {
+      aplicar(id, { senhaHash, chaveDeAtivacao: '' });
     },
   };
 
@@ -720,57 +371,58 @@ function bancoDeContas(iniciais: readonly ContaArmazenada[]): BancoDeContas {
   };
 }
 
-/*
-  ── A CAIXA DE SAIDA ────────────────────────────────────────────────────────
-*/
-
-interface CaixaDeSaida {
-  readonly porta: PortaDeEmail;
-  readonly mensagens: readonly MensagemDeEmail[];
-}
-
 /**
- * A caixa que **sempre aceita**.
+ * A montagem do e-mail, de teste.
  *
- * A falha de envio e US-5 (T011 e T012), e um caso de falha aqui invadiria a
- * historia seguinte. O que esta suite usa da caixa e o conteudo: CA-4.1 so e
- * conferivel contra a mensagem que saiu.
+ * Os literais do e-mail **nao estao no pacote** — o e-mail nao e uma das 113
+ * telas de `target_screens.md`, e `MontagemDoEmailDeRedefinicao` registra por que
+ * ela chega por argumento. O que esta suite afirma e a unica coisa que e do
+ * dominio: que a chave em claro chega ate aqui, e **so** aqui.
+ *
+ * O destinatario e o e-mail da conta porque e o que UC-20 passo 3 manda — e nao
+ * porque o dominio o imponha: no legado o envelope inteiro passa por um ponto de
+ * extensao antes do envio, e forcar o destinatario no dominio fecharia um ponto
+ * que o legado deixa aberto.
  */
-function caixaDeSaida(): CaixaDeSaida {
-  const mensagens: MensagemDeEmail[] = [];
-  return {
-    porta: {
-      enviar(mensagem) {
-        mensagens.push(mensagem);
-        return { enviado: true };
-      },
-    },
-    mensagens,
-  };
-}
+const MONTAGEM_DO_EMAIL: MontagemDoEmailDeRedefinicao = {
+  montar({ conta, chaveEmClaro }) {
+    return {
+      destinatarios: [conta.email],
+      assunto: 'assunto de teste',
+      corpo: `link de redefinicao com a chave ${chaveEmClaro}`,
+      cabecalhos: [],
+      anexos: [],
+    };
+  },
+};
 
 /*
   ── A MONTAGEM ──────────────────────────────────────────────────────────────
 */
 
 interface Montagem {
-  readonly contexto: ContextoDeRedefinicao;
   readonly banco: BancoDeContas;
-  readonly caixa: CaixaDeSaida;
+  /** O que saiu pela porta de e-mail, na ordem. */
+  readonly enviadas: readonly MensagemDeEmail[];
   readonly sessoes: ArmazenamentoDeSessoes;
   mapaDeSessoes(id: number): MapaDeSessoes;
   /** Move o relogio para um instante absoluto. */
   relogioEm(instante: number): void;
   /** As chaves que o gerador desta suite entregou, na ordem. */
   readonly chavesGeradas: readonly string[];
+  readonly pedido: ContextoDoPedidoDeRedefinicao;
+  readonly redefinicao: ContextoDaRedefinicaoDeSenha;
+  readonly entrada: ContextoDeAutenticacao;
 }
 
-function montar(iniciais: readonly ContaArmazenada[] = [contaInicial()]): Montagem {
+function montar(iniciais: readonly LinhaDeConta[] = [contaInicial()]): Montagem {
   let agora = AGORA;
   const banco = bancoDeContas(iniciais);
-  const caixa = caixaDeSaida();
+  const enviadas: MensagemDeEmail[] = [];
   const mapas = new Map<number, MapaDeSessoes>();
   const chavesGeradas: string[] = [];
+
+  const relogio = { agoraEmSegundos: () => agora };
 
   const sessoes: ArmazenamentoDeSessoes = {
     ler: (id) => mapas.get(id) ?? {},
@@ -779,14 +431,22 @@ function montar(iniciais: readonly ContaArmazenada[] = [contaInicial()]): Montag
     },
   };
 
-  const contexto: ContextoDeRedefinicao = {
-    relogio: { agoraEmSegundos: () => agora },
-    contas: banco.contas,
-    email: caixa.porta,
-    sessoes,
-    verificadorDeSenha: VERIFICADOR_DE_SENHA,
-    hashDeSenha,
-    gerarChave: () => {
+  /**
+   * A caixa que **sempre aceita**.
+   *
+   * A falha de envio e US-5 (T011 e T012), e um caso de falha aqui invadiria a
+   * historia seguinte. O que esta suite usa da caixa e o conteudo: CA-4.1 so e
+   * conferivel contra a mensagem que saiu.
+   */
+  const email: PortaDeEmail = {
+    enviar(mensagem) {
+      enviadas.push(mensagem);
+      return { enviado: true };
+    },
+  };
+
+  const gerador: GeradorDeChaveDeRedefinicao = {
+    gerar() {
       const chave = CHAVES_EMITIDAS[chavesGeradas.length];
       assert.ok(
         chave !== undefined,
@@ -795,26 +455,49 @@ function montar(iniciais: readonly ContaArmazenada[] = [contaInicial()]): Montag
       chavesGeradas.push(chave);
       return chave;
     },
-    // A remocao de acentos e identidade nesta suite, e isso esta declarado: a
-    // tabela de caractere e de `plataforma/`, nao deste modulo.
-    removerAcentos: (texto) => texto,
-    rede: REDE_INATIVA,
-    urlDeSenhaPerdida:
-      'https://exemplo.invalido/wp-login.php?action=lostpassword',
-    urlDeRedefinicao: 'https://exemplo.invalido/wp-login.php?action=rp',
-    urlDoPainel: 'https://exemplo.invalido/wp-admin/',
   };
 
   return {
-    contexto,
     banco,
-    caixa,
+    enviadas,
     sessoes,
     mapaDeSessoes: (id) => mapas.get(id) ?? {},
     relogioEm: (instante) => {
       agora = instante;
     },
     chavesGeradas,
+
+    // Sem `prazoDaChave` e sem `ganchos` nos dois contextos: o que os seis casos
+    // exercitam e o **default de fabrica**, que e o que o P6 manda afirmar.
+    pedido: {
+      relogio,
+      contas: banco.contas,
+      email,
+      gerador,
+      hashDaChave: HASH_DA_CHAVE,
+      montagemDoEmail: MONTAGEM_DO_EMAIL,
+    },
+
+    redefinicao: {
+      relogio,
+      contas: banco.contas,
+      hashDaChave: HASH_DA_CHAVE,
+      hashDeSenha: HASH_DE_SENHA,
+    },
+
+    entrada: {
+      relogio,
+      contas: banco.contas,
+      sessoes,
+      verificadorDeSenha: VERIFICADOR_DE_SENHA,
+      // A remocao de acentos e identidade nesta suite, e isso esta declarado: a
+      // tabela de caractere e de `plataforma/`, nao deste modulo.
+      removerAcentos: (texto) => texto,
+      rede: REDE_INATIVA,
+      urlDeSenhaPerdida:
+        'https://exemplo.invalido/wp-login.php?action=lostpassword',
+      urlDoPainel: 'https://exemplo.invalido/wp-admin/',
+    },
   };
 }
 
@@ -823,69 +506,65 @@ function pedir(
   montagem: Montagem,
   instante: number,
   identificador: string = LOGIN,
-): { readonly chave: string; readonly relato: RelatoDeUS4 } {
-  // A superficie e resolvida **antes** do `chamar`: a ausencia de T009 e falha
-  // desta suite, nao excecao da operacao.
-  const operacoes = us4();
+): {
+  readonly chave: string;
+  readonly resultado: ResultadoDoPedidoDeRedefinicao;
+} {
   montagem.relogioEm(instante);
-  const relato = chamar(() =>
-    operacoes.pedirRedefinicao({ identificador }, montagem.contexto),
+  const resultado = solicitarRedefinicaoDeSenha(
+    { identificador },
+    montagem.pedido,
   );
-  return { chave: chaveEmClaroDe(montagem, relato), relato };
-}
-
-/**
- * De onde sai a chave em claro de um pedido.
- *
- * Primeiro o gerador injetado, que e o caminho normal e o unico que torna CA-4.1
- * conferivel. Se T009 nao aceitar gerador, o relato e a outra fonte possivel — e
- * se nenhuma das duas existir, a suite para e diz por que: o pacote **nao fixa o
- * formato da mensagem**, logo extrair a chave do corpo do e-mail seria inventar
- * um formato.
- */
-function chaveEmClaroDe(montagem: Montagem, relato: RelatoDeUS4): string {
-  const gerada = montagem.chavesGeradas.at(-1);
-  if (gerada !== undefined) {
-    return gerada;
-  }
-  if (typeof relato === 'object' && relato !== null) {
-    for (const nome of ['chave', 'chaveEmClaro', 'chaveDeRedefinicao']) {
-      const valor = (relato as Record<string, unknown>)[nome];
-      if (typeof valor === 'string' && valor !== '') {
-        return valor;
-      }
-    }
-  }
-  return assert.fail(
-    'esta suite nao tem como saber a chave em claro emitida: o gerador ' +
-      '`gerarChave` do contexto nao foi chamado e o relato do pedido nao traz ' +
-      'a chave. Sem ela, CA-4.1 ("o valor em claro so existe no e-mail ' +
-      'enviado") nao e conferivel. Ver o contrato declarado no topo deste ' +
-      'arquivo.',
+  const chave = montagem.chavesGeradas.at(-1);
+  assert.ok(
+    chave !== undefined,
+    'o pedido nao chamou o gerador, e sem a chave em claro CA-4.1 nao e conferivel',
   );
+  return { chave, resultado };
 }
 
 /** Redefine a senha naquele instante, com aquela chave. */
 function redefinir(
   montagem: Montagem,
   instante: number,
-  dados: Partial<DadosDaRedefinicao> & { readonly chave: string },
-): RelatoDeUS4 {
-  const operacoes = us4();
+  dados: {
+    readonly chave: string;
+    readonly login?: string;
+    readonly senhaNova?: string;
+  },
+): ResultadoDaRedefinicao {
   montagem.relogioEm(instante);
-  return chamar(() =>
-    operacoes.redefinirSenha(
-      {
-        chave: dados.chave,
-        login: dados.login ?? LOGIN,
-        senhaNova: dados.senhaNova ?? SENHA_NOVA,
-      },
-      montagem.contexto,
-    ),
+  const senhaNova = dados.senhaNova ?? SENHA_NOVA;
+  return redefinirSenha(
+    {
+      login: dados.login ?? LOGIN,
+      chave: dados.chave,
+      senhaNova,
+      // `pass2` igual a `pass1`: as duas recusas de senha do legado sao assunto
+      // da suite de T009, e nenhum dos seis casos daqui e sobre elas.
+      confirmacaoDaSenha: senhaNova,
+    },
+    montagem.redefinicao,
   );
 }
 
-/** A senha que a linha gravada aceita hoje. */
+/** A recusa de chave, com o codigo e o erro, cobrando a forma do resultado. */
+function recusaDeChave(resultado: ResultadoDaRedefinicao): {
+  readonly codigo: 'invalid_key' | 'expired_key';
+  readonly erro: ErroDeRedefinicao;
+} {
+  assert.equal(
+    resultado.redefinida,
+    false,
+    'a chave foi aceita onde o caso espera recusa',
+  );
+  assert.ok(resultado.redefinida === false);
+  assert.equal(resultado.motivo, 'chave-recusada');
+  assert.ok(resultado.motivo === 'chave-recusada');
+  return { codigo: resultado.codigo, erro: resultado.erro };
+}
+
+/** A senha que a linha gravada aceita hoje, pela operacao do produto. */
 function senhaGravadaAceita(montagem: Montagem, senha: string): boolean {
   return VERIFICADOR_DE_SENHA.verificar(
     senha,
@@ -894,10 +573,10 @@ function senhaGravadaAceita(montagem: Montagem, senha: string): boolean {
 }
 
 /**
- * Afirma que a conta continua com a senha antiga e sem escrita de senha.
+ * Afirma que a conta continua com a senha antiga.
  *
- * E a assercao central de toda recusa: o pacote nao fixa a forma do relato, mas
- * fixa o efeito — chave recusada nao troca senha.
+ * E a assercao central de toda recusa: chave recusada nao troca senha, e o que o
+ * criterio de paridade desta area cobra e o **efeito**, nao o relato.
  */
 function senhaIntacta(montagem: Montagem): void {
   assert.equal(
@@ -919,23 +598,30 @@ function senhaIntacta(montagem: Montagem): void {
 // entrada:  a conta `ada` (login `ada`, e-mail `ada@exemplo.invalido`, sem chave
 //           pendente) e o relogio em AGORA; o pedido informa o login
 // acao:     pedir a redefinicao de senha
-// esperado: sai **uma** mensagem, para o e-mail da conta, e o corpo dela carrega
-//           a chave em claro (UC-20 passo 3); a coluna `user_activation_key`
-//           deixa de estar vazia, e o valor gravado **nao contem** a chave em
-//           claro e e **prefixado pelo instante** do pedido (`plan.md`, Modelo de
-//           dados); nenhuma escrita desta operacao carrega a chave em claro; e a
-//           senha gravada nao e tocada. E o mesmo pedido pelo **e-mail** chega a
-//           mesma conta (UC-20 passo 1)
+// esperado: o pedido e aceito e o envio volta como **valor**; sai **uma**
+//           mensagem, para o e-mail da conta, e o corpo dela carrega a chave em
+//           claro (UC-20 passo 3); a coluna `user_activation_key` deixa de estar
+//           vazia, e o valor gravado **nao contem** a chave em claro, e
+//           **prefixado pelo instante** do pedido (`plan.md`, Modelo de dados) e
+//           traz o resumo depois do separador; nenhuma escrita desta operacao
+//           carrega a chave em claro, e o resultado devolvido a quem pediu
+//           tambem nao; e a senha gravada nao e tocada. E o mesmo pedido pelo
+//           **e-mail** chega a mesma conta (UC-20 passo 1)
 // ---------------------------------------------------------------------------
 
 test('UT-006-1 (CA-4.1) a chave e guardada com hash na conta, e o valor em claro so existe no e-mail', () => {
   const montagem = montar();
 
-  const { chave } = pedir(montagem, AGORA);
+  const { chave, resultado } = pedir(montagem, AGORA);
+
+  // O sucesso tem sempre a mesma forma, e o envio volta como valor (D3).
+  assert.equal(resultado.aceito, true);
+  assert.ok(resultado.aceito === true);
+  assert.equal(resultado.envio.enviado, true);
 
   // O e-mail: um, para o endereco da conta, com a chave em claro dentro.
-  assert.equal(montagem.caixa.mensagens.length, 1);
-  const mensagem = montagem.caixa.mensagens[0];
+  assert.equal(montagem.enviadas.length, 1);
+  const mensagem = montagem.enviadas[0];
   assert.ok(mensagem !== undefined);
   assert.deepEqual([...mensagem.destinatarios], [EMAIL]);
   assert.equal(
@@ -944,7 +630,7 @@ test('UT-006-1 (CA-4.1) a chave e guardada com hash na conta, e o valor em claro
     'o corpo do e-mail nao carrega a chave em claro, e UC-20 passo 3 manda enviar o link com a chave',
   );
 
-  // A conta: chave gravada, com hash e com o instante prefixado.
+  // A conta: chave gravada, com o instante prefixado e o resumo depois dele.
   const gravado = montagem.banco.linha(ID_DA_CONTA).chaveDeAtivacao;
   assert.notEqual(gravado, '', 'nenhuma chave foi gravada na conta');
   assert.equal(
@@ -953,27 +639,45 @@ test('UT-006-1 (CA-4.1) a chave e guardada com hash na conta, e o valor em claro
     'o valor em claro da chave foi gravado na conta, e CA-4.1 manda guardar com hash',
   );
   assert.equal(
-    gravado.startsWith(String(AGORA)),
-    true,
-    'o valor gravado nao e prefixado pelo instante do pedido, e e dele que sai a janela de 24 horas',
+    gravado,
+    `${AGORA}${SEPARADOR_DO_INSTANTE}${resumoDe(chave)}`,
+    'o valor gravado nao e o instante do pedido, o separador e o resumo da chave',
+  );
+  assert.equal(
+    lerChaveGravada(gravado)?.instanteDoPedido,
+    AGORA,
+    'o instante prefixado nao e o do relogio do contexto, e e dele que sai a janela de 24 horas',
   );
 
-  // E a chave em claro nao saiu em escrita nenhuma — nem em outra coluna.
+  // E a chave em claro nao saiu em escrita nenhuma — nem em outra coluna — nem
+  // no resultado devolvido a quem pediu.
+  assert.equal(montagem.banco.escritas.length, 1);
   assert.equal(
     JSON.stringify(montagem.banco.escritas).includes(chave),
     false,
     'a chave em claro aparece em uma escrita de conta',
+  );
+  assert.equal(
+    JSON.stringify(resultado).includes(chave),
+    false,
+    'a chave em claro voltou no resultado do pedido, e CA-4.1 manda que ela so exista no e-mail',
   );
 
   // A senha nao foi tocada: pedir redefinicao nao redefine nada.
   assert.equal(senhaGravadaAceita(montagem, SENHA), true);
 
   // UC-20 passo 1: *"informa o login ou o e-mail da conta"* — os dois caminhos
-  // chegam a mesma conta. O segundo pedido substitui a chave, que e CA-4.3.
+  // chegam a mesma conta.
   const porEmail = montar();
-  pedir(porEmail, AGORA, EMAIL);
-  assert.equal(porEmail.caixa.mensagens.length, 1);
-  assert.notEqual(porEmail.banco.linha(ID_DA_CONTA).chaveDeAtivacao, '');
+  const peloEmail = pedir(porEmail, AGORA, EMAIL);
+
+  assert.equal(peloEmail.resultado.aceito, true);
+  assert.equal(porEmail.enviadas.length, 1);
+  assert.deepEqual([...(porEmail.enviadas[0]?.destinatarios ?? [])], [EMAIL]);
+  assert.equal(
+    porEmail.banco.linha(ID_DA_CONTA).chaveDeAtivacao,
+    `${AGORA}${SEPARADOR_DO_INSTANTE}${resumoDe(peloEmail.chave)}`,
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -983,13 +687,15 @@ test('UT-006-1 (CA-4.1) a chave e guardada com hash na conta, e o valor em claro
 // entrada:  uma chave emitida em AGORA, em duas montagens iguais
 // acao:     redefinir a senha com ela em AGORA + 24 h − 1, e na outra montagem em
 //           AGORA + 24 h + 1
-// esperado: dentro do prazo a senha e trocada; alem do prazo a chave e recusada,
-//           o relato **nomeia o vencimento** — que e o que a tela precisa para
-//           escolher a transicao `?action=lostpassword&error=expiredkey` de
-//           `SCR-003` — e a senha continua sendo a antiga
+// esperado: dentro do prazo a senha e trocada; alem do prazo a chave e recusada
+//           com o codigo `expired_key` — que e o unico eixo pelo qual o legado
+//           distingue esta recusa da generica —, a mensagem e a de prazo vencido
+//           de `wp-login.php:846`, que traz a **oferta de pedir outra** na mesma
+//           frase, o destino e o formulario de pedido, a senha continua sendo a
+//           antiga e **nada e gravado**
 //
 // ⚠️ O instante exatamente igual a AGORA + 24 h **nao** e afirmado: o pacote nao
-//    o fixa (item 3 do cabecalho).
+//    o fixa (item 2 do cabecalho).
 // ---------------------------------------------------------------------------
 
 test('UT-006-2 (CA-4.2) chave com mais de 24 horas e recusada nomeando o prazo vencido', () => {
@@ -997,28 +703,53 @@ test('UT-006-2 (CA-4.2) chave com mais de 24 horas e recusada nomeando o prazo v
   const dentro = montar();
   const chaveDentro = pedir(dentro, AGORA).chave;
 
-  redefinir(dentro, AGORA + VINTE_E_QUATRO_HORAS - 1, { chave: chaveDentro });
+  const aceita = redefinir(dentro, AGORA + VINTE_E_QUATRO_HORAS - 1, {
+    chave: chaveDentro,
+  });
 
   assert.equal(
-    senhaGravadaAceita(dentro, SENHA_NOVA),
+    aceita.redefinida,
     true,
     'a chave foi recusada um instante antes do prazo, e PT-006 manda aceita-la ali',
   );
+  assert.equal(senhaGravadaAceita(dentro, SENHA_NOVA), true);
 
-  // Alem do prazo: recusa, e a recusa nomeia o vencimento.
+  // Alem do prazo: recusa, e a recusa e a de prazo vencido.
   const alem = montar();
   const chaveAlem = pedir(alem, AGORA).chave;
+  const escritasAntes = alem.banco.escritas.length;
 
-  const relato = redefinir(alem, AGORA + VINTE_E_QUATRO_HORAS + 1, {
-    chave: chaveAlem,
-  });
+  const recusa = recusaDeChave(
+    redefinir(alem, AGORA + VINTE_E_QUATRO_HORAS + 1, { chave: chaveAlem }),
+  );
 
-  senhaIntacta(alem);
+  assert.equal(
+    recusa.codigo,
+    'expired_key',
+    'a recusa alem do prazo nao veio com o codigo de prazo vencido, e e so por ele que o legado a distingue da generica',
+  );
+  assert.equal(primeiroCodigoDeErroDeRedefinicao(recusa.erro), 'expired_key');
+  assert.equal(
+    recusa.erro.itens[0]?.mensagem,
+    MENSAGENS_DA_TELA_DE_PEDIDO.chaveVencida,
+  );
+  // A "oferta de pedir outra" de CA-4.2 esta na propria mensagem, e o destino e
+  // o formulario de pedido (`SCR-003`, *Eventos e transicoes*).
   assert.match(
-    marcadoresDe(relato),
-    NOMEIA_VENCIMENTO,
-    'a recusa alem do prazo nao nomeia o vencimento, e CA-4.2 exige o aviso de prazo vencido — ' +
-      'e dele que sai a transicao `error=expiredkey` de SCR-003',
+    MENSAGENS_DA_TELA_DE_PEDIDO.chaveVencida,
+    /Please request a new link below\.$/,
+  );
+  assert.equal(
+    DESTINO_POR_CODIGO_DE_CHAVE[recusa.codigo],
+    'wp-login.php?action=lostpassword&error=expiredkey',
+  );
+
+  // Recusada a chave, a senha segue a antiga e nada e gravado.
+  senhaIntacta(alem);
+  assert.equal(
+    alem.banco.escritas.length,
+    escritasAntes,
+    'uma chave vencida produziu escrita, e o legado nao grava nada neste caminho',
   );
 });
 
@@ -1030,10 +761,12 @@ test('UT-006-2 (CA-4.2) chave com mais de 24 horas e recusada nomeando o prazo v
 //           mesma conta — o fluxo alternativo *"Pedido repetido antes do prazo"*
 //           de UC-20
 // acao:     tentar redefinir com a primeira chave, e depois com a segunda
-// esperado: o valor gravado muda entre os dois pedidos; a primeira chave e
-//           recusada **sem** nomear vencimento, porque ela nao venceu — ela foi
-//           substituida (UC-20: *"o link antigo deixa de valer"*); a senha segue
-//           intacta; e a segunda chave troca a senha
+// esperado: o valor gravado muda entre os dois pedidos e passa a ser o da segunda
+//           chave; a primeira chave e recusada com o codigo **generico**
+//           `invalid_key`, e nao com `expired_key`, porque ela nao venceu — ela
+//           foi substituida (UC-20: *"o link antigo deixa de valer"*); a senha
+//           segue intacta e a chave pendente nao e mexida; e a segunda chave
+//           troca a senha
 // ---------------------------------------------------------------------------
 
 test('UT-006-3 (CA-4.3) o pedido novo substitui a chave anterior, que deixa de valer', () => {
@@ -1051,24 +784,41 @@ test('UT-006-3 (CA-4.3) o pedido novo substitui a chave anterior, que deixa de v
     gravadoDoPrimeiro,
     'o pedido novo nao substituiu o valor gravado da chave anterior',
   );
-  assert.equal(montagem.caixa.mensagens.length, 2);
+  assert.equal(
+    gravadoDoSegundo,
+    `${AGORA + SEGUNDOS_POR_HORA}${SEPARADOR_DO_INSTANTE}${resumoDe(segunda)}`,
+    'a coluna nao ficou com a chave do pedido novo, e ela e uma so',
+  );
+  assert.equal(montagem.enviadas.length, 2);
 
-  // A chave anterior nao vale mais, e nao e por prazo: ela foi substituida.
-  const relato = redefinir(montagem, AGORA + SEGUNDOS_POR_HORA, {
-    chave: primeira,
-  });
+  // A chave anterior nao vale mais, e nao e por prazo: ela foi substituida, e
+  // dentro das 24 horas a recusa e a generica de CA-4.5.
+  const recusa = recusaDeChave(
+    redefinir(montagem, AGORA + SEGUNDOS_POR_HORA, { chave: primeira }),
+  );
 
+  assert.equal(
+    recusa.codigo,
+    'invalid_key',
+    'a chave substituida foi recusada como vencida, e ela nao venceu — dentro das 24 horas a recusa e a generica',
+  );
+  assert.equal(
+    recusa.erro.itens[0]?.mensagem,
+    MENSAGENS_DA_TELA_DE_PEDIDO.chaveInvalida,
+  );
   senhaIntacta(montagem);
-  assert.doesNotMatch(
-    marcadoresDe(relato),
-    NOMEIA_VENCIMENTO,
-    'a chave substituida foi recusada como vencida, e ela nao venceu — ' +
-      'dentro das 24 horas a recusa e a generica de CA-4.5',
+  assert.equal(
+    montagem.banco.linha(ID_DA_CONTA).chaveDeAtivacao,
+    gravadoDoSegundo,
+    'a tentativa com a chave substituida mexeu na chave pendente',
   );
 
   // E a chave nova vale.
-  redefinir(montagem, AGORA + SEGUNDOS_POR_HORA, { chave: segunda });
+  const aceita = redefinir(montagem, AGORA + SEGUNDOS_POR_HORA, {
+    chave: segunda,
+  });
 
+  assert.equal(aceita.redefinida, true);
   assert.equal(
     senhaGravadaAceita(montagem, SENHA_NOVA),
     true,
@@ -1081,10 +831,12 @@ test('UT-006-3 (CA-4.3) o pedido novo substitui a chave anterior, que deixa de v
 //
 // entrada:  uma chave emitida em AGORA, e uma sessao aberta antes da troca
 // acao:     redefinir a senha em AGORA + 1 h, e tentar reusar a mesma chave
-// esperado: a senha gravada passa a ser a nova e o texto claro dela nao esta em
-//           lugar nenhum da linha; `user_activation_key` volta a sentinela vazia
-//           — `''`, nao nulo (`DB-SENT`) —; a mesma chave usada de novo e recusada
-//           e nao troca nada; e a sessao aberta antes **continua gravada**
+// esperado: a senha gravada passa a ser a nova, a antiga deixa de valer e o texto
+//           claro dela nao esta em lugar nenhum da linha; `user_activation_key`
+//           volta a sentinela vazia — `''`, nao nulo (`DB-SENT`) — na **mesma**
+//           escrita da senha; a mensagem de sucesso e a do passo 7 de UC-20; a
+//           mesma chave usada de novo e recusada com o codigo generico, nao troca
+//           nada e nao grava nada; e a sessao aberta antes **continua gravada**
 //           (pos-condicao de UC-20: *"as sessoes abertas antes da troca nao sao
 //           encerradas por este fluxo"*; BR-MIGRAR-111)
 // ---------------------------------------------------------------------------
@@ -1102,8 +854,18 @@ test('UT-006-4 (CA-4.4) gravar a senha nova invalida a chave usada, e nao derrub
   const mapaAntes = montagem.mapaDeSessoes(ID_DA_CONTA);
 
   const chave = pedir(montagem, AGORA).chave;
+  const escritasAntes = montagem.banco.escritas.length;
 
-  redefinir(montagem, AGORA + SEGUNDOS_POR_HORA, { chave });
+  const resultado = redefinir(montagem, AGORA + SEGUNDOS_POR_HORA, { chave });
+
+  assert.equal(resultado.redefinida, true);
+  assert.ok(resultado.redefinida === true);
+  assert.equal(resultado.idDaConta, ID_DA_CONTA);
+  assert.equal(
+    resultado.mensagem,
+    MENSAGENS_DA_TELA_DE_REDEFINICAO.senhaRedefinida,
+    'o passo 7 de UC-20 nao devolveu a mensagem de senha redefinida',
+  );
 
   const linha = montagem.banco.linha(ID_DA_CONTA);
 
@@ -1118,32 +880,40 @@ test('UT-006-4 (CA-4.4) gravar a senha nova invalida a chave usada, e nao derrub
     'a senha nova em texto claro aparece na linha gravada',
   );
 
-  // A chave usada foi invalidada, e o valor e a sentinela vazia do DDL.
+  // A chave usada foi invalidada, e o valor e a sentinela vazia do DDL — na
+  // **mesma** escrita da senha, que e o que `gravarSenhaEApagarChave` existe
+  // para garantir: separar em dois comandos criaria um instante em que a senha
+  // ja e a nova e a chave antiga ainda vale.
   assert.equal(linha.chaveDeAtivacao, '');
-
-  // Reusar a mesma chave nao faz nada: `plan.md` declara "chave ja usada" entre
-  // os erros desta operacao.
-  const reuso = redefinir(montagem, AGORA + 2 * SEGUNDOS_POR_HORA, {
-    chave,
-    senhaNova: 'terceiraSenha',
+  assert.equal(montagem.banco.escritas.length, escritasAntes + 1);
+  assert.deepEqual(montagem.banco.escritas.at(-1), {
+    id: ID_DA_CONTA,
+    campos: { senhaHash: linha.senhaHash, chaveDeAtivacao: '' },
   });
 
+  // Reusar a mesma chave nao faz nada: `plan.md` declara "chave ja usada" entre
+  // os erros desta operacao, e o legado **nao lhe da codigo proprio** — o que
+  // sobrou da chave usada e a sentinela vazia, logo "usada" e "nunca existiu"
+  // saem iguais (ver `chave-de-redefinicao.ts`, ramo 2).
+  const reuso = recusaDeChave(
+    redefinir(montagem, AGORA + 2 * SEGUNDOS_POR_HORA, {
+      chave,
+      senhaNova: 'terceiraSenha',
+    }),
+  );
+
+  assert.equal(reuso.codigo, 'invalid_key');
   assert.equal(
-    VERIFICADOR_DE_SENHA.verificar(
-      'terceiraSenha',
-      montagem.banco.linha(ID_DA_CONTA).senhaHash,
-    ),
+    senhaGravadaAceita(montagem, 'terceiraSenha'),
     false,
     'a chave ja usada trocou a senha de novo',
   );
+  assert.equal(senhaGravadaAceita(montagem, SENHA_NOVA), true);
   assert.equal(
-    VERIFICADOR_DE_SENHA.verificar(
-      SENHA_NOVA,
-      montagem.banco.linha(ID_DA_CONTA).senhaHash,
-    ),
-    true,
+    montagem.banco.escritas.length,
+    escritasAntes + 1,
+    'o reuso da chave produziu escrita',
   );
-  assert.doesNotMatch(marcadoresDe(reuso), NOMEIA_VENCIMENTO);
 
   // A sessao aberta antes da troca sobreviveu, inteira.
   //
@@ -1160,50 +930,76 @@ test('UT-006-4 (CA-4.4) gravar a senha nova invalida a chave usada, e nao derrub
 // ---------------------------------------------------------------------------
 // UT-006-5 — CA-4.5 *"Chave invalida e recusada com erro generico"*
 //
-// entrada:  duas situacoes, nas duas montagens: (a) a conta sem chave pendente
+// entrada:  tres situacoes, em tres montagens: (a) a conta sem chave pendente
 //           nenhuma; (b) a conta com uma chave valida pendente, e uma chave
-//           inventada na mao
+//           inventada na mao; (c) um login que nao existe
 // acao:     redefinir a senha com uma chave que nunca foi emitida
-// esperado: as duas recusam; nenhuma das duas nomeia vencimento — a recusa e a
-//           generica, que e a que da a transicao `?action=lostpassword&error=
-//           invalidkey` de `SCR-003`; a senha segue intacta nas duas; e a conta
-//           que tinha chave pendente **continua** com ela, porque recusar uma
-//           chave inventada nao e consumir a pendente
+// esperado: as tres recusam com `invalid_key` e com a mensagem generica de
+//           `wp-login.php:844`, que nao diz se a conta existe, se a chave foi
+//           usada ou se nunca existiu; as tres recusas sao **iguais entre si**,
+//           que e o que "generico" quer dizer; a senha segue intacta; nada e
+//           gravado; e a conta que tinha chave pendente **continua** com ela,
+//           porque recusar uma chave inventada nao e consumir a pendente
 // ---------------------------------------------------------------------------
 
 test('UT-006-5 (CA-4.5) chave invalida e recusada com erro generico', () => {
   // (a) sem chave pendente nenhuma.
   const semChave = montar();
 
-  const relatoSemChave = redefinir(semChave, AGORA, {
-    chave: CHAVE_NUNCA_EMITIDA,
-  });
+  const recusaSemChave = recusaDeChave(
+    redefinir(semChave, AGORA, { chave: CHAVE_NUNCA_EMITIDA }),
+  );
 
+  assert.equal(recusaSemChave.codigo, 'invalid_key');
+  assert.equal(
+    recusaSemChave.erro.itens[0]?.mensagem,
+    MENSAGENS_DA_TELA_DE_PEDIDO.chaveInvalida,
+  );
+  assert.equal(
+    DESTINO_POR_CODIGO_DE_CHAVE[recusaSemChave.codigo],
+    'wp-login.php?action=lostpassword&error=invalidkey',
+  );
   senhaIntacta(semChave);
   assert.equal(semChave.banco.linha(ID_DA_CONTA).chaveDeAtivacao, '');
-  assert.doesNotMatch(marcadoresDe(relatoSemChave), NOMEIA_VENCIMENTO);
+  assert.deepEqual(semChave.banco.escritas, []);
 
   // (b) com uma chave valida pendente, mas apresentando outra.
   const comChave = montar();
   pedir(comChave, AGORA);
   const pendente = comChave.banco.linha(ID_DA_CONTA).chaveDeAtivacao;
+  const escritasAntes = comChave.banco.escritas.length;
 
-  const relatoComChave = redefinir(comChave, AGORA + SEGUNDOS_POR_HORA, {
-    chave: CHAVE_NUNCA_EMITIDA,
-  });
+  const recusaComChave = recusaDeChave(
+    redefinir(comChave, AGORA + SEGUNDOS_POR_HORA, {
+      chave: CHAVE_NUNCA_EMITIDA,
+    }),
+  );
 
   senhaIntacta(comChave);
-  assert.doesNotMatch(marcadoresDe(relatoComChave), NOMEIA_VENCIMENTO);
   assert.equal(
     comChave.banco.linha(ID_DA_CONTA).chaveDeAtivacao,
     pendente,
     'a chave pendente foi mexida por uma tentativa com chave invalida',
   );
+  assert.equal(comChave.banco.escritas.length, escritasAntes);
 
-  // As duas recusas tem a mesma forma: e isso que "generico" quer dizer, e e o
-  // contrario do que a entrada faz — ali a mensagem distingue, de proposito
-  // (`ESC-ENUMERACAO`), e aqui ela nao distingue.
-  assert.equal(marcadoresDe(relatoSemChave), marcadoresDe(relatoComChave));
+  // (c) login inexistente: a mesma recusa, e e isso que CA-4.5 cobra — ela nao
+  // diz **qual** das coisas aconteceu.
+  const semConta = montar();
+  const recusaSemConta = recusaDeChave(
+    redefinir(semConta, AGORA, {
+      login: 'ninguem',
+      chave: CHAVE_NUNCA_EMITIDA,
+    }),
+  );
+
+  assert.deepEqual(semConta.banco.escritas, []);
+
+  // As tres recusas sao a mesma: e isso que "generico" quer dizer, e e o
+  // contrario do que o **pedido** faz — ali `invalid_email` e `invalidcombo`
+  // distinguem, de proposito (`ESC-ENUMERACAO`), e aqui nada distingue.
+  assert.deepEqual(recusaComChave, recusaSemChave);
+  assert.deepEqual(recusaSemConta, recusaSemChave);
 });
 
 // ---------------------------------------------------------------------------
@@ -1217,50 +1013,53 @@ test('UT-006-5 (CA-4.5) chave invalida e recusada com erro generico', () => {
 //   Quando o tempo avanca ate um instante antes do prazo
 //   Entao a chave e aceita
 //   Quando o tempo avanca alem do prazo
-//   Entao a chave e recusada
+//   Entao a chave e recusada, com a mesma mensagem
 //   Quando uma entrada bem-sucedida acontece com a chave ainda valida
 //   Entao a chave e apagada no mesmo passo
 //
 // entrada:  a conta `ada` com a senha `segredo`, e uma chave emitida em AGORA
 // acao:     as tres do cenario, cada uma na sua montagem
-// esperado: o prazo de fabrica e 24 horas — afirmado no ponto de configuracao
-//           nomeado, quando ele existe (P6) —, as duas pontas da borda sao as de
-//           PT-006, e a entrada bem-sucedida apaga a chave pendente, depois do
-//           que o link do e-mail nao funciona mais: *"um link interceptado morre
-//           no instante em que o dono entra"* (UC-20)
+// esperado: o prazo de fabrica e 24 horas, afirmado no ponto de configuracao
+//           nomeado (P6); as duas pontas da borda sao as de PT-006; e a entrada
+//           bem-sucedida apaga a chave pendente, depois do que o link do e-mail
+//           nao funciona mais: *"um link interceptado morre no instante em que o
+//           dono entra"* (UC-20)
 // ---------------------------------------------------------------------------
 
 test('UT-006-6 (U4 · BR-MIGRAR-024) a chave vale 24 horas, nas duas pontas, e morre no primeiro acesso', () => {
-  // O numero, no ponto de configuracao nomeado, quando T009 o publicou. A
-  // ausencia do nome nao falha o caso: nenhum documento do pacote nomeia a
-  // constante, e o valor e o efeito da borda sao afirmados logo abaixo.
-  if (RESOLUCAO.disponivel && RESOLUCAO.prazoDeclarado !== null) {
-    assert.equal(
-      RESOLUCAO.prazoDeclarado,
-      VINTE_E_QUATRO_HORAS,
-      'o prazo de fabrica da chave de redefinicao nao e o de BR-MIGRAR-024',
-    );
-  }
+  // O numero, no ponto de configuracao nomeado que o P6 exige — *"cada numero
+  // vive num ponto de configuracao nomeado, com o valor de fabrica do legado"*.
+  assert.equal(
+    PRAZO_DA_CHAVE_DE_REDEFINICAO_DE_FABRICA,
+    VINTE_E_QUATRO_HORAS,
+    'o prazo de fabrica da chave de redefinicao nao e o de BR-MIGRAR-024',
+  );
+  assert.equal(PRAZO_DA_CHAVE_DE_REDEFINICAO_DE_FABRICA, 86_400);
 
-  // Um instante antes do prazo: aceita.
+  // Um instante antes do prazo: aceita, e a chave morre na mesma escrita.
   const dentro = montar();
   const chaveDentro = pedir(dentro, AGORA).chave;
 
-  redefinir(dentro, AGORA + VINTE_E_QUATRO_HORAS - 1, { chave: chaveDentro });
+  const aceita = redefinir(dentro, AGORA + VINTE_E_QUATRO_HORAS - 1, {
+    chave: chaveDentro,
+  });
 
+  assert.equal(aceita.redefinida, true);
   assert.equal(senhaGravadaAceita(dentro, SENHA_NOVA), true);
   assert.equal(dentro.banco.linha(ID_DA_CONTA).chaveDeAtivacao, '');
 
   // Alem do prazo: recusa, e nada e gravado.
   const alem = montar();
   const chaveAlem = pedir(alem, AGORA).chave;
+  const escritasAntes = alem.banco.escritas.length;
 
-  const relato = redefinir(alem, AGORA + VINTE_E_QUATRO_HORAS + 1, {
-    chave: chaveAlem,
-  });
+  const recusa = recusaDeChave(
+    redefinir(alem, AGORA + VINTE_E_QUATRO_HORAS + 1, { chave: chaveAlem }),
+  );
 
+  assert.equal(recusa.codigo, 'expired_key');
   senhaIntacta(alem);
-  assert.match(marcadoresDe(relato), NOMEIA_VENCIMENTO);
+  assert.equal(alem.banco.escritas.length, escritasAntes);
 
   // A outra metade da regra: a entrada bem-sucedida apaga a chave pendente, e o
   // link do e-mail morre ali. A entrada e a de T003 — a mesma operacao do
@@ -1269,22 +1068,14 @@ test('UT-006-6 (U4 · BR-MIGRAR-024) a chave vale 24 horas, nas duas pontas, e m
   const comEntrada = montar();
   const chaveViva = pedir(comEntrada, AGORA).chave;
 
-  const contextoDeEntrada: ContextoDeAutenticacao = {
-    relogio: comEntrada.contexto.relogio,
-    contas: comEntrada.contexto.contas,
-    sessoes: comEntrada.sessoes,
-    verificadorDeSenha: VERIFICADOR_DE_SENHA,
-    removerAcentos: comEntrada.contexto.removerAcentos,
-    rede: REDE_INATIVA,
-    urlDeSenhaPerdida: comEntrada.contexto.urlDeSenhaPerdida,
-    urlDoPainel: comEntrada.contexto.urlDoPainel,
-  };
+  assert.notEqual(
+    comEntrada.banco.linha(ID_DA_CONTA).chaveDeAtivacao,
+    '',
+    'a montagem chegou na entrada sem chave pendente, e o caso e sobre apagar uma',
+  );
 
   comEntrada.relogioEm(AGORA + SEGUNDOS_POR_HORA);
-  const entrada = autenticar(
-    { login: LOGIN, senha: SENHA },
-    contextoDeEntrada,
-  );
+  const entrada = autenticar({ login: LOGIN, senha: SENHA }, comEntrada.entrada);
 
   assert.equal(entrada.autenticado, true);
   assert.equal(
@@ -1293,15 +1084,17 @@ test('UT-006-6 (U4 · BR-MIGRAR-024) a chave vale 24 horas, nas duas pontas, e m
     'a entrada bem-sucedida nao apagou a chave de redefinicao pendente (CA-1.4, U4)',
   );
 
-  // E o link do e-mail, que ainda estava dentro das 24 horas, deixou de valer.
-  const depoisDaEntrada = redefinir(comEntrada, AGORA + 2 * SEGUNDOS_POR_HORA, {
-    chave: chaveViva,
-  });
+  // E o link do e-mail, que ainda estava dentro das 24 horas, deixou de valer —
+  // com a recusa generica, porque o que sobrou da chave e a sentinela vazia.
+  const depoisDaEntrada = recusaDeChave(
+    redefinir(comEntrada, AGORA + 2 * SEGUNDOS_POR_HORA, { chave: chaveViva }),
+  );
 
+  assert.equal(depoisDaEntrada.codigo, 'invalid_key');
   senhaIntacta(comEntrada);
-  assert.doesNotMatch(marcadoresDe(depoisDaEntrada), NOMEIA_VENCIMENTO);
 
-  // A conta vizinha nao foi tocada por nada disto.
+  // A conta vizinha nao foi tocada por nada disto: um pedido alcanca **uma**
+  // conta, e o e-mail vai so para o endereco dela.
   const vizinhos = montar([
     contaInicial(),
     contaInicial({
@@ -1316,7 +1109,11 @@ test('UT-006-6 (U4 · BR-MIGRAR-024) a chave vale 24 horas, nas duas pontas, e m
 
   assert.equal(vizinhos.banco.linha(ID_DA_OUTRA).chaveDeAtivacao, '');
   assert.deepEqual(
-    vizinhos.caixa.mensagens.flatMap((mensagem) => [...mensagem.destinatarios]),
+    vizinhos.enviadas.flatMap((mensagem) => [...mensagem.destinatarios]),
     [EMAIL],
+  );
+  assert.deepEqual(
+    vizinhos.banco.escritas.map((escrita) => escrita.id),
+    [ID_DA_CONTA],
   );
 });
