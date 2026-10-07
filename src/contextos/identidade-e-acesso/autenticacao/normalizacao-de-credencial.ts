@@ -34,20 +34,41 @@
 export type RemocaoDeAcentos = (texto: string) => string;
 
 /**
- * Sanitiza o identificador como a sanitizacao de conta do legado, em modo nao
- * estrito — que e o modo em que a entrada a chama.
+ * Os caracteres que o **modo estrito** da sanitizacao de conta deixa passar:
+ * letra, digito, espaco, sublinhado, ponto, hifen e arroba.
+ *
+ * E o conjunto do legado, e ele existe *"para portabilidade maxima"* — e o que
+ * decide, em US-6 / T013, se um login enviado e aceito ou se devolve erro de
+ * caractere ilegal. Acrescentar caractere aqui abre o sistema; tirar, fecha.
+ */
+const CARACTERES_FORA_DO_MODO_ESTRITO = /[^a-z0-9 _.\-@]/gi;
+
+/**
+ * Sanitiza o identificador como a sanitizacao de conta do legado.
  *
  * A ordem dos passos e a do legado, e ela importa: a remocao de acento vem
- * antes da remocao de octeto, e a consolidacao de espaco vem **depois** da
- * remocao de espaco nas pontas.
+ * antes da remocao de octeto, a reducao do modo estrito vem **depois** das duas,
+ * e a consolidacao de espaco vem **depois** da remocao de espaco nas pontas.
  *
- * O modo estrito (que reduz a ASCII) **nao** esta aqui: a entrada nao o usa, e
- * quem o usa e o cadastro (US-6 / T013). Escreve-lo antes da tarefa dele seria
- * comportamento sem teste.
+ * **Os dois modos sao uma funcao so, como no legado**, e cada um tem um chamador
+ * diferente deste pacote:
+ *
+ * | modo | quem chama | para que |
+ * |---|---|---|
+ * | nao estrito (padrao) | a entrada (US-1 / T003) e o cadastro, ao sanitizar o login enviado | consolidar o que foi digitado |
+ * | estrito | o cadastro (US-6 / T013), em tres pontos | decidir se o login e **valido**, derivar o apelido e sanitizar o login antes de gravar |
+ *
+ * T003 deixou o modo estrito de fora de proposito — *"a entrada nao o usa, e quem
+ * o usa e o cadastro (US-6 / T013); escreve-lo antes da tarefa dele seria
+ * comportamento sem teste"*. T013 e essa tarefa, e o modo entra aqui, com teste,
+ * em vez de virar uma segunda funcao de sanitizacao com o mesmo nome em outro
+ * arquivo: o legado tem **uma** funcao e um parametro, e duas funcoes
+ * divergiriam no primeiro ajuste.
  */
 export function sanitizarLogin(
   identificador: string,
   removerAcentos: RemocaoDeAcentos,
+  estrito = false,
 ): string {
   // Remove marcacao. O legado tira as etiquetas inteiras, nao escapa.
   let resultado = identificador.replace(/<[^>]*>/g, '');
@@ -56,6 +77,11 @@ export function sanitizarLogin(
   resultado = resultado.replace(/%[a-fA-F0-9][a-fA-F0-9]/g, '');
   // Mata referencia de caractere.
   resultado = resultado.replace(/&.+?;/g, '');
+  // Modo estrito: reduz ao conjunto portavel. Vem ANTES do corte de espaco,
+  // como no legado — logo um texto que so tem caractere ilegal termina vazio.
+  if (estrito) {
+    resultado = resultado.replace(CARACTERES_FORA_DO_MODO_ESTRITO, '');
+  }
   resultado = resultado.trim();
   // Consolida espaco contiguo num unico espaco.
   resultado = resultado.replace(/\s+/g, ' ');

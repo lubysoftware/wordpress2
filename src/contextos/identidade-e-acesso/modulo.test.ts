@@ -108,10 +108,14 @@ test('a superficie do modulo tem exatamente as operacoes das tarefas fechadas', 
   // invoca. Ver `sessao/encerramento-de-sessao.ts`.
   // que o papel decide o que a pessoa faz depois, nao se ela entra. T007
   // (US-3): `sessaoDaRequisicao`, tambem sem capacidade exigida, porque e ela
-  // que PRODUZ a identidade com que as capacidades sao decididas.
+  // que PRODUZ a identidade com que as capacidades sao decididas. T013 (US-6):
+  // `cadastrar`, tambem sem capacidade — quem autoriza e a OPCAO
+  // `users_can_register`, que nasce desligada (`U1`), e o ator e o visitante,
+  // que por definicao nao tem papel.
   assert.deepEqual(Object.keys(modulo).sort(), [
     'armazenamento',
     'autenticar',
+    'cadastrar',
     'nome',
     'portas',
     'sair',
