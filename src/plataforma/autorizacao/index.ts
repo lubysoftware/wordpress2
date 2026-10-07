@@ -23,17 +23,20 @@
  * | `capacidade.ts` | capacidade, concessao, matriz e as **duas sinteticas** |
  * | `contexto-de-autorizacao.ts` | quem pergunta, com que matriz, em que instalacao — tudo por argumento |
  * | `capacidades-do-ator.ts` | o `allcaps`: papeis fundidos, individuais por cima |
- * | `traducao-de-capacidade.ts` | a forma do `map_meta_cap`, e o encaixe dos 86 casos (T017) |
+ * | `traducao-de-capacidade.ts` | a forma do `map_meta_cap`, e o encaixe dos 86 casos |
  * | `revogacao-por-constante.ts` | as **quatro constantes** que retiram poder de quem o tem |
  * | `decisao-de-capacidade.ts` | a pergunta, e a **ordem** dos seis passos |
  * | `quem-tem-capacidade.ts` | CA-7.4, em dois passos: o que o armazenamento alcanca e o que a decisao confirma |
  * | `catalogo-de-capacidades.ts` | CA-7.5, a conferencia — e o que ela **nao** fecha |
+ * | `conteudo-na-autorizacao.ts` | **T017**: o que o mapeamento le do conteudo, como porta |
+ * | `traducao-de-conteudo.ts` | **T017**: a resolucao por autoria e por estado do objeto (US-8) |
  *
- * **O que esta pasta nao tem, e de proposito:** os 86 casos de traducao de
- * capacidade sobre objeto (US-8 / T017), as quatro capacidades que o legado concede
- * so por ponto de extensao (US-9 / T019), os dez atalhos de nomenclatura de
- * `PERM-6` (chegam com os casos deles) e o recorte de rede de `PERM-10` — este
- * ultimo com a consequencia declarada em `revogacao-por-constante.ts`.
+ * **O que esta pasta nao tem, e de proposito:** os `case` de objeto que nao sao de
+ * conteudo — termo, comentario, metadado, senha de aplicacao, rede —, cada um na
+ * feature do seu objeto; as quatro capacidades que o legado concede so por ponto de
+ * extensao (US-9 / T019); os dez atalhos de nomenclatura de `PERM-6` (chegam com os
+ * casos deles); e o recorte de rede de `PERM-10` — este ultimo com a consequencia
+ * declarada em `revogacao-por-constante.ts`.
  */
 
 export {
@@ -97,3 +100,31 @@ export {
   capacidadesDeclaradasPorRegra,
   capacidadesExigidasSemDeclaracao,
 } from './catalogo-de-capacidades.js';
+
+export {
+  CHAVE_DO_ESTADO_ANTERIOR_NA_LIXEIRA,
+  ESTADOS_PUBLICADOS,
+  ESTADO_DE_LIXEIRA,
+  ESTADO_PRIVADO,
+  OPCAO_DA_PAGINA_DE_CONTEUDOS,
+  OPCAO_DA_PAGINA_DE_POLITICA,
+  OPCAO_DA_PAGINA_INICIAL,
+  TIPO_DE_REVISAO,
+  type AvisoDeUsoIndevido,
+  type ConteudoNaAutorizacao,
+  type EstadoDeConteudoNaAutorizacao,
+  type FonteDeConteudoNaAutorizacao,
+  type RelatorDeUsoIndevido,
+  type TipoDeConteudoNaAutorizacao,
+} from './conteudo-na-autorizacao.js';
+
+export {
+  CAPACIDADE_DA_PAGINA_ESPECIAL,
+  CAPACIDADE_DE_PRIVACIDADE,
+  CAPACIDADE_DE_PRIVACIDADE_EM_REDE,
+  CAPACIDADE_DE_PRIVACIDADE_FORA_DA_REDE,
+  CAPACIDADE_MAIS_ALTA,
+  capacidadesDePrivacidade,
+  casoDeConteudo,
+  traducaoDePrivacidade,
+} from './traducao-de-conteudo.js';
