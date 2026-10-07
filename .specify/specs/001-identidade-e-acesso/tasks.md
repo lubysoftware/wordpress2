@@ -61,7 +61,7 @@
       *entrega:* o comportamento de US-7 existe e os critérios CA-7.1, CA-7.2, CA-7.3, CA-7.4, CA-7.5 passam contra o sistema novo
       *satisfaz:* CA-7.1, CA-7.2, CA-7.3, CA-7.4, CA-7.5
       *depende de:* T001, T002
-- [ ] **T016** [P] Testes de US-7
+- [x] **T016** [P] Testes de US-7
       *entrega:* 8 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-014-1, UT-014-2, UT-014-3, UT-014-4, UT-014-5, UT-014-6, UT-014-7, UT-014-8), com o mesmo dado de entrada, ação e resultado esperado. Os 3 testes de regra de negócio (UT-014-6, UT-014-7, UT-014-8) entram na mesma suíte.
       *satisfaz:* CA-7.1, CA-7.2, CA-7.3, CA-7.4, CA-7.5
       *depende de:* T015
