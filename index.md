@@ -14,7 +14,6 @@ Especificações de um sistema **novo**, derivadas da engenharia reversa de word
 | princípios da constituição | 8 |
 | stack | TypeScript (de `_reversa_sdd/questions.md`) |
 | specs geradas em | 2026-10-07T00:32:09-03:00 |
-| exportado em | 2026-10-07T03:35:04.455Z |
 
 ## Como usar
 
