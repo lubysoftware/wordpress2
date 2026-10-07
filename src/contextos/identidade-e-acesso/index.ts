@@ -78,6 +78,17 @@ export type { Conta } from './armazenamento/conta.js';
 export type { Conta as ContaDaLeitura } from './conta/leitura-de-conta.js';
 export * from './sessao/registro-de-sessoes.js';
 /*
+  T015 (US-7) sai SO pelo barril, e nao como operacao do modulo composto, e a
+  razao e a divisao que `target_architecture.md` faz nesta area: a **decisao** de
+  capacidade mora em `plataforma/autorizacao/` e o que pertence a BC-05 e o
+  **dado** do papel. O que este contexto acrescenta e a costura entre os dois —
+  um adaptador de leitura, nao um passo de fluxo. Por-lo na interface do modulo o
+  faria parecer operacao exposta, e a operacao "perguntar permissao" da tabela
+  Contratos do `plan.md` nao e deste modulo: e da plataforma, que fica abaixo de
+  todo contexto porque e chamada 1.279 vezes em 224 arquivos.
+*/
+export * from './autorizacao/fonte-de-papeis.js';
+/*
   As duas operacoes de BR-MIGRAR-111 saem SO por aqui, e nao como operacao do
   modulo composto: no legado elas sao funcoes globais alcancaveis por qualquer
   extensao e **sem nenhum chamador** no produto. Exportar e preservar a

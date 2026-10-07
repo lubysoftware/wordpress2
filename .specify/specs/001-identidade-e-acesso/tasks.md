@@ -57,7 +57,7 @@
       *entrega:* 8 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-009-1, UT-009-2, UT-009-3, UT-009-4, UT-009-5, UT-009-6, UT-009-7, UT-009-8), com o mesmo dado de entrada, ação e resultado esperado. Os 2 testes de regra de negócio (UT-009-7, UT-009-8) entram na mesma suíte.
       *satisfaz:* CA-6.1, CA-6.2, CA-6.3, CA-6.4, CA-6.5, CA-6.6
       *depende de:* T013
-- [ ] **T015** Decidir toda autorização por capacidade, com papel como agrupamento de dados (US-7)
+- [x] **T015** Decidir toda autorização por capacidade, com papel como agrupamento de dados (US-7)
       *entrega:* o comportamento de US-7 existe e os critérios CA-7.1, CA-7.2, CA-7.3, CA-7.4, CA-7.5 passam contra o sistema novo
       *satisfaz:* CA-7.1, CA-7.2, CA-7.3, CA-7.4, CA-7.5
       *depende de:* T001, T002
