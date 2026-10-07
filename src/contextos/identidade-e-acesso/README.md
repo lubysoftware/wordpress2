@@ -1,9 +1,10 @@
 # Modulo de identidade e acesso — BC-05
 
 Feature `001-identidade-e-acesso`. Tarefas fechadas: **T001** (esqueleto e
-portas) e **T002** (forma de armazenamento). Este arquivo e a leitura
-obrigatoria de quem pegar T003 em diante: ele diz o que ja esta decidido, o que
-esta decidido **em outro lugar**, e o que ninguem decidiu.
+portas), **T002** (forma de armazenamento), **T003** (US-1, entrada) e **T005**
+(US-2, saida). Este arquivo e a leitura obrigatoria de quem pegar a proxima
+tarefa: ele diz o que ja esta decidido, o que esta decidido **em outro lugar**,
+e o que ninguem decidiu.
 
 > 🔴 **Antes de qualquer coisa, se a sua tarefa toca a matriz de papeis:** o
 > conflito entre `REQ-017` e a resposta 5 **continua aberto**, T002 esbarrou
@@ -129,6 +130,49 @@ T007 (US-3), e o risco 3 de `plan.md` avisa que e *"o tipo de detalhe que um
 porte perde sem o teste notar"*. Nao conta tentativa e nao bloqueia conta:
 REQ-005 esta em `do-not-rewrite.md` e o **P6** poe limite de taxa fora do nucleo.
 
+## O que T005 entrega, e so isso
+
+> *o comportamento de US-2 existe e os critérios CA-2.1, CA-2.2, CA-2.3 passam
+> contra o sistema novo*
+> — `.specify/specs/001-identidade-e-acesso/tasks.md`, T005
+
+| arquivo | o que e |
+|---|---|
+| `sessao/encerramento-de-sessao.ts` | `encerrar`, `encerrarOutras` e `encerrarTodas` sobre o registro, mais a consulta de um token |
+| `sessao/saida.ts` | a saida do produto: encerra a sessao corrente, limpa a credencial do navegador e torna a identidade anonima |
+| `sessao/saida.test.ts` | os tres critérios, a ordem dos passos (que e contrato por P2) e as regras que a implementacao quebraria em silencio |
+
+**Encerrar remove UMA entrada, e e isso que CA-2.1 e CA-2.2 cobram.** A simetria
+com T003 e exata: abrir **soma** ao mapa e nunca substitui (`ESC-SESSAO`, o
+acumulo e criterio de aceite), e encerrar **subtrai uma** e nunca varre. As duas
+pontas usam a mesma funcao de resumo do token, ou a sessao aberta nao e
+encontrada.
+
+**Duas operacoes nascem sem nenhum chamador, de proposito.** BR-MIGRAR-111 manda
+portar `wp_destroy_other_sessions()` e `wp_destroy_all_sessions()` *"definidas e
+sem chamador, como estao hoje"*, e o cenario de paridade da area cobra as tres
+coisas: que existam, que **nenhum caminho de uso do produto as invoque** e que o
+efeito no banco seja identico quando invocadas direto. Por isso elas saem **pelo
+barril** — no legado sao funcoes globais, alcancaveis por qualquer extensao — e
+**nao** entram na interface do modulo composto, que lista passo de fluxo. Quem
+acrescentar chamador a uma delas esta mudando comportamento, nao consertando
+nada.
+
+**O que T005 nao faz, de proposito:** nao emite cookie nem nonce (T007), nao
+filtra sessao vencida (o filtro do que venceu precisa do relogio e e a entrega de
+T007 — quando ele entrar na leitura do mapa, as funcoes de encerramento passam a
+ver o mapa ja filtrado, como no legado, e nada daqui muda), nao redireciona e nao
+pinta mensagem (*"You are now logged out."* e string literal de `SCR-001`), e nao
+encerra as outras sessoes da conta, que e o oposto de CA-2.2.
+
+**Uma observacao que T005 nao resolveu, porque nao e dela.** Ha **duas**
+representacoes do registro de sessoes nesta arvore, pelo mesmo motivo das duas
+`Conta` que `index.ts` registra: `sessao/registro-de-sessoes.ts`
+(`ArmazenamentoDeSessoes`, mapa de dominio) e `armazenamento/sessao.ts`
+(`RepositorioDeSessoes`, a forma serializada em `usermeta`). Nenhum adaptador
+liga as duas. T005 escreveu contra a de **dominio**, que e a que T003 usa para
+abrir sessao, para nao decidir no lugar de quem vai decidir qual fica.
+
 ## Por que estas tres portas, e nao outras
 
 `target_architecture.md` **AD-08** conta cinco portas no sistema todo — dados,
@@ -191,7 +235,7 @@ E `wp_destroy_other_sessions()` e `wp_destroy_all_sessions()` entram **definidas
 e sem nenhum chamador**, como estao hoje: BR-MIGRAR-111 cita a resposta 7 —
 *"existir sem ser chamada e parte do que se clona"*.
 
-## O que ninguem decidiu, e que nem T001 nem T003 decidiram tampouco
+## O que ninguem decidiu, e que nem T001, nem T003, nem T005 decidiram tampouco
 
 0. **Quantos codigos de erro de entrada sao.** `plan.md` (secao Contratos) e
    BR-MIGRAR-110 dizem **quatro** codigos distintos *"que nomeiam o login ou o
@@ -228,6 +272,35 @@ Os quatro estao em `spec.md`, secao *Perguntas em aberto*. A tabela *Nao
 negociavel* da constituicao poe cada um deles fora do alcance do agente de
 codificacao.
 
+### O que T005 topou, e nao decidiu
+
+- **Quais credenciais exatamente a saida limpa do navegador.** CA-2.1 fala no
+  plural — *"limpa as credenciais guardadas no navegador"* — e **nenhum documento
+  deste pacote nomeia um unico cookie**: nem `target_screens.md`, nem
+  `target_architecture.md`, nem o catalogo de regras. T005 **nao inventou a
+  lista**: a limpeza e um colaborador da borda (`CredenciaisDoNavegador`), que
+  recebe o id de quem sai porque ela acontece **antes** de a identidade virar
+  anonima. A lista fecha contra o oraculo (`ESC-ORACULO`), junto com a emissao,
+  que e de T007.
+- **O que o legado faz quando a saida acontece sem token corrente.** A tabela
+  *Contratos* de `plan.md` declara o erro **token inexistente** para *"encerrar
+  sessao corrente"*; nenhum documento diz se o legado interrompe o fluxo ou
+  segue. T005 **nao escolheu**: reproduziu o fluxo que UC-19 descreve — destruir
+  o token **e** limpar a credencial — e devolve a ausencia como **valor**
+  (`motivo: 'token-inexistente'`), do mesmo jeito que a credencial invalida da
+  entrada volta como valor. Assim a divergencia, se houver, aparece no relato em
+  vez de desaparecer no codigo. O que **esta** fixado por teste e a diferenca de
+  efeito no banco: sem token nenhum comando sai; com token desconhecido o mapa e
+  lido e gravado de volta, e quem decide que nada chega ao banco e a gravacao do
+  metadado.
+- **Os pontos de extensao do fluxo de saida.** O P2 exige inventario versionado
+  de ponto de extensao, com nome, argumento e ordem — e **ele nao esta nesta
+  arvore**. Os dois ganchos de `saida.ts` sao os que a leitura desta tarefa
+  reconhece no fluxo, na ordem em que ela os reconhece, e a ordem esta afirmada
+  por teste para que uma mudanca dela nao passe calada. Nome, argumento e posicao
+  fecham contra o oraculo — a mesma lacuna que `GanchosDaEntrada` ja registra.
+
+
 ## Como se confere que este modulo tem paridade
 
 `parity_specs.md` fixa criterio **por area** (Decisao 2), e deste modulo saem
@@ -238,6 +311,11 @@ tres:
 | valor devolvido pelos pontos de filtro | byte a byte no valor |
 | efeito de escrita no banco, inclusive o acumulo de token em `usermeta` | efeito no banco |
 | as telas de login, redefinicao e registro | caso de uso, mais `@paridade-visual` das telas em modo literal |
+
+O cenario *"As duas operacoes de encerramento de sessao existem sem caminho de
+uso"* de `parity_tests/06-autenticacao-e-sessao.feature` e o que confere a
+entrega de T005 nesse ponto, e ele tem tres assercoes, nao uma: existencia,
+ausencia de chamador e efeito no banco quando invocadas direto.
 
 As specs de paridade desta feature estao em
 `.specify/migration/parity_tests/06-autenticacao-e-sessao.feature`,

@@ -98,12 +98,20 @@ test('a superficie do modulo tem exatamente as operacoes das tarefas fechadas', 
   // armazenamento de conta, perfil, sessao e definicao de papel, que nao expoe
   // operacao de dominio nenhuma. T003 (US-1): `autenticar`, com a permissao
   // declarada na interface do modulo — nenhuma capacidade, porque UC-19 fixa
-  // que o papel decide o que a pessoa faz depois, nao se ela entra.
+  // que o papel decide o que a pessoa faz depois, nao se ela entra. T005
+  // (US-2): `sair`, tambem sem capacidade nenhuma — o que guarda a rota de
+  // saida e o atestado de nonce, que nao e deste pacote.
+  //
+  // As duas operacoes de encerramento de sessao que BR-MIGRAR-111 manda portar
+  // **definidas e sem chamador** NAO entram nesta lista: elas saem pelo barril,
+  // como as funcoes globais que sao no legado, e nenhum fluxo do produto as
+  // invoca. Ver `sessao/encerramento-de-sessao.ts`.
   assert.deepEqual(Object.keys(modulo).sort(), [
     'armazenamento',
     'autenticar',
     'nome',
     'portas',
+    'sair',
   ]);
 });
 

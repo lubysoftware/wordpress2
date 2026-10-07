@@ -17,9 +17,10 @@
  * substitui, nao poda e nao limita quantidade. REQ-008, que pediria a revogacao,
  * esta `bloqueado` e `do-not-rewrite.md` o poe fora do pacote.
  *
- * A poda do que venceu, o encerramento da sessao corrente (US-2 / T005) e as
- * duas operacoes que existem **sem nenhum chamador** (BR-MIGRAR-111: *"existir
- * sem ser chamada e parte do que se clona"*) sao das tarefas delas. Aqui so
+ * A poda do que venceu continua sendo de T007, que tem o relogio. O
+ * encerramento da sessao corrente (US-2 / T005) e as duas operacoes que existem
+ * **sem nenhum chamador** (BR-MIGRAR-111: *"existir sem ser chamada e parte do
+ * que se clona"*) estao em `encerramento-de-sessao.ts` e `saida.ts`. Aqui so
  * `abrir`.
  */
 
