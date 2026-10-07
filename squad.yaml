@@ -1,0 +1,7 @@
+# O que o Agentic Squad roda na árvore de cada nó antes de marcá-lo pronto.
+#
+# Sem esta linha, `pronto` quer dizer apenas "o processo do agente saiu com
+# código 0" — e o agente sai 0 deixando teste vermelho. Foi o que aconteceu
+# aqui: oito nós prontos, dezoito testes quebrados na main, e US$ 16,79 para
+# refazer três suítes.
+verificar: npm test
