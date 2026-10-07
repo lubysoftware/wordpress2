@@ -1,9 +1,10 @@
 # Modulo de identidade e acesso — BC-05
 
 Feature `001-identidade-e-acesso`. Tarefas fechadas: **T001** (esqueleto e
-portas) e **T002** (forma de armazenamento). Este arquivo e a leitura
-obrigatoria de quem pegar T003 em diante: ele diz o que ja esta decidido, o que
-esta decidido **em outro lugar**, e o que ninguem decidiu.
+portas), **T002** (forma de armazenamento), **T003** (US-1, autenticar) e
+**T007** (US-3, prazo da sessao). Este arquivo e a leitura obrigatoria de quem
+pegar a tarefa seguinte: ele diz o que ja esta decidido, o que esta decidido
+**em outro lugar**, e o que ninguem decidiu.
 
 > 🔴 **Antes de qualquer coisa, se a sua tarefa toca a matriz de papeis:** o
 > conflito entre `REQ-017` e a resposta 5 **continua aberto**, T002 esbarrou
@@ -128,6 +129,78 @@ embute o fragmento de 4 caracteres do hash da senha na chave do HMAC — isso e
 T007 (US-3), e o risco 3 de `plan.md` avisa que e *"o tipo de detalhe que um
 porte perde sem o teste notar"*. Nao conta tentativa e nao bloqueia conta:
 REQ-005 esta em `do-not-rewrite.md` e o **P6** poe limite de taxa fora do nucleo.
+
+## O que T007 entrega, e so isso
+
+> *o comportamento de US-3 existe e os critérios CA-3.1, CA-3.2, CA-3.3, CA-3.4
+> passam contra o sistema novo*
+> — `.specify/specs/001-identidade-e-acesso/tasks.md`, T007
+
+| arquivo | o que e |
+|---|---|
+| `sessao/expiracao-de-sessao.ts` | a carencia de 12 horas, o prazo da credencial do navegador e o filtro do que venceu — **e o ponto que o pacote deixou aberto** |
+| `sessao/sessao-da-requisicao.ts` | a sessao desta requisicao pelo prazo, ou anonima (CA-3.4) |
+| `sessao/expiracao-de-sessao.test.ts` | os quatro critérios, as bordas do P6 e as duas regras que a implementacao quebraria em silencio |
+
+**Tres arquivos de fora mudaram, e nenhum por gosto:**
+
+1. **`sessao/registro-de-sessoes.ts` ganhou a poda do que venceu.** T002 nomeou
+   essa divisao em `armazenamento/sessao.ts`: *"o legado filtra o que venceu NA
+   LEITURA, e esse filtro precisa do relogio; os 2 dias, os 14 e as 12 horas de
+   carencia sao `U5` e entram em T007"*. `abrirSessao` le o mapa antes de
+   regravar, logo a poda aparece na gravacao — e o criterio de paridade desta
+   area e **efeito no banco**, com tolerancia zero. O acumulo de `ESC-SESSAO`
+   continua de pe: o unico motivo de uma entrada sair do mapa e o relogio.
+2. **`autenticacao/autenticar.ts` passou a devolver o prazo da credencial do
+   navegador.** Ele e decidido no mesmo passo no legado — a funcao que grava a
+   credencial escolhe, pela opcao de lembranca, entre credencial de sessao e
+   credencial com prazo (`pluggable.php:1088` e `:1091`) — e o passo 3 de UC-19 e
+   um passo so. Separar em duas operacoes esconderia que a lembranca decide os
+   dois prazos. `contexto-de-autenticacao.ts` ganhou `carenciaDeSessao`, opcional,
+   ao lado de `prazosDoToken`.
+3. **`index.ts` e `modulo.test.ts` ganharam `sessaoDaRequisicao`**, com a
+   declaracao explicita de permissao que o P4 exige: **nenhuma capacidade**, e a
+   declaracao e o ponto — e ela que **produz** a identidade com que as
+   capacidades sao decididas, logo exigir capacidade dela seria circular.
+
+**O que T007 nao faz, de proposito:** nao monta cabecalho de resposta, nao
+nomeia a credencial, nao serializa o valor dela e **nao embute o fragmento de 4
+caracteres do hash da senha na chave do HMAC**. A ancora do fragmento e
+`pluggable.php:855`–`:867`, e nenhuma dessas linhas e evidencia de US-3 — as de
+US-3 sao `:1082`, `:1088` e `:1091`, as tres do prazo. O risco 3 de `plan.md`
+descreve essa costura; ela esta **nomeada** em `expiracao-de-sessao.ts` para a
+tarefa que a construir, com a observacao de que o hash corrente depende da
+primitiva de bcrypt, que e adaptador e nao existe nesta arvore. Nao encerra
+sessao: US-2 / T005.
+
+### 🔴 O ponto que T007 encontrou aberto, e NAO resolveu
+
+**A carencia vale para as duas duracoes da sessao, ou so para a estendida?**
+
+- `spec.md` CA-3.3 nao qualifica: *"ha 12 horas de carencia apos **o prazo**,
+  durante as quais a sessao ainda e aceita"*. BR-MIGRAR-025, UC-19 e
+  `target_domain_model.md` repetem a frase sem qualificar.
+- `parity_tests/06-autenticacao-e-sessao.feature` aponta para o outro lado:
+  *"Dado uma entrada **sem** a opcao de lembrar / Quando o tempo avanca ate
+  depois da duracao padrao / Entao as duas metades **recusam** a sessao /
+  **Mas** uma entrada com a opcao de lembrar tem duracao estendida / Quando o
+  tempo avanca ate dentro da carencia **da duracao estendida** / Entao as duas
+  metades aceitam"*.
+
+As duas leituras divergem no efeito, e a divergencia e a que o P1 avisa que passa
+sem ninguem notar: a primeira aceita a sessao por 2 dias e 12 horas sem
+lembranca, e e portanto **mais aberta**. T007 implementou o critério de aceite
+como esta escrito — a carencia e do prazo, qualquer que seja ele —, porque sao
+CA-3.3 e CA-3.4 que esta tarefa tem de fazer passar, e estreitar um critério de
+aceite por conta propria seria decidir no lugar de quem decide. A outra leitura e
+alcancavel sem alterar arquivo deste modulo (`carencia: 0` sem lembranca), ha
+teste afirmando isso, e a escolha e conferencia contra o oraculo
+(`ESC-ORACULO`, BR-MIGRAR-116), que nesta arvore nao existe
+(`oracleAvailable: false`).
+
+E o pacote registra **um** numero de carencia e **uma** condicao. Nenhum outro
+numero foi acrescentado: o P6 recusa numero que o legado nao tem, e tambem
+numero que o pacote nao registra.
 
 ## Por que estas tres portas, e nao outras
 

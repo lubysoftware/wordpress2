@@ -22,17 +22,31 @@
  * o legado nao exige"*.
  *
  * **O que esta operacao nao faz, e por que.** Nao grava cookie, nao monta nonce
- * e nao embute o fragmento de 4 caracteres do hash da senha na chave do HMAC: o
- * cookie e a validacao da sessao sao US-3 / T007, e limpar a credencial do
+ * e nao embute o fragmento de 4 caracteres do hash da senha na chave do HMAC:
+ * montar o cabecalho e da borda HTTP e a chave do HMAC continua nomeada e nao
+ * construida (ver `../sessao/expiracao-de-sessao.ts`); limpar a credencial do
  * navegador e US-2 / T005. E **nao conta tentativa e nao bloqueia conta**:
  * UC-19 registra que *"nao ha defesa contra forca bruta no nucleo"*, REQ-005
  * esta em `do-not-rewrite.md` e o P6 poe limite de taxa fora do nucleo.
+ *
+ * **T007 acrescentou uma coisa a esta operacao: o prazo da credencial do
+ * navegador** (CA-3.1, CA-3.2). Ele entra aqui porque e aqui que ele e decidido
+ * no legado — a mesma funcao que grava a credencial escolhe, pela opcao de
+ * lembranca, entre credencial de sessao e credencial com prazo
+ * (`pluggable.php:1088` e `:1091`). O passo 3 de UC-19 e literalmente *"grava os
+ * cookies de autenticacao"* com a nota *"sessao de 2 dias; com lembrar de mim,
+ * 14, e 12 h de carencia"*: sao dois prazos decididos num passo so, e separa-los
+ * em duas operacoes esconderia que a lembranca decide os dois.
  */
 
 import {
   abrirSessao,
   type SessaoAberta,
 } from '../sessao/registro-de-sessoes.js';
+import {
+  credencialDoNavegador,
+  type CredencialDoNavegador,
+} from '../sessao/expiracao-de-sessao.js';
 import type { Conta } from '../conta/leitura-de-conta.js';
 import {
   CADEIA_DE_AUTENTICACAO_DE_FABRICA,
@@ -97,6 +111,16 @@ export type ResultadoDeAutenticacao =
       readonly autenticado: true;
       readonly conta: Conta;
       readonly sessao: SessaoAberta;
+      /**
+       * Por quanto tempo o navegador guarda a credencial desta entrada (CA-3.1,
+       * CA-3.2, T007).
+       *
+       * **Nao e o prazo da sessao**, e a diferenca e o que UC-19 manda um porte
+       * nao perder: sem lembranca a credencial e de sessao e ainda assim o token
+       * de `sessao.expiraEm` vale 2 dias no servidor. Quem monta o cabecalho e a
+       * borda HTTP; o que e decisao de dominio, e portanto esta aqui, e o prazo.
+       */
+      readonly credencialDoNavegador: CredencialDoNavegador;
       readonly destinoDeRetorno: string;
     }
   | {
@@ -231,17 +255,16 @@ export function autenticar(
   const conta = resultado;
   const agora = contexto.relogio.agoraEmSegundos();
 
+  const lembrar = credenciais.lembrar === true;
+
   // Passo 3 de UC-19: cria o token de sessao.
   const sessao = abrirSessao(
     contexto.sessoes,
     conta.id,
-    expiracaoDoToken(
-      agora,
-      credenciais.lembrar === true,
-      contexto.prazosDoToken,
-    ),
+    expiracaoDoToken(agora, lembrar, contexto.prazosDoToken),
     agora,
     contexto.origem ?? {},
+    contexto.carenciaDeSessao,
   );
 
   // Passo 4 de UC-19, e CA-1.4: a chave de redefinicao pendente deixa de valer.
@@ -260,6 +283,12 @@ export function autenticar(
     // passo 4 nao pode continuar vendo a chave como valida.
     conta: conta.chaveDeAtivacao === '' ? conta : { ...conta, chaveDeAtivacao: '' },
     sessao,
+    // O mesmo passo decide os dois prazos, como no legado (CA-3.1, CA-3.2).
+    credencialDoNavegador: credencialDoNavegador(
+      sessao.expiraEm,
+      lembrar,
+      contexto.carenciaDeSessao,
+    ),
     destinoDeRetorno: destinoDeRetorno(
       credenciais,
       contexto,
