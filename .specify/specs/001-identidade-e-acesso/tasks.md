@@ -17,7 +17,7 @@
       *entrega:* 8 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-001-1, UT-001-2, UT-001-3, UT-001-4, UT-001-5, UT-001-6, UT-001-7, UT-001-8), com o mesmo dado de entrada, ação e resultado esperado. Os 2 testes de regra de negócio (UT-001-7, UT-001-8) entram na mesma suíte.
       *satisfaz:* CA-1.1, CA-1.2, CA-1.3, CA-1.4, CA-1.5
       *depende de:* T003
-- [ ] **T005** Encerrar a sessão corrente sem afetar as outras sessões da conta (US-2)
+- [x] **T005** Encerrar a sessão corrente sem afetar as outras sessões da conta (US-2)
       *entrega:* o comportamento de US-2 existe e os critérios CA-2.1, CA-2.2, CA-2.3 passam contra o sistema novo
       *satisfaz:* CA-2.1, CA-2.2, CA-2.3
       *depende de:* T001, T002, T003

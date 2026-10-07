@@ -39,6 +39,11 @@ import {
   type ResultadoDeAutenticacao,
 } from './autenticacao/autenticar.js';
 import type { ContextoDeAutenticacao } from './autenticacao/contexto-de-autenticacao.js';
+import {
+  sair,
+  type ContextoDeSaida,
+  type ResultadoDeSaida,
+} from './sessao/saida.js';
 
 export * from './portas/index.js';
 export * from './armazenamento/index.js';
@@ -66,6 +71,14 @@ export * from './conta/leitura-de-conta.js';
 export type { Conta } from './armazenamento/conta.js';
 export type { Conta as ContaDaLeitura } from './conta/leitura-de-conta.js';
 export * from './sessao/registro-de-sessoes.js';
+/*
+  As duas operacoes de BR-MIGRAR-111 saem SO por aqui, e nao como operacao do
+  modulo composto: no legado elas sao funcoes globais alcancaveis por qualquer
+  extensao e **sem nenhum chamador** no produto. Exportar e preservar a
+  superficie (P8); por-las na composicao as faria parecer passo de fluxo.
+*/
+export * from './sessao/encerramento-de-sessao.js';
+export * from './sessao/saida.js';
 export * from './autenticacao/autenticar.js';
 export * from './autenticacao/cadeia-de-autenticacao.js';
 export * from './autenticacao/contexto-de-autenticacao.js';
@@ -91,6 +104,7 @@ export interface PortasDeIdentidadeEAcesso {
  * | operacao | historia | tarefa | permissao exigida |
  * |---|---|---|---|
  * | `autenticar` | US-1 | T003 | **nenhuma capacidade**, declarada (ver abaixo) |
+ * | `sair` | US-2 | T005 | **nenhuma capacidade**, declarada (ver abaixo) |
  */
 export interface ModuloDeIdentidadeEAcesso {
   readonly nome: 'identidade-e-acesso';
@@ -122,6 +136,27 @@ export interface ModuloDeIdentidadeEAcesso {
     contexto: ContextoDeAutenticacao,
     opcoes?: OpcoesDeAutenticacao,
   ): ResultadoDeAutenticacao;
+
+  /**
+   * Encerra a sessao corrente sem afetar as outras sessoes da conta (US-2, T005).
+   *
+   * **Permissao exigida: nenhuma, e a declaracao e o ponto.** Sair nao pergunta
+   * capacidade no legado: quem sai e a propria conta. O que guarda a **rota** de
+   * saida e um atestado, nao uma capacidade — a conferencia de nonce, de que
+   * `SCR-004` (*"You are attempting to log out of %s"*) e a tela de falha. O
+   * nonce nao e deste pacote: nenhuma tarefa de `tasks.md` o entrega, e
+   * acrescenta-lo aqui fecharia superficie sem ninguem ter decidido (P4).
+   *
+   * O contexto chega por argumento pelo mesmo motivo de `autenticar`:
+   * identidade e token corrente sao escopo de REQUISICAO (AD-02,
+   * BR-MIGRAR-105).
+   *
+   * As duas operacoes de encerramento que BR-MIGRAR-111 manda portar
+   * **definidas e sem chamador** NAO estao nesta interface, e e de proposito:
+   * elas saem pelo barril, como as funcoes globais que sao no legado, e nenhum
+   * fluxo deste pacote as invoca.
+   */
+  sair(contexto: ContextoDeSaida): ResultadoDeSaida;
 }
 
 /** O que a instalacao informa ao modulo. Ver `armazenamento/index.ts`. */
@@ -154,5 +189,6 @@ export function criarModuloDeIdentidadeEAcesso(
     // sai daqui, que e o que `EXT-ORDEM` cobra e o que `modulo.test.ts` afirma.
     armazenamento: criarArmazenamento(portas.dados, opcoes),
     autenticar,
+    sair,
   };
 }
