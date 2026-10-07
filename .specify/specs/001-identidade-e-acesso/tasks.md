@@ -21,7 +21,7 @@
       *entrega:* o comportamento de US-2 existe e os critérios CA-2.1, CA-2.2, CA-2.3 passam contra o sistema novo
       *satisfaz:* CA-2.1, CA-2.2, CA-2.3
       *depende de:* T001, T002, T003
-- [ ] **T006** [P] Testes de US-2
+- [x] **T006** [P] Testes de US-2
       *entrega:* 3 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-002-1, UT-002-2, UT-002-3), com o mesmo dado de entrada, ação e resultado esperado.
       *satisfaz:* CA-2.1, CA-2.2, CA-2.3
       *depende de:* T005
