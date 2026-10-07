@@ -122,5 +122,17 @@ export interface ContextoDeAutenticacao {
   /** Os prazos do token. Omitido, valem os de fabrica. */
   readonly prazosDoToken?: PrazosDoTokenDeSessao;
 
+  /**
+   * A carencia da sessao, em segundos (US-3 / T007). Omitida, vale a de fabrica:
+   * 12 horas, de BR-MIGRAR-025 (`U5`).
+   *
+   * Chega por aqui porque a entrada decide as duas coisas que a carencia toca —
+   * o prazo da credencial do navegador e a poda do que o registro de token ja
+   * nao aceita. Ver `../sessao/expiracao-de-sessao.ts`, onde o numero e
+   * declarado e onde esta registrado o ponto que o pacote deixou aberto sobre o
+   * alcance dela.
+   */
+  readonly carenciaDeSessao?: number;
+
   readonly ganchos?: GanchosDaEntrada;
 }

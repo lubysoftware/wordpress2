@@ -17,14 +17,25 @@
  * substitui, nao poda e nao limita quantidade. REQ-008, que pediria a revogacao,
  * esta `bloqueado` e `do-not-rewrite.md` o poe fora do pacote.
  *
- * A poda do que venceu continua sendo de T007, que tem o relogio. O
- * encerramento da sessao corrente (US-2 / T005) e as duas operacoes que existem
- * **sem nenhum chamador** (BR-MIGRAR-111: *"existir sem ser chamada e parte do
- * que se clona"*) estao em `encerramento-de-sessao.ts` e `saida.ts`. Aqui so
- * `abrir`.
+ * O encerramento da sessao corrente (US-2 / T005) e as duas operacoes que
+ * existem **sem nenhum chamador** (BR-MIGRAR-111: *"existir sem ser chamada e
+ * parte do que se clona"*) sao das tarefas delas.
+ *
+ * **T007 acrescentou a poda do que venceu a `abrir`**, e so ela. O motivo esta
+ * em `armazenamento/sessao.ts`, que registrou a divisao: *"o legado filtra o que
+ * venceu NA LEITURA, e esse filtro precisa do relogio"*, e `abrir` le o mapa
+ * antes de regravar — logo a gravacao do legado sai sem o que ja nao e aceito.
+ * A criterio de paridade desta area e **efeito no banco**, com tolerancia zero
+ * (`parity_specs.md`, area 3): deixar no registro o que o legado tira seria
+ * divergencia de escrita, nao sujeira interna. Ver `expiracao-de-sessao.ts`.
  */
 
 import { createHash, randomInt } from 'node:crypto';
+
+import {
+  CARENCIA_DE_SESSAO_DE_FABRICA,
+  sessoesAceitas,
+} from './expiracao-de-sessao.js';
 
 /**
  * Uma sessao gravada, com os campos que `target_domain_model.md` lista para
@@ -119,6 +130,7 @@ export function abrirSessao(
   expiraEm: number,
   agoraEmSegundos: number,
   origem: OrigemDaSessao = {},
+  carencia: number = CARENCIA_DE_SESSAO_DE_FABRICA,
 ): SessaoAberta {
   const sessao: Sessao = {
     expiraEm,
@@ -130,7 +142,14 @@ export function abrirSessao(
   const token = gerarTokenDeSessao();
 
   // Soma, nunca substitui: BR-MIGRAR-111 poe o acumulo no criterio de aceite.
-  const anteriores = armazenamento.ler(idDaConta);
+  // O que sai do mapa aqui sai pelo RELOGIO e por nada mais (T007): o acumulo
+  // que `ESC-SESSAO` manda preservar e o das sessoes que continuam aceitas, em
+  // dispositivos diferentes, e trocar a senha nao tira nenhuma delas.
+  const anteriores = sessoesAceitas(
+    armazenamento.ler(idDaConta),
+    agoraEmSegundos,
+    carencia,
+  );
   armazenamento.gravar(idDaConta, {
     ...anteriores,
     [resumoDoTokenDeSessao(token)]: sessao,

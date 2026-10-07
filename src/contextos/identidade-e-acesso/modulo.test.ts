@@ -106,12 +106,16 @@ test('a superficie do modulo tem exatamente as operacoes das tarefas fechadas', 
   // **definidas e sem chamador** NAO entram nesta lista: elas saem pelo barril,
   // como as funcoes globais que sao no legado, e nenhum fluxo do produto as
   // invoca. Ver `sessao/encerramento-de-sessao.ts`.
+  // que o papel decide o que a pessoa faz depois, nao se ela entra. T007
+  // (US-3): `sessaoDaRequisicao`, tambem sem capacidade exigida, porque e ela
+  // que PRODUZ a identidade com que as capacidades sao decididas.
   assert.deepEqual(Object.keys(modulo).sort(), [
     'armazenamento',
     'autenticar',
     'nome',
     'portas',
     'sair',
+    'sessaoDaRequisicao',
   ]);
 });
 

@@ -44,6 +44,12 @@ import {
   type ContextoDeSaida,
   type ResultadoDeSaida,
 } from './sessao/saida.js';
+import {
+  sessaoDaRequisicao,
+  type CredencialApresentada,
+  type SessaoDaRequisicao,
+} from './sessao/sessao-da-requisicao.js';
+import type { ArmazenamentoDeSessoes } from './sessao/registro-de-sessoes.js';
 
 export * from './portas/index.js';
 export * from './armazenamento/index.js';
@@ -79,6 +85,8 @@ export * from './sessao/registro-de-sessoes.js';
 */
 export * from './sessao/encerramento-de-sessao.js';
 export * from './sessao/saida.js';
+export * from './sessao/expiracao-de-sessao.js';
+export * from './sessao/sessao-da-requisicao.js';
 export * from './autenticacao/autenticar.js';
 export * from './autenticacao/cadeia-de-autenticacao.js';
 export * from './autenticacao/contexto-de-autenticacao.js';
@@ -105,6 +113,7 @@ export interface PortasDeIdentidadeEAcesso {
  * |---|---|---|---|
  * | `autenticar` | US-1 | T003 | **nenhuma capacidade**, declarada (ver abaixo) |
  * | `sair` | US-2 | T005 | **nenhuma capacidade**, declarada (ver abaixo) |
+ * | `sessaoDaRequisicao` | US-3 | T007 | **nenhuma capacidade**, declarada (ver abaixo) |
  */
 export interface ModuloDeIdentidadeEAcesso {
   readonly nome: 'identidade-e-acesso';
@@ -157,6 +166,29 @@ export interface ModuloDeIdentidadeEAcesso {
    * fluxo deste pacote as invoca.
    */
   sair(contexto: ContextoDeSaida): ResultadoDeSaida;
+
+  /**
+   * Resolve a sessao desta requisicao pelo prazo, ou a trata como anonima
+   * (US-3, T007 — CA-3.3 e CA-3.4).
+   *
+   * **Permissao exigida: nenhuma, e a declaracao e o ponto.** Esta operacao
+   * **produz** a identidade que as decisoes de capacidade vao usar; exigir
+   * capacidade dela seria circular, e no legado a validacao da credencial nao
+   * consulta capacidade nenhuma. O P4 manda declarar a permissao de toda
+   * operacao exposta *"inclusive quando o default e permissivo"*, e aqui o
+   * default aberto e regra lida do legado, nao omissao.
+   *
+   * O armazenamento e o relogio chegam por argumento, e nao pela composicao,
+   * pelo mesmo motivo de `autenticar`: identidade e escopo de REQUISICAO
+   * (AD-02, BR-MIGRAR-105), e o cenario de concorrencia de
+   * `parity_tests/06-autenticacao-e-sessao.feature` tem tolerancia zero.
+   */
+  sessaoDaRequisicao(
+    armazenamento: ArmazenamentoDeSessoes,
+    credencial: CredencialApresentada,
+    agoraEmSegundos: number,
+    carencia?: number,
+  ): SessaoDaRequisicao;
 }
 
 /** O que a instalacao informa ao modulo. Ver `armazenamento/index.ts`. */
@@ -190,5 +222,6 @@ export function criarModuloDeIdentidadeEAcesso(
     armazenamento: criarArmazenamento(portas.dados, opcoes),
     autenticar,
     sair,
+    sessaoDaRequisicao,
   };
 }
