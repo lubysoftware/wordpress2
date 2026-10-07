@@ -1,0 +1,869 @@
+{
+  "generated_at": "2026-10-06T21:30:43-03:00",
+  "architecture": "hexagonal",
+  "architecture_name": "Portas e adaptadores",
+  "scenario": "Porte do núcleo do WordPress 7.1.2 para TypeScript com comportamento observável idêntico: 1.467 arquivos PHP, 634.999 linhas, 71 módulos num único componente fortemente conexo de 68, 109 front controllers, 18 tabelas com 59 índices, zero chave estrangeira e zero transação. O alvo em TypeScript foi fixado pelas 23 respostas de `_reversa_sdd/questions.md`, não por esta etapa. A arquitetura escolhida aplica portas e adaptadores a 5 bordas — dados, HTTP de saída, sistema de arquivos, cache de objeto e e-mail — e deixa `hooks-e-plugin-api` explicitamente fora, porque os 2.460 pontos de interceptação que devolvem valor são o produto. Sem banco de produção, sem dado a migrar e sem instalação real: o default do código é a especificação (Pergunta 1). O agendador permanece lista em `wp_options` disparada por requisição não bloqueante ao próprio host (Pergunta 10), a dívida de segurança de borda é reproduzida de propósito (Perguntas 11 e 12), e uma instalação de referência na mesma versão é o oráculo de comparação (Pergunta 16).",
+  "current_stack": [
+    "PHP — piso 7.4, recomendado 8.3 (origem: `technologies.json`, de `wp-includes/version.php:40` e `readme.html:55,61`)",
+    "MySQL / MariaDB — piso MySQL 5.5.5, recomendado 8.0, MariaDB recomendado 10.11 (origem: `technologies.json`, de `wp-includes/version.php:57` e `readme.html:56,62`)",
+    "wpdb — SQL escrito à mão com `prepare()`, sem ORM, `utf8mb4`, prefixo de tabela configurável, revisão de esquema 61833",
+    "WP_Object_Cache — por requisição, sem persistência por padrão, substituível por arquivo em `wp-content/object-cache.php`",
+    "Requests 2.0.17 atrás de `WP_Http`, com 2 transportes selecionáveis em execução (`Curl`, `Fsockopen`), mais 15 `fsockopen` fora deles",
+    "WP_Filesystem — base e 4 implementações (`direct`, `ftpext`, `ftpsockets`, `ssh2`), 5 arquivos",
+    "PHPMailer 7.1.1, com a função `mail()` do PHP como transporte de fábrica (`wp-includes/pluggable.php:505`)",
+    "pomo — gettext em PHP, 6 arquivos, com segunda geração ativa em `wp-includes/l10n/`",
+    "IXR — XML-RPC nos dois sentidos, sem versão declarada em lugar algum, classificada `abandonada` e `estrutural`",
+    "Análise de XML por `xml_parser_create` (expat) em 6 arquivos; produção de XML por template literal, sem serializador",
+    "wp-cron — lista em `wp_options` disparada por requisição HTTP não bloqueante ao próprio host (`timeout` 0.01, `blocking` falso, `sslverify` falso)",
+    "GD e Imagick — duas implementações de `WP_Image_Editor` selecionadas em execução",
+    "bcrypt nativo do PHP com prefixo `$wp` sobre pré-hash `base64(hmac_sha384(trim(senha), 'wp-sha384'))` (`wp-includes/pluggable.php:2811-2816`)",
+    "Extensões PHP necessárias na prática: `json`, `hash`, `mysqli`, `mbstring`; opcionais com caminho alternativo: `curl`, `sodium`, `gd`, `imagick`, `zip`, `openssl`, `ssh2`, `ftp`",
+    "Node.js `>=20.10.0` e npm `>=10.2.3` — presentes, mas só para minificar o CSS do tema padrão (origem: `wp-content/themes/twentytwentyfive/package.json`, campo `engines`)"
+  ],
+  "slots": [
+    {
+      "id": "runtime",
+      "label": "Runtime de execução",
+      "why_needed": "A linguagem já está decidida e esta etapa não a reabre: as respostas do `questions.md` cravam porte para TypeScript. O runtime não está decidido, e é ele que decide se o porte é possível, porque `wp-settings.php:597` carrega extensão com `include_once $plugin` — o produto executa código-fonte de terceiro instalado em tempo de execução pelo próprio painel (UC-33), e a Pergunta 3 diz que o ponto de extensão É o produto, não acidente de implementação.",
+      "recommended": "nodejs",
+      "recommendation_reason": "É o único runtime que esta árvore já declara em manifesto e o que tem contraparte mais profunda para as extensões PHP que o porte precisa substituir no caminho de requisição — e o problema que ele não resolve, executar extensão de terceiro sem etapa de build, é mecanismo novo em qualquer um dos três.",
+      "candidates": [
+        {
+          "id": "nodejs",
+          "name": "Node.js",
+          "fit_reason": "É o único runtime declarado em manifesto desta árvore — `>=20.10.0` em `wp-content/themes/twentytwentyfive/package.json` (`engines`) —, ainda que só para minificar CSS do tema. Tem contraparte madura para cada extensão PHP que este porte tem de substituir dentro da requisição: driver MySQL em protocolo nativo no lugar de `mysqli` (`wp-includes/class-wpdb.php:705`), SSH2 e FTP para os 4 drivers de `WP_Filesystem`, bcrypt e HMAC-SHA384 para o hash de `pluggable.php:2811-2816`, e biblioteca nativa de imagem para os 2 editores de `WP_Image_Editor`. O preço é não executar TypeScript sem etapa própria.",
+          "migration_friction": "médio",
+          "lock_in": "baixo — runtime aberto; o acoplamento fica nas APIs `node:*`, que os outros dois candidatos emulam",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "consolidado",
+          "risks": [
+            "Não executa TypeScript nativamente em toda versão suportada, e isso colide com `include_once $plugin`: se a extensão de terceiro vier em TypeScript, alguém tem de transpilá-la no momento da instalação, e esse mecanismo não existe no legado. Decide junto com o slot `entrega`.",
+            "Processo longevo por padrão: as 1.121 declarações `global $x` em 230 arquivos, os 3.411 usos de superglobal e as 94 chamadas `exit`/`die` não têm contraparte segura. O problema é tratado no slot `isolamento-de-requisicao` e não é resolvido pela escolha do runtime."
+          ]
+        },
+        {
+          "id": "deno",
+          "name": "Deno",
+          "fit_reason": "Executa TypeScript direto, sem etapa de build, o que é a resposta mais limpa ao que `wp-settings.php:597` exige: extensão instalada pelo painel (UC-33) continua sendo fonte, como é hoje, e o editor de arquivos do painel — que a Pergunta 14 manda portar — continua editando o que roda. O modelo de permissão explícita também mapeia o que o legado faz por constante (`DISALLOW_FILE_EDIT`, `DISALLOW_FILE_MODS`, `FS_METHOD`).",
+          "migration_friction": "alto",
+          "lock_in": "médio — APIs próprias de permissão e de servidor HTTP não têm equivalente fora dele; sair custa reescrever a borda, não o domínio",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "estável",
+          "risks": [
+            "Executar fonte de terceiro sem build é vantagem e é superfície: o legado já instala código executável vindo da rede sem assinatura verificada — `wp_trusted_keys()` devolve lista vazia desde 2021-04-01 (`wp-admin/includes/file.php:1548`) — e as Perguntas 11 e 12 mandam PRESERVAR isso. Facilitar a execução do fonte não muda a decisão tomada, mas amplia o alcance dela.",
+            "A contraparte de SSH2 e de FTP é o terreno mais raso da compatibilidade com `node:*`, e é justamente o caminho que escreve código executável no disco (`WP_Filesystem`, 5 arquivos, 54 regras de negócio registradas)."
+          ]
+        },
+        {
+          "id": "bun",
+          "name": "Bun",
+          "fit_reason": "Executa TypeScript direto e traz cliente MySQL e API de senha embutidos — cobre de uma vez o driver de `class-wpdb.php:705` e o bcrypt de `pluggable.php:2816`. Para um porte que precisa preencher 17 slots, menos dependência externa é menos travamento a auditar, e esta árvore é o retrato do custo do contrário: 10 bibliotecas vendorizadas sem versão declarada, nenhum `composer.lock` e nenhum `node_modules/`.",
+          "migration_friction": "alto",
+          "lock_in": "médio — as APIs embutidas de banco e de senha não existem fora dele; usá-las acopla a borda ao runtime",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "emergente",
+          "risks": [
+            "`emergente` no componente que é o chão de 634.999 linhas portadas. É risco assumido e é o maior deste documento: uma divergência de runtime não aparece como erro, aparece como comportamento diferente do oráculo em um caso entre mil.",
+            "Divergência de compatibilidade com `node:*` concentra-se em biblioteca nativa, e é delas que dependem os 4 drivers de `WP_Filesystem`, o processamento de imagem e o hash de senha."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "isolamento-de-requisicao",
+      "label": "Isolamento de estado por requisição",
+      "why_needed": "O legado não tem isolamento: tem descarte. `architecture.md` registra que nenhuma fronteira de processo existe em todo o nível 2 do C4 — um processo PHP por requisição, montado por `wp-settings.php` e descartado no fim da resposta. É esse descarte que torna seguras as 1.121 declarações `global $x` em 230 arquivos, os 3.411 usos de superglobal e as 94 chamadas `exit`/`die`. Em processo longevo nada disso é seguro, e o vazamento de estado entre requisições não aparece em teste de unidade: aparece como uma pessoa vendo o painel de outra. É o slot em que este porte quebra, e não há candidato óbvio.",
+      "recommended": "processo-por-requisicao",
+      "recommendation_reason": "É o único candidato em que a equivalência observável é por construção e não por disciplina — e com 1.121 pontos de estado global, zero arquivo de teste no legado e 'idêntico' como critério de aceite, a escolha de desempenho pode ser revista depois com número medido; a de correção, não.",
+      "candidates": [
+        {
+          "id": "processo-por-requisicao",
+          "name": "Processo por requisição (modelo CGI)",
+          "fit_reason": "Reproduz literalmente o que o legado faz: monta, responde, descarta. É a única opção em que as 1.121 declarações `global`, os 3.411 usos de superglobal e as 94 chamadas `exit`/`die` ficam corretos sem um ponto de porte cada, e é coerente com a arquitetura escolhida, cujo plano de migração manda deixar o núcleo de fora e tocar só 5 bordas: converter estado global em contexto é redesenho de núcleo, não adaptação de borda.",
+          "migration_friction": "nenhum",
+          "lock_in": "nenhum",
+          "cost_shape": "por instância",
+          "maturity": "consolidado",
+          "risks": [
+            "O custo de arranque é outro: `wp-settings.php` carrega o núcleo inteiro por requisição e, em PHP, isso é amortizado por cache de bytecode, que não tem contraparte direta em runtime de JavaScript. Quanto custa aqui não foi medido neste sistema e não será estimado — está em `verify`.",
+            "Joga fora a única vantagem que o runtime novo traria, que é estado quente entre requisições. A consequência cai no slot `cache`: cache persistente passa a ser a única forma de cache entre requisições, e ligá-lo por padrão é sair do idêntico."
+          ]
+        },
+        {
+          "id": "contexto-assincrono",
+          "name": "Contexto por requisição em processo longevo (AsyncLocalStorage)",
+          "fit_reason": "Dá a cada requisição um escopo onde as 1.121 declarações `global` e os 3.411 usos de superglobal passam a resolver, preservando o arranque único. É a opção que mantém o cache de objeto por requisição que `WP_Object_Cache` já é por padrão (`wp-includes/class-wp-object-cache.php`) sem tocar os 27 módulos dependentes, porque o contexto é o que delimita 'a requisição'.",
+          "migration_friction": "médio",
+          "lock_in": "baixo — `node:async_hooks` tem contraparte nos outros dois runtimes",
+          "cost_shape": "por instância",
+          "maturity": "consolidado",
+          "risks": [
+            "Vazamento silencioso: um módulo que leia estado fora do contexto funciona em teste de uma requisição e falha sob concorrência. São 1.121 pontos em 230 arquivos, e o legado não tem um único arquivo de teste em 3.381 — não existe rede para pegar o que foi esquecido.",
+            "As 94 chamadas `exit`/`die` não têm contraparte: encerrar a requisição passa a ser desenrolar a pilha, e cada um dos 94 pontos é decisão de porte. Vários estão em caminho de erro fatal, que é justamente onde `recovery-mode-e-tratamento-de-erro-fatal` (UC-36) atua."
+          ]
+        },
+        {
+          "id": "worker-por-requisicao",
+          "name": "Worker isolado por requisição",
+          "fit_reason": "Meio-caminho: isola o estado de módulo sem pagar o arranque de processo do sistema operacional a cada requisição. Serve a este caso porque a fronteira já está desenhada — 109 front controllers na raiz e em `wp-admin/`, cada um um ponto de entrada independente, que é exatamente o recorte que um worker receberia.",
+          "migration_friction": "médio",
+          "lock_in": "baixo",
+          "cost_shape": "por instância",
+          "maturity": "estável",
+          "risks": [
+            "Não isola recurso nativo nem descritor de arquivo como processo isola: a conexão de banco e os 4 drivers de `WP_Filesystem` atravessam a fronteira do worker e precisam de pool próprio, que é código novo no caminho que escreve executável no disco.",
+            "Não resolve as 94 `exit`/`die` nem o custo de carregar o núcleo por worker: dobra a complexidade do arranque e resolve meio problema."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "framework-http",
+      "label": "Camada HTTP e roteamento",
+      "why_needed": "O legado não tem framework HTTP: tem 109 front controllers, um reescritor de URL próprio (`rewrite-e-permalinks`) e 209 chamadas `header()`. E `technologies.json` registra a assimetria que decide este slot: para Apache e IIS o sistema ESCREVE o arquivo de configuração do servidor (`.htaccess`, `web.config`); para nginx e Caddy não escreve nada e as regras ficam fora do produto. Num runtime de JavaScript não há servidor externo a quem escrever — a reescrita passa a ser in-process, e isso é código novo, não porte.",
+      "recommended": "node-http",
+      "recommendation_reason": "O produto já é o seu próprio framework HTTP, e todo framework que ajudasse na borda normalizaria algo que o critério de idêntico proíbe normalizar: ordem de cabeçalho, resposta malformada aceita, e as 7 formas de saída observáveis.",
+      "candidates": [
+        {
+          "id": "node-http",
+          "name": "Servidor HTTP do runtime com roteador próprio",
+          "fit_reason": "O legado já é o roteador: `WP_Rewrite` traduz caminho em variáveis de consulta e `WP_Query` as consome, com filtros que permitem a uma extensão alterar a tradução — e a Pergunta 3 manda preservar esses filtros. As 209 `header()` e as 94 `exit`/`die` dependem de controle direto sobre resposta e encerramento. Um roteador de framework em cima disso seria peso morto e, pior, normalizaria o que precisa não ser normalizado.",
+          "migration_friction": "baixo",
+          "lock_in": "nenhum",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "consolidado",
+          "risks": [
+            "Tudo que um framework daria de graça passa a ser código do produto: limite de corpo, análise de `multipart` e tratamento de exceção não capturada. O `multipart` importa porque o envio de mídia (UC-12) depende de `$_FILES`, e esta é uma das 7 superglobais nos 3.411 usos.",
+            "Sem framework não há intermediário pronto para o limite de taxa de REQ-160 — o que é coerente com a Pergunta 19, que põe o limite fora do núcleo, mas deixa o card sem casa neste stack."
+          ]
+        },
+        {
+          "id": "fastify",
+          "name": "Fastify",
+          "fit_reason": "Resolve de pronto o que o servidor cru deixa para o produto: análise de corpo, `multipart` para o envio de mídia (UC-12) e um ciclo de requisição com gancho em cada etapa — a construção mais próxima de hook que um framework HTTP oferece a um sistema cujos 2.460 `apply_filters` são o produto. Contra, neste caso: o esquema de validação que é o seu diferencial trabalha contra o idêntico, porque o legado aceita entrada malformada e decide depois.",
+          "migration_friction": "baixo",
+          "lock_in": "baixo — o acoplamento é a assinatura do manipulador; o domínio não o conhece",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "consolidado",
+          "risks": [
+            "Normalizar cabeçalho e resposta é o que um framework faz bem, e aqui é o que não se quer: há 7 superfícies produzidas com forma de saída observável (REST, XML-RPC, feeds RSS e Atom, sitemap, oEmbed, OPML, abilities), e o XML dos feeds é emitido como template literal (`wp-includes/feed-rss2.php`), não por serializador.",
+            "Mais uma dependência estrutural a travar num produto que hoje não trava nenhuma versão."
+          ]
+        },
+        {
+          "id": "hono",
+          "name": "Hono",
+          "fit_reason": "Camada mínima sobre a API de requisição e resposta do próprio runtime, o que a torna a opção que menos presume sobre qual runtime o slot 1 vai fixar — relevante porque o slot `isolamento-de-requisicao` pode trocar o modelo de execução por baixo dela.",
+          "migration_friction": "baixo",
+          "lock_in": "baixo",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "estável",
+          "risks": [
+            "Projetado para requisição curta de borda, e o caminho de atualização do núcleo (UC-34) descompacta pacote e escreve no disco DENTRO da requisição, por `WP_Filesystem`. É o oposto do perfil para o qual a ferramenta foi feita.",
+            "Ecossistema de `multipart` e de arquivo menos profundo justamente no caminho de envio de mídia (UC-12)."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "persistencia",
+      "label": "Persistência e acesso a dados",
+      "why_needed": "É a segunda porta do plano de migração escolhido e a maior: `camada-de-dados-wpdb`, com 1.128 chamadas `$wpdb->` em 98 dos 1.467 arquivos PHP (6,7% da árvore) e 1.076 de peso de entrada no grafo medido. REQ-164 (`must`) exige que a camada de dados seja a única porta para o banco e que nenhuma consulta seja montada por concatenação. E o que esta porta tem de reproduzir é anômalo: 18 tabelas, 59 índices, ZERO chave estrangeira e ZERO transação — a medição desta etapa confirma nenhuma ocorrência de `START TRANSACTION` nem de `COMMIT;` em 1.467 arquivos.",
+      "recommended": "mysql2",
+      "recommendation_reason": "A porta que o plano de migração pede é uma interface, não uma biblioteca — e com o critério de idêntico a consulta precisa poder ser a MESMA string que o legado envia, inclusive o `LIKE` com curinga nos dois lados sobre texto serializado que é como se descobre quem é administrador.",
+      "candidates": [
+        {
+          "id": "mysql2",
+          "name": "Driver MySQL em protocolo nativo",
+          "fit_reason": "O legado fala `mysqli` direto (`wp-includes/class-wpdb.php:705`), com SQL escrito à mão, parametrizado por `prepare()`, sem ORM, em `utf8mb4` e com prefixo de tabela configurável (`data-dictionary.md`). Um driver fino é o único candidato em que a consulta portada pode ser idêntica — e isso decide o caso: filtrar conta por papel é um `LIKE` com curinga nos dois lados sobre o texto PHP-serializado de `usermeta.meta_value`, e o valor procurado é envolvido em aspas duplas justamente para casar com o delimitador do formato serializado (`wp-includes/class-wp-user-query.php:562-567`). Nenhum construtor de consulta expressa isso sem escapar para SQL cru.",
+          "migration_friction": "baixo",
+          "lock_in": "baixo — biblioteca aberta, e a porta de REQ-164 fica entre ela e o domínio",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "consolidado",
+          "risks": [
+            "Driver fino não impede nada por si: REQ-164 AC3 pede verificação automatizada que falhe ao encontrar consulta montada por concatenação, e isso passa a ser trabalho do porte, não da biblioteca.",
+            "Piso declarado de banco: `technologies.json` registra MySQL 5.5.5 (`wp-includes/version.php:57`), linha sem manutenção do fornecedor. Se o porte mantiver o piso, o método de autenticação do servidor e o tratamento de `utf8mb4` precisam ser conferidos contra ele — está em `verify`."
+          ]
+        },
+        {
+          "id": "kysely",
+          "name": "Construtor de consulta tipado",
+          "fit_reason": "Dá tipo ao esquema de 18 tabelas e 135 colunas e torna a porta de REQ-164 verificável pelo compilador em vez de por convenção, com escape para SQL cru — que aqui é obrigatório, porque as 9 classes de consulta do legado (`WP_Query`, `WP_Meta_Query`, `WP_Tax_Query`, `WP_Date_Query` e as demais) montam SQL dinâmico que nenhum construtor expressa por inteiro.",
+          "migration_friction": "médio",
+          "lock_in": "baixo",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "estável",
+          "risks": [
+            "O ganho de tipo cobre o SQL estático e não cobre o dinâmico, que é onde o sistema vive: `WP_Query` monta a cláusula a partir de dezenas de argumentos e expõe filtros (`posts_where`, `posts_join`) que permitem a uma extensão alterar o SQL. Um filtro que recebe fragmento de SQL como string não tem tipo, e a Pergunta 3 manda preservar o filtro.",
+            "As 1.128 chamadas não têm tradução mecânica: cada uma vira expressão do construtor ou escape para cru, e decidir qual é trabalho humano, uma por uma, no módulo que o grafo aponta como 14º mais dependido."
+          ]
+        },
+        {
+          "id": "drizzle",
+          "name": "ORM com esquema declarado",
+          "fit_reason": "Mesma família tipada, com a migração de esquema no mesmo artefato — útil porque o legado tem revisão de esquema própria (61833, `data-dictionary.md`) e um `dbDelta()` que compara DDL por texto. Mas o fit é menor aqui do que o do construtor: o valor de um ORM é o mapeamento objeto-relacional, e este sistema não tem objeto de domínio a mapear — tem `stdClass` e array vindos direto da linha.",
+          "migration_friction": "médio",
+          "lock_in": "médio — o esquema declarado no formato dele é dele; sair é reescrever a declaração das 18 tabelas",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "estável",
+          "risks": [
+            "As convenções que um ORM traz são as que o legado contraria por projeto: relação declarada, chave estrangeira e transação por unidade de trabalho. A exclusão de um post são 7 passos sequenciais sem transação (`wp-includes/post.php:3834`–`:3969`) que reparenteiam página filha e anexo em vez de apagá-los — qualquer cascata declarada no ORM muda o resultado observável, e `erd-complete.md` já marca esse risco.",
+            "Risco de abstração sem contrapartida: sem objeto de domínio, o ORM cobra indireção e devolve pouco, num módulo com 1.128 pontos de chamada."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "serializacao-de-valor-persistido",
+      "label": "Serialização do valor persistido",
+      "why_needed": "Não é slot de infraestrutura, é slot de formato de dado, e é obrigatório porque o formato está DENTRO das colunas: `options.option_value`, `postmeta.meta_value`, `usermeta.meta_value` e `signups.meta` guardam valor serializado pelo formato nativo do PHP quando não é escalar (`erd-complete.md`, linhas 127, 276, 281 e 352), com 21 `maybe_serialize`, 17 `maybe_unserialize` e 9 `is_serialized` na árvore. `erd-complete.md` diz a consequência em uma linha: 'uma migração que normalize permissões precisa parsear PHP serializado, não SQL'. Em TypeScript esse formato não existe, e a Pergunta 2 fixa que a cascata observável não pode mudar.",
+      "recommended": "implementacao-propria",
+      "recommendation_reason": "O formato é pequeno e fechado, a conformidade tem de ser provada byte a byte contra o oráculo da Pergunta 16 de qualquer forma, e nenhuma biblioteca escolhida sem acesso à rede dispensa essa prova.",
+      "candidates": [
+        {
+          "id": "implementacao-propria",
+          "name": "Implementação própria do formato, com suíte de conformidade",
+          "fit_reason": "É a única opção em que a conformidade é testável contra o oráculo que a Pergunta 16 autoriza: a instalação de referência grava o byte e o porte compara. E o detalhe que decide o caso: o papel da conta mora serializado em `usermeta.meta_value`, sob a `meta_key` `<prefixo>capabilities` (`wp-includes/class-wp-user.php:488`), e é consultado por `LIKE` com o nome do papel envolvido em aspas duplas, para casar com o delimitador do próprio formato serializado (`wp-includes/class-wp-user-query.php:562-567`). Logo a saída não precisa ser equivalente, precisa ser a mesma sequência de bytes, ou a consulta deixa de casar e ninguém é administrador.",
+          "migration_friction": "baixo",
+          "lock_in": "nenhum",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "estável",
+          "risks": [
+            "Reproduzir o sucesso é fácil; reproduzir a TOLERÂNCIA é onde um analisador novo diverge: `is_serialized()` tem heurística própria e `maybe_unserialize()` devolve a string intacta quando a análise falha. O dado corrompido tem comportamento definido no legado e precisa tê-lo aqui.",
+            "Precisão numérica: o formato grava ponto flutuante com a precisão de serialização do PHP, e JavaScript não tem inteiro de 64 bits em `number`. É o maior risco de divergência silenciosa deste slot, e está em `verify`."
+          ]
+        },
+        {
+          "id": "biblioteca-de-terceiro",
+          "name": "Biblioteca de serialização PHP para JavaScript",
+          "fit_reason": "Existe código publicado para ler e escrever o formato, e usá-lo troca a escrita do analisador pela auditoria dele — bom negócio para um formato estável e documentado. Serve a este caso se, e só se, passar na mesma suíte de conformidade contra a instalação de referência, que é trabalho que não desaparece.",
+          "migration_friction": "baixo",
+          "lock_in": "baixo — formato aberto; trocar de biblioteca não mexe no dado gravado",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "emergente",
+          "risks": [
+            "Sem rede não há como avaliar manutenção, licença ou estado deste tipo de biblioteca, e esta árvore é o retrato do custo de errar isso: 10 bibliotecas vendorizadas sem versão declarada e nenhum travamento de dependência. Está em `verify`.",
+            "O risco de precisão numérica é o mesmo da implementação própria, com a diferença de que não é o seu código que o resolve."
+          ]
+        },
+        {
+          "id": "json-no-lugar",
+          "name": "Trocar o formato por JSON no armazenamento",
+          "fit_reason": "É a escolha que um projeto novo faria, e está no leque para ficar registrado que neste caso ela é descartada por decisão já tomada e não por gosto: a Pergunta 2 fixa que o observável não muda, e a consulta de papel por `LIKE` sobre o texto serializado (`wp-includes/class-wp-user-query.php:562-567`) é observável.",
+          "migration_friction": "alto",
+          "lock_in": "nenhum",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "consolidado",
+          "risks": [
+            "Quebra toda extensão que leia `option_value` ou `meta_value` por fora, e a Pergunta 3 diz que a extensibilidade É o produto.",
+            "Quebra a comparação com a instalação de referência no nível do banco, que é um dos três critérios possíveis de 'idêntico' — e qual deles vale ninguém declarou ainda (dúvida aberta em `architectures.json`)."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cache",
+      "label": "Cache de objeto",
+      "why_needed": "Quarta porta do plano escolhido: `object-cache`, com 27 dependentes diretos. E é um dos quatro pontos que REQ-170 (`wont`) tira do mecanismo de arquivo solto e transforma em contrato nomeado — ou seja, o `wont` do backlog e a porta da arquitetura escolhida pedem aqui a MESMA coisa. O que o slot decide: `WP_Object_Cache` por padrão não persiste nada entre requisições, e REQ-165 (`must`, `bloqueado`) registra que ninguém decidiu se o sistema novo nasce persistente.",
+      "recommended": "em-processo",
+      "recommendation_reason": "A Pergunta 1 já respondeu o que REQ-165 pergunta: num clone do CMS o default de fábrica é a especificação, e o default de fábrica é não persistir nada entre requisições.",
+      "candidates": [
+        {
+          "id": "em-processo",
+          "name": "Cache por requisição, em memória do processo",
+          "fit_reason": "É o padrão de fábrica do legado (`wp-includes/class-wp-object-cache.php`) e, com a Pergunta 1, é a especificação. Reproduz também o que REQ-165 AC2 trata como defeito — o prazo de expiração é aceito e ignorado pela implementação não persistente — e reproduzir isso é precisamente o que 'idêntico' quer dizer. Não exige infraestrutura nova num produto que se instala em hospedagem que o time não controla.",
+          "migration_friction": "nenhum",
+          "lock_in": "nenhum",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "consolidado",
+          "risks": [
+            "Depende do slot `isolamento-de-requisicao`: em processo longevo, 'em memória do processo' deixa de significar 'por requisição' e passa a vazar entre requisições. É a armadilha do estado global, agora dentro do cache, e com 27 módulos dependentes.",
+            "Não atende REQ-165 AC3 (taxa de acerto mensurável e exposta ao diagnóstico do site): medir passa a ser código do porte, porque o legado não mede."
+          ]
+        },
+        {
+          "id": "redis",
+          "name": "Backend persistente compatível com Redis",
+          "fit_reason": "Ocupa a posição do arquivo substituto que o legado espera em `wp-content/object-cache.php` e que não existe nesta árvore — a lacuna que `technologies.json` registra como 'não há como saber o que roda em produção'. Como REQ-170 transforma o arquivo solto em contrato declarado, esta é a segunda implementação que prova que o contrato tem mais de uma, o que é o teste de que a porta é porta.",
+          "migration_friction": "médio",
+          "lock_in": "médio — protocolo amplamente implementado, mas a licença do servidor mudou de projeto nos últimos anos e há bifurcações com licenças diferentes",
+          "cost_shape": "por instância, ou por requisição e volume se for serviço gerenciado",
+          "maturity": "consolidado",
+          "risks": [
+            "Muda comportamento observável por acidente, e aqui isso é defeito: com cache persistente o prazo de expiração passa a ter efeito, e o legado o ignora. Ligar isto por padrão é sair do idêntico sem decisão registrada.",
+            "REQ-165 AC5 exige que o sistema funcione com o cache indisponível, apenas mais lento — e isso é código novo, porque a implementação de fábrica do legado não tem como estar indisponível."
+          ]
+        },
+        {
+          "id": "memcached",
+          "name": "Memcached",
+          "fit_reason": "Mesma posição de arquivo substituto, com modelo de dado mais pobre — e entra no leque porque é o backend que o ecossistema deste produto historicamente assume: os adaptadores de cache do SimplePie 1.9.0 vendorizado aqui já incluem Memcache e Memcached, para um uso que o sistema nem faz (`technologies.json`).",
+          "migration_friction": "médio",
+          "lock_in": "baixo",
+          "cost_shape": "por instância",
+          "maturity": "consolidado",
+          "risks": [
+            "Sem estrutura de dado além de chave-valor, os grupos globais de cache do legado (`wp_cache_add_global_groups`) passam a ser convenção de nome de chave — mais um ponto de divergência silenciosa, e em multisite os grupos globais são o que separa rede de site.",
+            "Mesmo risco de a expiração passar a funcionar, com a mesma consequência sobre o idêntico."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cliente-http",
+      "label": "Cliente HTTP de saída",
+      "why_needed": "Primeira porta do plano escolhido, por decisão registrada em `architectures.json`: é a única das cinco cujo contrato já está escrito em padrão externo — o adaptador PSR-18 vendorizado em `wp-includes/php-ai-client/` — e a única em que a Pergunta 18 abriu exceção explícita ao idêntico, o que faz a primeira porta nascer com um caso de teste de verdade. São 37 módulos dependentes, 29 integrações e 64 endpoints. O que esta porta tem de reproduzir é um conjunto de comportamentos que todo cliente HTTP moderno trata como erro de configuração.",
+      "recommended": "undici",
+      "recommendation_reason": "É a primeira porta a nascer e precisa reproduzir requisição não bloqueante, TLS não verificado e repetição em claro sem lutar contra a biblioteca — e undici dá controle de agente e de TLS por requisição sem obrigar o produto a reimplementar pool e redirecionamento.",
+      "candidates": [
+        {
+          "id": "undici",
+          "name": "undici",
+          "fit_reason": "Precisa reproduzir, não corrigir: requisição não bloqueante com `timeout` 0.01, `blocking` falso e `sslverify` falso para disparar o agendador (`wp-includes/cron.php:990-993`), 13 canais que nascem em `http://` com 7 repetindo a requisição em claro quando o TLS falha, proxy com `Proxy-Authorization` por `WP_PROXY_USERNAME` e `WP_PROXY_PASSWORD`, e desvio por `WP_PROXY_BYPASS_HOSTS` (`integrations.json`). As Perguntas 11, 12 e 19 mandam PRESERVAR tudo isso. undici expõe agente, pool e opções de TLS por requisição no nível em que isso é expressável sem truque.",
+          "migration_friction": "baixo",
+          "lock_in": "baixo — biblioteca aberta, atrás da porta que o plano de migração manda nomear",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "consolidado",
+          "risks": [
+            "Cliente que se preocupa com correção endurece defaults ao longo do tempo, e aqui um default mais seguro quebra o critério de idêntico. A porta tem de FIXAR explicitamente o que o legado faz, inclusive o que ela sabe ser errado — é o risco nº 1 da proposta escolhida, dito em código.",
+            "O legado tem DOIS transportes selecionáveis em execução (`Curl` e `Fsockopen`, `wp-includes/Requests/src/Transport/`) mais 15 `fsockopen` fora deles. Um transporte único é simplificação e precisa ser declarada, porque a seleção de transporte é filtrável."
+          ]
+        },
+        {
+          "id": "http-do-runtime",
+          "name": "Cliente HTTP cru do runtime",
+          "fit_reason": "É o nível em que o comportamento anômalo é literal: TLS sem verificação para o `sslverify` falso, socket solto sem esperar resposta para o disparo de `cron.php:990`, e o cabeçalho exatamente como o legado o monta. Nenhuma camada entre a porta e o que precisa ser reproduzido — o que importa porque o modo de falha é requisito, não efeito colateral.",
+          "migration_friction": "baixo",
+          "lock_in": "nenhum",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "consolidado",
+          "risks": [
+            "Retentativa, redirecionamento e pool passam a ser código do produto, e redirecionamento importa: `wp_remote_request` limita o número de redirecionamentos por argumento, e esse limite é observável.",
+            "Sem pool, o caminho de atualização abre conexão por requisição contra os 14 endpoints de `api.wordpress.org` — e 7 deles repetem em claro na falha de TLS, o que dobra a conta."
+          ]
+        },
+        {
+          "id": "cliente-de-alto-nivel",
+          "name": "Cliente de alto nível com política embutida",
+          "fit_reason": "Traz retentativa, redirecionamento e gancho prontos, o que mapeia bem nos filtros `http_api` do legado. O fit é menor neste caso porque o valor de um cliente de alto nível é a política que ele embute, e aqui a política já está escrita: 'faça o que o legado faz', inclusive quando o legado está errado.",
+          "migration_friction": "baixo",
+          "lock_in": "baixo",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "estável",
+          "risks": [
+            "Política de retentativa embutida muda o modo de falha das 29 integrações, e o modo de falha é requisito aqui — o `risks` da própria proposta escolhida diz que um adaptador bem escrito conserta isso por acidente e quebra o critério.",
+            "Expressar TLS não verificado e corpo não bloqueante em cliente de alto nível costuma exigir escapar para o agente de baixo nível, e então a abstração não paga."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sistema-de-arquivos",
+      "label": "Sistema de arquivos e escrita remota",
+      "why_needed": "Terceira porta do plano escolhido, e o módulo mais denso do levantamento: `WP_Filesystem` com 5 arquivos — base e 4 implementações (`direct`, `ftpext`, `ftpsockets`, `ssh2`) — e 54 regras de negócio registradas. É por aqui que o produto escreve código executável no disco (UC-33, UC-34). `technologies.json` propõe reduzir a só o driver `direct`, e esta etapa NÃO pode fazer isso: o diálogo de coleta de credencial é tela do produto, protegida por nonce `filesystem-credentials`, e a opção `ftp_credentials` grava host e usuário removendo senha e chaves antes (`wp-admin/includes/file.php:2495-2503`).",
+      "recommended": "fs-mais-ssh2-e-ftp",
+      "recommendation_reason": "É o único candidato que mantém os quatro caminhos que a tela de credencial do produto oferece, e reduzir para um é mudança observável que nenhuma das 23 respostas autoriza.",
+      "candidates": [
+        {
+          "id": "fs-mais-ssh2-e-ftp",
+          "name": "Sistema de arquivos do runtime, com biblioteca de SSH2 e de FTP",
+          "fit_reason": "Mapeia um para um nos 4 drivers que a árvore tem: o sistema de arquivos do runtime para `direct`, uma biblioteca de SSH2 para `class-wp-filesystem-ssh2.php`, e uma de FTP para `ftpext` e `ftpsockets` — que no legado já são dois caminhos para o MESMO protocolo (extensão do PHP contra socket cru), e `ftpsockets` existe exatamente para cobrir a hospedagem onde a extensão falta. A interface já está escrita: `WP_Filesystem_Base` com quatro implementações concretas é a porta que a arquitetura escolhida manda nomear.",
+          "migration_friction": "médio",
+          "lock_in": "baixo — protocolos abertos, e a porta é a interface que o legado já definiu",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "estável",
+          "risks": [
+            "FTP é canal em texto claro e carrega credencial: `integrations.json` registra as constantes `FTP_USER` e `FTP_PASS`. Portar isso é reproduzir um canal sem cifra de propósito, o que a Pergunta 12 autoriza como dívida herdada — mas que precisa estar escrito no artefato de arquitetura, como o pré-requisito 2 da proposta escolhida exige.",
+            "Biblioteca de SSH2 tende a ser dependência de compilação, e os candidatos Deno e Bun do slot `runtime` são mais rasos nesse terreno. É o acoplamento mais forte entre dois slots deste documento."
+          ]
+        },
+        {
+          "id": "so-direct",
+          "name": "Só o driver direct, exigindo permissão de escrita",
+          "fit_reason": "É a recomendação literal do campo `replaces_with` de `technologies.json`, e reduz de 4 caminhos para 1 o código que escreve executável no disco — menos superfície no lugar mais sensível do produto. Está no leque para que o custo fique na mesa, não porque esta etapa a recomende.",
+          "migration_friction": "baixo",
+          "lock_in": "nenhum",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "consolidado",
+          "risks": [
+            "Muda comportamento observável: numa hospedagem onde o processo não tem permissão de escrita, o legado PEDE credencial e atualiza; esta opção falha e o site deixa de se atualizar. É o tipo exato de divergência que o critério de idêntico proíbe, e nenhuma das 23 respostas a autoriza.",
+            "Fecha por tabela um achado de segurança que as Perguntas 11 e 12 mandam preservar. Consertar sem decisão registrada é o anti-padrão que o `risks` nº 1 da proposta escolhida nomeia por escrito."
+          ]
+        },
+        {
+          "id": "cliente-do-sistema",
+          "name": "Delegar a cliente do sistema (sftp, ftp)",
+          "fit_reason": "Evita dependência nativa de compilação, o que pesa porque este caminho roda dentro da requisição de atualização (UC-34) e porque o produto não controla o ambiente — `technologies.json` registra que nem qual servidor web roda está no repositório, a detecção é em execução por `SERVER_SOFTWARE`.",
+          "migration_friction": "médio",
+          "lock_in": "baixo",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "consolidado",
+          "risks": [
+            "Depende de binário presente na hospedagem, que é precisamente a variável que `FS_METHOD` e os 4 drivers existem para contornar. Troca uma dependência de compilação por uma dependência de ambiente, no mesmo ponto.",
+            "Credencial passada a processo externo é superfície nova no caminho que escreve executável; o legado a passa pela extensão, dentro do processo."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "envio-de-email",
+      "label": "Envio de e-mail",
+      "why_needed": "Quinta porta do plano escolhido, e o slot com o achado mais incômodo do documento: o transporte de fábrica do legado é `$phpmailer->isMail()`, que usa a função `mail()` do PHP (`integrations.json`, `wp-includes/pluggable.php:505`), sem credencial nenhuma. Em runtime de JavaScript essa função não existe. É o único slot em que 'idêntico' é impossível por AUSÊNCIA DE PRIMITIVA, não por decisão — e o e-mail carrega UC-20 (recuperar senha), UC-26 (confirmar solicitação de dado pessoal) e UC-36 (recuperar o site após erro fatal).",
+      "recommended": "biblioteca-com-transporte-selecionavel",
+      "recommendation_reason": "É a única que reproduz a FORMA do legado — transporte selecionável atrás de uma função substituível — sem reescrever protocolo à mão, e o transporte de fábrica não tem contraparte em nenhuma das três opções.",
+      "candidates": [
+        {
+          "id": "biblioteca-com-transporte-selecionavel",
+          "name": "Biblioteca de envio com transporte selecionável",
+          "fit_reason": "Cobre de uma vez os dois transportes que PHPMailer 7.1.1 já traz — entrega local e SMTP — que é exatamente o que o produto precisa, porque `integrations.json` registra que no núcleo não há credencial de SMTP e que ela só existe se uma extensão a introduzir, e `wp_mail()` é uma das 38 funções substituíveis de `wp-includes/pluggable.php`. Mesma forma do legado: transporte selecionável atrás de função substituível.",
+          "migration_friction": "baixo",
+          "lock_in": "baixo",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "consolidado",
+          "risks": [
+            "Compor a mensagem é onde a divergência mora: PHPMailer monta cabeçalho, codificação e fronteira de `multipart` de um jeito, e `wp_mail()` expõe filtros (`wp_mail_from`, `wp_mail_content_type`) que extensões usam. Byte a byte não vai bater, e o critério de aceite para e-mail precisa ser declarado — está em `verify`.",
+            "Mais uma dependência estrutural a travar, no caminho que entrega a recuperação de senha (UC-20)."
+          ]
+        },
+        {
+          "id": "entrega-local",
+          "name": "Binário local de entrega (sendmail)",
+          "fit_reason": "É o que `mail()` do PHP faz por baixo na configuração típica: entrega ao agente local e devolve controle. É a contraparte mais próxima do transporte de fábrica, e preserva o que o legado observa — nenhuma credencial, e a falha devolvida como booleano por `wp_mail()`.",
+          "migration_friction": "baixo",
+          "lock_in": "nenhum",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "consolidado",
+          "risks": [
+            "Depende de agente local configurado, que `mail()` também depende — mas em PHP essa dependência é invisível ao produto, e aqui passa a ser explícita. A diferença aparece no diagnóstico do site (UC-37), que no legado não verifica isso.",
+            "Não cobre SMTP, que é o caminho que toda hospedagem moderna exige: cobre o default e deixa o resto para extensão, como o legado faz — e isso é fidelidade, não solução."
+          ]
+        },
+        {
+          "id": "smtp-proprio",
+          "name": "SMTP implementado na própria porta",
+          "fit_reason": "Entra porque o legado tem precedente disso na própria árvore: duas implementações de POP3 escritas à mão (`wp-includes/class-pop3.php`, classificada `abandonada`, e a do PHPMailer, que o sistema não usa). Serve se o escopo ficar restrito ao que o núcleo realmente envia.",
+          "migration_friction": "médio",
+          "lock_in": "nenhum",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "consolidado",
+          "risks": [
+            "Reescrever protocolo de e-mail à mão é como esta árvore chegou a duas bibliotecas de POP3 sem versão e sem manutenção. Repetir o padrão é contratar a mesma dívida de novo.",
+            "TLS, autenticação e codificação de cabeçalho são onde esse tipo de implementação falha em silêncio — e o canal entrega a recuperação de senha."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hash-de-senha",
+      "label": "Hash e verificação de senha",
+      "why_needed": "Não existe slot de 'autenticação' aqui, e isso é decisão: cookie, nonce e senha de aplicação são lógica de núcleo, e o núcleo fica fora desta arquitetura por decisão registrada. O que é escolha de tecnologia é o hash — e ele não pode ser aproximado, porque a chave do HMAC do cookie embute um fragmento de 4 caracteres do hash da senha (`wp-includes/pluggable.php:855-867`, confirmado na Pergunta 7). Se o hash divergir em um byte, toda sessão divergente, e a Pergunta 7 manda preservar exatamente esse efeito, inclusive o fato de nada ser revogado.",
+      "recommended": "bcrypt-nativo",
+      "recommendation_reason": "É o único caminho em que cada peça do hash do legado tem contraparte exata — HMAC-SHA384, base64, bcrypt e o prefixo `$wp` —, e o hash entra na chave do cookie, onde aproximação não existe.",
+      "candidates": [
+        {
+          "id": "bcrypt-nativo",
+          "name": "bcrypt por biblioteca nativa, com HMAC do runtime",
+          "fit_reason": "O legado hasheia com `password_hash()` em `PASSWORD_BCRYPT` sobre o pré-hash `base64(hmac_sha384(trim(senha), 'wp-sha384'))` e prefixa com `$wp` (`wp-includes/pluggable.php:2811-2816`). Cada peça tem contraparte exata: HMAC-SHA384 e base64 nas primitivas de criptografia do runtime, bcrypt por biblioteca nativa. E o verificador antigo é obrigatório mesmo em instalação nova: `technologies.json` registra que o reconhecimento de formato é por prefixo (`$wp`, `$P$`, `$2y$`) ou, no pior caso, por COMPRIMENTO — hash de até 32 caracteres é verificado como md5 sem sal.",
+          "migration_friction": "baixo",
+          "lock_in": "nenhum",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "consolidado",
+          "risks": [
+            "Dependência de compilação no caminho de login; o slot `runtime` decide quanto isso dói, e o slot `entrega` decide se há artefato pré-compilado para o destino.",
+            "O verificador de formato antigo precisa ser portado inteiro à mão: `technologies.json` classifica PHPass como `abandonada`, logo não há biblioteca a reusar, e o caminho md5-sem-sal por comprimento é comportamento observável de `wp_check_password()` que um porte apressado deixaria de fora por parecer bug.",
+            "O fragmento de 4 caracteres que entra na chave do cookie é extraído de DOIS jeitos, conforme o formato do hash: os caracteres 9 a 12 quando o hash começa com `$P$` ou `$2y$`, e os 4 ÚLTIMOS em qualquer outro caso, inclusive no formato `$wp` de hoje (`wp-includes/pluggable.php:855-863`, e de novo em `:962-970`). São dois ramos, repetidos em dois lugares — exatamente a forma de detalhe que um porte perde sem o teste de caracterização notar, porque o login continua funcionando."
+          ]
+        },
+        {
+          "id": "bcrypt-puro",
+          "name": "bcrypt em JavaScript puro",
+          "fit_reason": "Mesma saída de bcrypt sem dependência de compilação, o que remove o único ponto de build nativo do caminho de autenticação — relevante porque este produto é instalado por quem não controla a hospedagem, e `technologies.json` registra que nem o servidor web é conhecido a partir do repositório.",
+          "migration_friction": "baixo",
+          "lock_in": "nenhum",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "estável",
+          "risks": [
+            "bcrypt em JavaScript puro é muito mais lento por hash, e o custo de bcrypt é proposital. Qual é o impacto real no login deste sistema não foi medido aqui e não será estimado — está em `verify`.",
+            "Sem rede não há como conferir manutenção nem licença, o mesmo problema das 10 bibliotecas sem versão desta árvore — e aqui a biblioteca está no caminho de autenticação."
+          ]
+        },
+        {
+          "id": "argon2",
+          "name": "Argon2",
+          "fit_reason": "Entra para ficar registrado que está FORA: é o algoritmo que um projeto novo escolheria, e `wp_hash_password()` até o aceita, porque o algoritmo é filtrável por `wp_hash_password_algorithm` (`wp-includes/pluggable.php:2789`). Mas o default é bcrypt, a Pergunta 1 diz que o default é a especificação, e o pré-hash HMAC-SHA384 só se aplica a bcrypt (`:2807-2809`).",
+          "migration_friction": "baixo",
+          "lock_in": "nenhum",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "consolidado",
+          "risks": [
+            "Trocar o algoritmo padrão rompe o idêntico de forma invisível: a senha continua funcionando e a sessão continua funcionando, e o que divergiu é o hash que uma extensão pode inspecionar — e o fragmento de 4 caracteres que entra na chave do cookie.",
+            "Portar o FILTRO que permite trocá-lo é obrigatório (Pergunta 3); usá-lo por padrão não é, e confundir as duas coisas é como uma decisão de produto entra sem ninguém decidir."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "processamento-de-imagem",
+      "label": "Processamento de imagem",
+      "why_needed": "`edicao-de-imagem` tem 2 implementações da mesma interface na árvore — `class-wp-image-editor-gd.php` e `class-wp-image-editor-imagick.php`, com `class-wp-image-editor.php` como base — selecionadas em execução pelo que a hospedagem tiver. É adaptador sem o nome, como o `fit_reason` da arquitetura escolhida diz de outras bordas. Não está entre as 5 portas do plano de migração, e precisa estar neste leque porque as extensões PHP `gd` e `imagick` não têm contraparte automática: UC-12 (enviar mídia) e UC-13 (editar imagem) param sem elas.",
+      "recommended": "sharp",
+      "recommendation_reason": "Cobre o papel do Imagick, que é o editor preferido do legado quando existe — e a decisão que realmente importa neste slot não é a biblioteca, é declarar se 'idêntico' para imagem é o arquivo ou a grade de derivadas.",
+      "candidates": [
+        {
+          "id": "sharp",
+          "name": "Biblioteca nativa de processamento de imagem",
+          "fit_reason": "Ocupa a posição do Imagick: redimensionar, cortar, girar, converter formato e ler metadado, com biblioteca nativa por baixo. O que o porte precisa reproduzir não é a qualidade visual, é a GRADE — as derivadas por tamanho registrado, que `data-dictionary.md` cataloga em `midia-e-anexos` (3 entidades, 24 campos) — e o fato de a exclusão de mídia ser definitiva, sem lixeira e sem aviso (Pergunta 9).",
+          "migration_friction": "médio",
+          "lock_in": "baixo",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "consolidado",
+          "risks": [
+            "A saída byte a byte NÃO vai bater com GD nem com Imagick: compressão, perfil de cor e metadado diferem por biblioteca. Isso força uma decisão que ninguém tomou — o critério de idêntico para imagem é o arquivo, ou a dimensão e o nome do arquivo derivado? A dúvida de critério já estava aberta em `architectures.json`; aqui ela tem consequência de compra.",
+            "Dependência nativa, com o mesmo problema de artefato pré-compilado do slot `hash-de-senha`, agora no caminho de envio de mídia."
+          ]
+        },
+        {
+          "id": "imagem-em-js-puro",
+          "name": "Processamento em JavaScript puro",
+          "fit_reason": "Ocupa a posição do GD: o caminho alternativo para quando a biblioteca nativa não está disponível, que é literalmente a razão de o legado ter DOIS editores de imagem e não um. Preserva a estrutura de escolha em execução que `WP_Image_Editor` implementa.",
+          "migration_friction": "médio",
+          "lock_in": "nenhum",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "estável",
+          "risks": [
+            "Lento e com cobertura de formato menor; AVIF e HEIC são o terreno onde isso aparece, e esta árvore já carrega `avif-info` vendorizada sem versão declarada.",
+            "Duas implementações significam duas saídas diferentes para a mesma entrada — que é o que o legado já tem, e é por isso que o candidato está no leque: a divergência é herdada, não introduzida."
+          ]
+        },
+        {
+          "id": "imagemagick-externo",
+          "name": "ImageMagick por processo externo",
+          "fit_reason": "É a MESMA biblioteca que o Imagick do legado usa, por outro caminho de chamada — logo é o candidato com maior chance de a derivada sair igual, o que decide o slot se o critério de idêntico para imagem for o arquivo e não a grade.",
+          "migration_friction": "médio",
+          "lock_in": "nenhum",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "consolidado",
+          "risks": [
+            "Um processo externo por imagem, dentro do caminho de envio (UC-12), e o legado não tem esse custo porque chama a extensão dentro do processo.",
+            "Passar caminho de arquivo enviado por terceiro a processo externo é superfície nova, e o envio de mídia é aberto a quem tem `upload_files`."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "analise-de-html",
+      "label": "Análise e sanitização de HTML",
+      "why_needed": "`html-api` é uma das DUAS raízes do grafo de dependência de todo o sistema (`architecture-graph.json`), e `kses-e-sanitizacao` está no núcleo crítico, com 11 ou mais dependentes diretos. São 16.590 linhas em 14 arquivos de `wp-includes/html-api/` mais 3.159 de `wp-includes/kses.php`, e as duas fazem trabalhos diferentes que um projeto novo confundiria: a primeira é um tokenizador que persegue a especificação do HTML5 e EDITA a string no lugar; a segunda é a lista de permissão que decide o que cada papel pode publicar — `permissions.md` registra que `editor` tem `unfiltered_html`.",
+      "recommended": "porte-a-mao",
+      "recommendation_reason": "A metade que parece substituível, o tokenizador, é um editor de string que nenhum analisador de árvore reproduz sem reescrever o `post_content`; e a outra metade, KSES, é fronteira de autorização, não higiene de HTML.",
+      "candidates": [
+        {
+          "id": "porte-a-mao",
+          "name": "Porte à mão das duas, com a tabela de referências de caracteres",
+          "fit_reason": "O legado já escreveu o que nenhuma biblioteca entrega junto: `html5-named-character-references.php` com 1.313 linhas de tabela, e um processador que já RECONHECE erro de análise sem ter como reportá-lo — são 50 marcadores em `class-wp-html-processor.php`, e é exatamente isso que REQ-167 (`should`) pede para deixar de ser silencioso. KSES, por sua vez, não é sanitização genérica: é a lista que define a fronteira entre papéis, e trocá-la por outra lista muda autorização sem que nada falhe.",
+          "migration_friction": "médio",
+          "lock_in": "nenhum",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "estável",
+          "risks": [
+            "19.749 linhas de lógica delicada portadas à mão, sem um arquivo de teste no legado para comparar. É o maior volume de código deste documento e o que mais depende do oráculo da Pergunta 16.",
+            "O lado cliente está fora da árvore (`wp-includes/js/dist/` ausente) e a Pergunta 15 manda buscá-lo no repositório de origem: parte do comportamento de marcação não é conferível a partir daqui, e o editor de blocos é onde o `post_content` nasce."
+          ]
+        },
+        {
+          "id": "tokenizador-de-terceiro",
+          "name": "Tokenizador de terceiro conforme a especificação",
+          "fit_reason": "Resolve a metade tokenizador: um analisador que segue a mesma especificação que `html-api` persegue deve, em princípio, concordar com ele nas entradas bem formadas, e o volume de código a portar cai de 16.590 linhas para a camada de adaptação.",
+          "migration_friction": "médio",
+          "lock_in": "baixo",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "consolidado",
+          "risks": [
+            "Construir árvore e re-serializar MUDA o `post_content`, que é dado da pessoa gravado em `longtext` com os delimitadores de bloco em comentário HTML (`erd-complete.md`:103). `WP_HTML_Tag_Processor` não constrói árvore: caminha sobre a string e substitui no lugar, de propósito. Qualquer normalização aqui é perda de dado observável.",
+            "Não substitui KSES: o slot continua precisando da lista de permissão portada, com os filtros que permitem a uma extensão alterá-la."
+          ]
+        },
+        {
+          "id": "sanitizador-de-terceiro",
+          "name": "Sanitizador de terceiro por lista de permissão",
+          "fit_reason": "Entra para ser descartado com o preço na mesa: a FORMA é a mesma de KSES, uma lista de tags e atributos permitidos, mas o CONTEÚDO da lista do legado é fronteira de autorização, e `permissions.md` registra que a capacidade `unfiltered_html` é o que dispensa a filtragem. Adotar outra lista é mudar quem pode publicar o quê.",
+          "migration_friction": "baixo",
+          "lock_in": "baixo",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "estável",
+          "risks": [
+            "Divergência de lista é divergência de autorização, e silenciosa nos dois sentidos: um atributo que o legado permitia e esta lista não, ou o contrário — e o contrário é vulnerabilidade.",
+            "KSES tem comportamento que sanitizador genérico não tem: filtros que permitem a extensão alterar a lista, que a Pergunta 3 manda preservar como parte do produto."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "traducao",
+      "label": "Tradução e catálogo gettext",
+      "why_needed": "É a aresta mais pesada da árvore: `l10n-e-traducoes` recebe 13.335 pontos de entrada de 68 dos 71 módulos (`architecture-graph.json`), e a contagem direta desta etapa dá 13.705 chamadas de função de tradução em 1.467 arquivos. A biblioteca é própria (`wp-includes/pomo/`, 6 arquivos, gettext em PHP) e `technologies.json` registra que ela está em DOIS lugares, `pomo/` e `l10n/`, com as duas gerações ativas. REQ-166 (`should`) pede catálogo externo e forma plural declarada; REQ-161 (`must`, GG, `bloqueado`) pede o oposto do que o código faz: nenhum módulo de domínio chamando tradução.",
+      "recommended": "leitor-proprio",
+      "recommendation_reason": "A metade que importa neste slot não é ler o arquivo, é avaliar a expressão de plural — e nenhuma biblioteca a entrega junto, enquanto o formato `.mo` é compatibilidade obrigatória com o catálogo do ecossistema que este produto clona.",
+      "candidates": [
+        {
+          "id": "leitor-proprio",
+          "name": "Leitor de .mo e .po próprio, com avaliador de plural restrito",
+          "fit_reason": "É o que `pomo` já é: ler `.mo` binário e resolver plural por EXPRESSÃO vinda do cabeçalho `Plural-Forms`, que é um mini-interpretador aritmético e não uma tabela. REQ-166 AC5 pede exatamente isso ('forma declarada, não concatenação'), e a árvore não traz `wp-content/languages/` — logo o catálogo é dado externo, como REQ-166 AC2 quer.",
+          "migration_friction": "baixo",
+          "lock_in": "nenhum",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "estável",
+          "risks": [
+            "Avaliar expressão vinda de arquivo é executar entrada. O legado faz isso e o porte herda a decisão — tem de ser avaliador restrito a aritmética, nunca avaliação de código, e isso é requisito de implementação, não detalhe.",
+            "Duas gerações ativas (`pomo/` e `l10n/`) tornam 'portar o que existe' ambíguo: qual das duas é o comportamento? Dúvida registrada e não fechada aqui — precisa de leitura dirigida das duas antes de o porte começar."
+          ]
+        },
+        {
+          "id": "leitor-de-terceiro",
+          "name": "Biblioteca de leitura de catálogo gettext",
+          "fit_reason": "Troca a escrita do leitor binário pela auditoria dele, bom negócio para `.mo`, cujo formato é estável e documentado. O que uma biblioteca desse tipo normalmente NÃO entrega é o avaliador de `Plural-Forms`, que é a metade difícil — logo este candidato cobre parte do slot, e isso precisa estar dito antes de alguém achar que o slot fechou.",
+          "migration_friction": "baixo",
+          "lock_in": "baixo",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "estável",
+          "risks": [
+            "Cobre o formato e não a resolução: a função de plural continua sendo código do porte, com o mesmo risco de avaliação de expressão.",
+            "Sem rede, manutenção e licença entram em `verify` — e este é o módulo com mais pontos de entrada do sistema."
+          ]
+        },
+        {
+          "id": "icu-messageformat",
+          "name": "Formato de mensagem ICU",
+          "fit_reason": "É a forma que um produto novo escolheria para plural e gênero, e `_n()`/`_nx()` do legado são uma versão mais pobre dela. Entra para registrar o preço: trocar o formato invalida o catálogo `.mo` do ecossistema que este produto clona, e REQ-166 AC2 pede catálogo atualizável sem alterar o sistema.",
+          "migration_friction": "alto",
+          "lock_in": "baixo",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "consolidado",
+          "risks": [
+            "Quebra a compatibilidade com dado de terceiro de décadas: catálogo de tradução é conteúdo da comunidade, não código do produto.",
+            "Não resolve REQ-161, que é o card `must` deste slot: o problema de REQ-161 não é o formato da mensagem, é a chamada de tradução DENTRO do domínio, 13.705 vezes."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "xml",
+      "label": "XML: XML-RPC, feeds e sitemap",
+      "why_needed": "A Pergunta 14 manteve o XML-RPC no escopo com todo o comportamento atual, inclusive o `pingback`, e `technologies.json` classifica a biblioteca que o implementa como `abandonada` E `estrutural`: IXR, sem versão declarada em lugar algum, fundida ao servidor em 390 referências em 15 arquivos. Somam-se os feeds RSS e Atom, o sitemap, o OPML e o oEmbed. O legado analisa XML com `xml_parser_create` (expat) em 6 arquivos — `wp-includes/rss.php:70`, `feed.php:599`, `atomlib.php:159`, `IXR/class-IXR-message.php:92` entre eles — e PRODUZ XML por template literal, não por serializador (`wp-includes/feed-rss2.php`).",
+      "recommended": "sax",
+      "recommendation_reason": "É a mesma forma do legado — analisador de eventos com manipulador de início, fim e caractere —, logo portar é tradução e não redesenho; o binding nativo do mesmo expat é equivalente para este caso e só difere por exigir compilação.",
+      "candidates": [
+        {
+          "id": "sax",
+          "name": "Analisador SAX de eventos",
+          "fit_reason": "É a MESMA forma do legado: expat é analisador de eventos, e os pontos próprios registram manipulador de início, de fim e de caractere. Portar manipulador para manipulador é tradução, e a produção de XML não precisa de biblioteca nenhuma, porque o legado a faz por template — o que preserva de graça a saída byte a byte das 7 superfícies produzidas.",
+          "migration_friction": "baixo",
+          "lock_in": "nenhum",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "consolidado",
+          "risks": [
+            "Entidade externa: o substituto precisa recusá-la por padrão, e isso tem de ser verificado por teste e não por documentação. É o único ponto deste slot em que uma divergência de biblioteca é exploração, não diferença de comportamento.",
+            "O `pingback` não se desliga por `xmlrpc_enabled` — o próprio docblock diz (`wp-includes/class-wp-xmlrpc-server.php:208-210`) — e a Pergunta 14 manda portá-lo como está. Logo esta superfície anônima fica aberta por projeto, e `integrations.json` confirma que nenhuma superfície de entrada tem limite de taxa."
+          ]
+        },
+        {
+          "id": "arvore-em-objeto",
+          "name": "Analisador de XML para objeto",
+          "fit_reason": "Mais curto de escrever: o corpo de uma chamada XML-RPC é pequeno, cabe em memória, e o resultado em objeto mapeia razoavelmente nos tipos de valor do protocolo. Serve a este caso porque o volume aqui é uma chamada por requisição, não fluxo contínuo.",
+          "migration_friction": "baixo",
+          "lock_in": "baixo",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "estável",
+          "risks": [
+            "Converter para objeto perde ordem e a distinção entre atributo e elemento, e os tipos do XML-RPC (`struct`, `array`, `base64`, `dateTime.iso8601`) dependem de estrutura — mapear de volta é trabalho que o modelo de eventos não tem.",
+            "Corpo inteiro em memória num endpoint anônimo e sem limite de taxa, que é o perfil exato de `/xmlrpc.php` e de `trackback`."
+          ]
+        },
+        {
+          "id": "expat-nativo",
+          "name": "Binding nativo do mesmo expat",
+          "fit_reason": "É a mesma biblioteca que o legado usa, pelo mesmo modelo de eventos — a menor divergência possível de comportamento de análise, inclusive nos casos malformados que o legado aceita em silêncio e que um analisador mais estrito recusaria.",
+          "migration_friction": "baixo",
+          "lock_in": "nenhum",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "consolidado",
+          "risks": [
+            "Dependência nativa de compilação para ganhar paridade num ponto em que a divergência provável é pequena — o inverso da troca que vale no slot `hash-de-senha`.",
+            "O estado de manutenção de binding nativo desta geração é exatamente o que não se pode avaliar sem rede. Está em `verify`."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "testes",
+      "label": "Testes e paridade com o legado",
+      "why_needed": "É pré-requisito DECLARADO da arquitetura escolhida, não melhoria: 'teste de caracterização das 5 bordas contra a instalação de referência', porque adaptador troca modo de falha e não há um único arquivo de log nesta árvore para comparar depois. A linha de base é zero: 0 arquivos de teste em 3.381, e os 985 testes de `backlog/tests.md` são especificação e não evidência (Pergunta 16). REQ-163 (`must`, GG, `pronto`) é o card que fecha isso, e a Pergunta 16 autoriza o oráculo: levantar o legado na MESMA versão e comparar caso a caso.",
+      "recommended": "vitest",
+      "recommendation_reason": "O trabalho deste slot é comparar saída contra uma instalação de referência caso a caso, e captura de saída de referência de primeira classe com execução paralela é o que faz 985 testes mais caracterização caberem num portão de integração (REQ-163 AC5).",
+      "candidates": [
+        {
+          "id": "vitest",
+          "name": "Executor com captura de saída de referência",
+          "fit_reason": "O trabalho aqui é comparação contra oráculo: a Pergunta 16 manda levantar o legado na mesma versão, e os artefatos já dizem o que comparar — 64 endpoints e 29 integrações em `integrations.json`, 7 superfícies produzidas, 9 máquinas de estado em `state-machines.md` e 75 regras de negócio em `domain.md`. Captura de saída gravada em arquivo é a forma natural de fixar a resposta do oráculo e detectar quando o porte se afasta dela.",
+          "migration_friction": "nenhum",
+          "lock_in": "baixo",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "estável",
+          "risks": [
+            "Captura de saída facilita gravar o ERRADO: se o oráculo não for a mesma versão, a suíte passa a defender a divergência. A Pergunta 16 já exige a mesma versão — isso tem de ser verificado por máquina, não por combinação, porque `technologies.json` registra que a versão 7.1.2 não é cruzável nesta árvore (sem tag, sem metadado de VCS).",
+            "Dependência de ferramenta no portão de integração de um produto que hoje não trava nenhuma versão."
+          ]
+        },
+        {
+          "id": "executor-do-runtime",
+          "name": "Executor de teste do próprio runtime",
+          "fit_reason": "Zero dependência no portão de integração, coerente com um produto distribuído para hospedagem que o time não controla. Serve a este caso porque a maior parte dos 985 testes de `tests.md` é decisão de regra — a cascata de moderação de 13 regras, a resolução de permissão por autoria e estado — e não precisa de infraestrutura de teste rica.",
+          "migration_friction": "nenhum",
+          "lock_in": "nenhum",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "consolidado",
+          "risks": [
+            "Sem captura de saída de primeira classe, a comparação com o oráculo passa a ser código do porte — e ela é o trabalho PRINCIPAL deste slot, não um acessório.",
+            "Amarra o slot ao runtime: se o slot 1 mudar de candidato, o executor muda com ele."
+          ]
+        },
+        {
+          "id": "jest",
+          "name": "Executor consolidado com ecossistema de relatório",
+          "fit_reason": "Mesma família de recursos do primeiro candidato, com ecossistema maior de relatório e cobertura — útil para REQ-163 AC1, que exige que a correspondência regra → teste seja consultável, e são 75 regras de negócio catalogadas mais 804 critérios de aceite nos 181 cards.",
+          "migration_friction": "nenhum",
+          "lock_in": "baixo",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "consolidado",
+          "risks": [
+            "Mais lento em suíte grande, e esta nasce com 985 testes mais os de caracterização das 5 bordas.",
+            "Mesmo risco de gravar a captura contra um oráculo de versão diferente."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "observabilidade",
+      "label": "Observabilidade",
+      "why_needed": "REQ-159 é `must` e está `pronto`: todo erro tratado e toda falha de integração produzem registro com instante, origem, severidade e contexto, estruturado e consultável, sem depender de modo de depuração, com verificação automatizada que falha ao encontrar tratamento de erro silencioso. A linha de base é 0 arquivos de log na árvore, 49 chamadas `error_log` e um único histórico persistente de falha: a opção `auto_core_update_failed`. E é pré-requisito da arquitetura escolhida pelo mesmo motivo do slot anterior — adaptador troca modo de falha, e sem registro a troca é invisível.",
+      "recommended": "registro-estruturado",
+      "recommendation_reason": "REQ-159 AC2 e AC3 juntos pedem registro estruturado COM redação de campo sensível, e redação embutida é a diferença entre cumprir o critério e abrir o vazamento que `integrations.json` já documenta em outro canal.",
+      "candidates": [
+        {
+          "id": "registro-estruturado",
+          "name": "Registro estruturado em linha JSON",
+          "fit_reason": "REQ-159 AC2 pede consultável por período, severidade e origem — ou seja, registro estruturado e não texto. E AC3 proíbe guardar credencial e dado pessoal além do declarado, o que pesa muito aqui: `integrations.json` registra 7 segredos por nome e um canal que já exporta todo campo de `$_POST` para fora. Redação de campo na saída do registro é o que separa cumprir AC3 de criar um vazamento novo no caminho de erro.",
+          "migration_friction": "baixo",
+          "lock_in": "baixo",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "consolidado",
+          "risks": [
+            "Registrar onde o legado não registra é mudança observável no sentido contrário: as 49 `error_log` continuam tendo de ir para onde iam, e o canal estruturado é ADICIONAL. Confundir os dois quebra o idêntico num lugar em que ninguém vai olhar.",
+            "Retenção: REQ-159 AC3 exige prazo declarado, e a Pergunta 20 responde que o núcleo não declara prazo nenhum e que a rotina de descarte é da implantação, configurável. Logo o prazo não é do stack — é um campo de configuração que o porte tem de expor, e isso precisa estar no card."
+          ]
+        },
+        {
+          "id": "escritor-proprio",
+          "name": "Escritor próprio sobre a saída de erro do runtime",
+          "fit_reason": "Zero dependência, coerente com um produto que hoje não trava nenhuma versão, e suficiente para o volume que o legado tem: 49 pontos, um formato, um destino.",
+          "migration_friction": "baixo",
+          "lock_in": "nenhum",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "estável",
+          "risks": [
+            "Redação de campo sensível e rotação passam a ser código do produto, no mesmo caminho em que AC3 proíbe gravar credencial — e a credencial de FTP e a chave de API do serviço de reputação passam por ali.",
+            "Escrita síncrona no caminho de erro custa na requisição; o legado não tem esse custo porque não registra."
+          ]
+        },
+        {
+          "id": "opentelemetry",
+          "name": "OpenTelemetry",
+          "fit_reason": "Entra para ser descartado com o preço na mesa: o valor dele é correlacionar o que atravessa fronteira de processo, e este sistema tem ZERO fronteira de processo em todo o nível 2 do C4 (`architecture.md`), nem passará a ter — a arquitetura escolhida não cria serviço nenhum. Rastro distribuído aqui é instrumentação sem sujeito.",
+          "migration_friction": "médio",
+          "lock_in": "baixo — padrão aberto, mas o coletor é infraestrutura nova a operar",
+          "cost_shape": "por volume, quando o destino é serviço gerenciado",
+          "maturity": "estável",
+          "risks": [
+            "Resolve um problema que este sistema não tem e, pela arquitetura escolhida, não vai ter.",
+            "Custo de operar coletor num produto que se instala em hospedagem compartilhada, onde `technologies.json` registra que nem o servidor web é conhecido."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "entrega",
+      "label": "Entrega, empacotamento e autoatualização",
+      "why_needed": "`deployment.md` §1 registra o achado: não existe Dockerfile, docker-compose nem configuração de nuvem nesta árvore, e a AUSÊNCIA é o achado, porque o pipeline de implantação deste produto É o painel administrativo — UC-33 instala extensão e UC-34 atualiza o núcleo, descompactando pacote e escrevendo no disco por `WP_Filesystem`, com `downloads.wordpress.org` como integração de criticidade alta. Num porte para TypeScript isso vira uma pergunta que o legado nunca teve de responder: o que é entregue, fonte ou compilado? É a decisão que amarra os slots `runtime` e `isolamento-de-requisicao`.",
+      "recommended": "javascript-compilado",
+      "recommendation_reason": "É a única forma de entrega que não aposta a distribuição do produto num recurso de runtime ainda em movimento, e o que ela custa — mapa de origem no produto e extensão de terceiro possivelmente pré-compilada — é divergência nomeável, não risco de execução.",
+      "candidates": [
+        {
+          "id": "javascript-compilado",
+          "name": "Compilado para JavaScript, um arquivo por módulo",
+          "fit_reason": "Mantém o produto executável em qualquer um dos três runtimes do slot 1 e preserva a forma do legado: o pacote baixado é descompactado e executado, sem etapa de build na hospedagem. E não quebra o mecanismo de extensão: as 38 funções substituíveis de `wp-includes/pluggable.php` dependem de a extensão poder DEFINIR a função antes do núcleo, o que um arquivo por módulo preserva. O editor de arquivos do painel também não é afetado — `wp-admin/plugin-editor.php:86` edita `WP_PLUGIN_DIR`, não o núcleo.",
+          "migration_friction": "baixo",
+          "lock_in": "nenhum",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "consolidado",
+          "risks": [
+            "Mapa de origem passa a fazer parte do produto, ou o modo de recuperação (UC-36) reporta pilha que não corresponde a arquivo nenhum — e `recovery-mode` é o que mantém o site administrável depois de erro fatal de extensão.",
+            "Se a extensão de terceiro vier em TypeScript, alguém tem de transpilá-la no momento da instalação: mecanismo novo que o legado não tem, porque `wp-settings.php:597` carrega fonte."
+          ]
+        },
+        {
+          "id": "fonte-typescript",
+          "name": "Fonte TypeScript executado pelo runtime",
+          "fit_reason": "Preserva literalmente o que as Perguntas 3 e 14 protegem: extensão instalada pelo painel é FONTE, o editor de arquivos do painel edita o que roda, e o rastro de erro do modo de recuperação aponta para a linha real. É o argumento mais forte a favor de Deno ou Bun no slot `runtime`, e vale dizer que ele não é de desempenho: é de compatibilidade com o modelo de extensão, que a Pergunta 3 chama de o produto.",
+          "migration_friction": "médio",
+          "lock_in": "médio — amarra a forma de entrega ao runtime que executa tipos sem build",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "emergente",
+          "risks": [
+            "Executar tipos sem build mudou de status entre versões em todos os runtimes. Apostar a forma de DISTRIBUIÇÃO do produto nisso é `emergente` em componente crítico, e o SKILL manda dizer: é risco assumido.",
+            "Custo de análise por arranque, somado ao modelo processo-por-requisição recomendado no slot `isolamento-de-requisicao`. Os dois juntos precisam de medição antes de qualquer fechamento — está em `verify`."
+          ]
+        },
+        {
+          "id": "pacote-unico",
+          "name": "Pacote único por empacotador",
+          "fit_reason": "Menor superfície de arquivo e arranque mais rápido, o que ajudaria diretamente o modelo processo-por-requisição recomendado no slot `isolamento-de-requisicao` — é o único candidato que atenua o custo apontado lá.",
+          "migration_friction": "médio",
+          "lock_in": "baixo",
+          "cost_shape": "nenhuma (auto-hospedado)",
+          "maturity": "consolidado",
+          "risks": [
+            "Colide com a característica de produto que o `system.summary` de `architectures.json` nomeia: 38 funções substituíveis em `wp-includes/pluggable.php` dependem de um ponto de costura que um pacote fechado não tem. Nenhuma das 23 respostas descarta esse mecanismo — REQ-170 descarta o arquivo solto em `wp-content/`, não as funções substituíveis.",
+            "Atualização parcial deixa de existir: hoje o `upgrader` substitui arquivo a arquivo; com pacote único, substitui tudo, o que muda o perfil de falha de UC-34 — e `auto_core_update_failed` é o único histórico persistente de falha que o sistema tem."
+          ]
+        }
+      ]
+    }
+  ],
+  "verify": [
+    "Cravar o piso de versão do runtime escolhido. Nada nesta árvore declara piso de runtime para EXECUÇÃO: o único número de manifesto é `>=20.10.0` em `wp-content/themes/twentytwentyfive/package.json` (`engines`), e ele é do build de CSS do tema padrão, não do sistema. Meu conhecimento de versões tem data de corte e o repositório não confirma nada.",
+    "Conferir, na documentação de cada runtime candidato e na versão que o time for fixar, o estado da execução de TypeScript sem etapa de build. Mudou de status entre versões e é o que decide o slot `entrega`.",
+    "Conferir licença e estado de manutenção de cada biblioteca recomendada do lado TypeScript — cliente HTTP, driver MySQL, imagem, e-mail, registro estruturado, executor de teste, SSH2, FTP, SAX e bcrypt. Nenhuma aparece em manifesto desta árvore e nenhuma versão foi citada neste documento de propósito.",
+    "Conferir a licença do servidor de cache compatível com Redis antes de fechar o slot `cache`, se a opção persistente for ligada: mudou de projeto nos últimos anos e há bifurcações com licenças diferentes.",
+    "Decidir e registrar o piso de banco. O legado declara MySQL 5.5.5 (`wp-includes/version.php:57`). Conferir se o driver escolhido ainda fala com esse piso — método de autenticação do servidor e tratamento de `utf8mb4` — ou subir o piso e registrar que é divergência de requisito de ambiente.",
+    "Provar byte a byte a conformidade do formato serializado contra a instalação de referência, com atenção a ponto flutuante e a inteiro de 64 bits. Sem essa prova, a consulta de papel por `LIKE` sobre o texto serializado (`wp-includes/class-wp-user-query.php:562-567`) pode deixar de casar e ninguém é administrador.",
+    "Declarar o critério de aceite de 'idêntico'. A dúvida já estava aberta em `architectures.json`; esta etapa a encontrou com consequência de compra em dois slots: imagem (o arquivo derivado ou a grade de derivadas?) e e-mail (os bytes da mensagem ou o efeito de entrega?). Precisa de decisão humana ANTES de o slot `testes` escrever o primeiro teste de caracterização.",
+    "Medir o custo de arranque do modelo processo-por-requisição num protótipo que carregue o equivalente de `wp-settings.php`. A recomendação do slot `isolamento-de-requisicao` troca desempenho por correção, e nenhum número de desempenho entra aqui porque não foi medido neste sistema.",
+    "Confirmar com a hospedagem de destino se há agente local de entrega de e-mail. O transporte de fábrica do legado é a função `mail()` do PHP (`wp-includes/pluggable.php:505`), que não tem contraparte em runtime de JavaScript — é o único ponto deste leque em que 'idêntico' é impossível por ausência de primitiva.",
+    "Verificar por TESTE, não por documentação, que o analisador de XML escolhido recusa entidade externa por padrão. É o único ponto deste leque em que uma divergência de biblioteca é exploração e não diferença de comportamento, e `/xmlrpc.php` e `trackback` são superfícies anônimas sem limite de taxa.",
+    "Confirmar que existe artefato pré-compilado, para a plataforma de destino, de cada dependência nativa do caminho de requisição (bcrypt, imagem, SSH2). Sem isso o produto deixa de ser instalável onde o legado é — e `technologies.json` registra que nem o servidor web é conhecido a partir do repositório.",
+    "Verificar por máquina que a instalação de referência é a MESMA versão do código portado. A Pergunta 16 já exige isso, e `technologies.json` registra que a versão 7.1.2 não é cruzável nesta árvore: não há tag de git, changelog do núcleo nem metadado de VCS.",
+    "Levantar o leque do LADO CLIENTE como etapa própria, depois de obter a fonte. `wp-includes/js/dist/` não existe nesta árvore e a Pergunta 15 manda construí-lo do repositório de origem; nenhum slot deste documento cobre editor de blocos, Interactivity API, script modules, block supports nem biblioteca de ícones."
+  ],
+  "notes": [
+    "A arquitetura escolhida é a de MENOR fit das três propostas: 56, contra 86 de `manter-e-endurecer` e 77 de `monolito-modular` (`architectures.json`). Este leque não a contradiz — preenche os slots que ela pede, com `hooks-e-plugin-api` fora, como o plano de migração manda. Mas a consequência precisa estar escrita: 12 dos 17 slots existem porque a LINGUAGEM mudou, não porque a arquitetura mudou. Trocar a arquitetura escolhida mexeria em 5 slots; trocar a decisão de linguagem mexeria em 17. O custo deste porte não está na arquitetura, e a proposta escolhida já dizia isso no próprio campo `against`.",
+    "Não há slot de mensageria, orquestração, descoberta de serviço nem rastreamento distribuído, e isso é decisão e não esquecimento. O SKILL proíbe preencher slot que o cenário não pede; a arquitetura escolhida não cria serviço nenhum (zero fronteira de processo em todo o nível 2 do C4); e a Pergunta 10 recusou explicitamente trocar o agendador. `integrations.json` registra que num porte 'não há mensageria a migrar, há uma a construir' — e a resposta humana foi não construir.",
+    "REQ-160 (`must`, limite de taxa em toda superfície de entrada) não tem slot neste stack, por coerência com a Pergunta 19, que põe o limite fora do núcleo como decisão de implantação. Consequência a registrar: o produto portado nasce sem limite em superfície alguma, como o legado é hoje, e os dois únicos freios continuam sendo travas de tempo — 60 s no `wp-cron.php` e 5 min no `wp-mail.php`. O card continua `bloqueado`, e nada neste documento o destrava.",
+    "REQ-170 (`wont`) e a arquitetura escolhida pedem a MESMA coisa nos slots `cache` e `persistencia`: a substituição de componente por arquivo solto em `wp-content/` sai, e o ponto de troca passa a ser contrato nomeado — que é a definição de porta. É a convergência mais limpa entre backlog e arquitetura em todo o leque. O que NÃO sai são as 38 funções substituíveis de `wp-includes/pluggable.php`: nenhuma resposta as descarta, e são elas que derrubam o candidato de pacote único no slot `entrega`.",
+    "Dois slots têm recomendação provisória porque dependem de uma decisão que ninguém tomou: `processamento-de-imagem` e `envio-de-email` só fecham quando o critério de 'idêntico' estiver declarado. É a mesma dúvida que `architectures.json` registrou em aberto; a diferença é que agora ela tem consequência de compra, e por isso está em `verify` como item de decisão humana.",
+    "Nenhum slot saiu genuinamente indiferente, logo há 17 recomendações e nenhuma nula: o critério de idêntico discrimina em quase todo lugar. Onde quase não discriminou — slot `xml`, entre analisador SAX de terceiro e binding nativo do mesmo expat que o legado usa — a única diferença relevante é dependência de compilação, e isso está dito no `recommendation_reason` em vez de virar uma recomendação de fachada.",
+    "Versões: os únicos números deste documento vêm de `technologies.json` ou de manifesto desta árvore, com a origem dita em cada caso. Nenhuma tecnologia do lado TypeScript aparece com número, porque não tenho acesso à rede e o repositório não confirma nada — o que o time precisa conferir está em `verify`, que é a parte do trabalho que esta etapa honestamente não pode fazer.",
+    "O lado cliente está fora deste leque, e é lacuna conhecida e não escolha: `wp-includes/js/dist/` não existe nesta árvore e a Pergunta 15 manda obtê-lo do repositório de origem, onde a fonte já é JavaScript e TypeScript. Editor de blocos, Interactivity API, script modules, block supports e biblioteca de ícones ficam sem slot até a fonte estar em mão — e isso também explica por que TinyMCE 4.9.11, em fim de vida, é o único editor funcional nesta árvore.",
+    "Divergência de medição a registrar, sem consequência sobre conclusão: `architectures.json` cita 949 chamadas `$wpdb->` em 86 arquivos; a medição desta etapa, com o padrão `$wpdb->metodo(`, dá 1.128 em 98 arquivos de 1.467 (`.reversa/work/lubylegado-tech-spec/medir.py`). A ordem de grandeza e a conclusão — a porta de dados é tratável porque está concentrada em menos de 7% da árvore — não mudam. Mesma situação em `l10n-e-traducoes`: o grafo registra 13.335 pontos de entrada, a contagem direta de chamadas de função de tradução dá 13.705.",
+    "CORREÇÃO a artefato anterior. `erd-complete.md` atribui a `wp-includes/class-wp-user.php:488` a consulta que descobre quem é administrador por `LIKE` sobre texto serializado. Aquela linha monta a `meta_key` `<prefixo>capabilities`, e monta dentro de `_init_caps()`, que está marcada `_deprecated_function` desde a 4.9.0 (`:485`). A consulta com `LIKE` está em `wp-includes/class-wp-user-query.php`, em quatro grupos de cláusula e cinco comparações — `:522-534` para capacidade avulsa (duas, uma pela capacidade e uma por cada papel que a concede), `:562-567` para papel, `:573-580` para `role__in` e `:586-593` com `NOT LIKE` para `role__not_in`. A afirmação de `erd-complete.md` continua verdadeira (nenhum índice alcança a permissão); só a âncora estava no lugar errado, e para um agente que precise abrir a evidência isso é a diferença entre achar e não achar. Detalhe que a correção acrescenta e que importa ao porte: o valor procurado é envolvido em aspas duplas de propósito, para casar com o delimitador do formato serializado — logo quem trocar o formato de serialização quebra a consulta de papel, e não apenas a leitura do valor."
+  ]
+}
