@@ -1,14 +1,14 @@
 # Modulo de identidade e acesso — BC-05
 
 Feature `001-identidade-e-acesso`. Tarefas fechadas: **T001** (esqueleto e
-portas), **T002** (forma de armazenamento), **T003** (US-1, entrada), **T005**
-(US-2, saida) e **T009** (US-4, redefinicao de senha por chave). Este arquivo e a leitura obrigatoria de quem pegar a proxima
-tarefa: ele diz o que ja esta decidido, o que esta decidido **em outro lugar**,
-e o que ninguem decidiu.
-portas), **T002** (forma de armazenamento), **T003** (US-1, autenticar) e
-**T007** (US-3, prazo da sessao). Este arquivo e a leitura obrigatoria de quem
-pegar a tarefa seguinte: ele diz o que ja esta decidido, o que esta decidido
-**em outro lugar**, e o que ninguem decidiu.
+portas), **T002** (forma de armazenamento), **T003** (US-1, autenticar),
+**T005** (US-2, saida), **T007** (US-3, prazo da sessao) e **T011** (US-5,
+falha de envio do e-mail de redefinicao). Este arquivo e a leitura obrigatoria
+de quem pegar a tarefa seguinte: ele diz o que ja esta decidido, o que esta
+decidido **em outro lugar**, e o que ninguem decidiu.
+
+> *(Este paragrafo vinha duplicado e cortado ao meio por um merge anterior, com
+> duas listas de tarefas fechadas que se contradiziam. Ficou uma, com as seis.)*
 
 > 🔴 **Antes de qualquer coisa, se a sua tarefa toca a matriz de papeis:** o
 > conflito entre `REQ-017` e a resposta 5 **continua aberto**, T002 esbarrou
@@ -16,6 +16,14 @@ pegar a tarefa seguinte: ele diz o que ja esta decidido, o que esta decidido
 > obrigatorio sem valor padrao, com os dois lados implementados e testados. A
 > explicacao inteira esta em `armazenamento/matriz-de-fabrica.ts` e o resumo
 > esta na secao *O que ninguem decidiu* deste arquivo.
+
+> 🔴 **E se a sua tarefa toca o fluxo de redefinicao de senha:** a spec e a
+> analise do legado **discordam** sobre avisar o requisitante quando o e-mail
+> nao sai (CA-5.1 contra `UC-20` § *Excecoes*). T011 esbarrou nisso e **nao
+> resolveu**: isolou a decisao num argumento obrigatorio sem valor padrao, com
+> os dois lados implementados e testados. A explicacao inteira esta em
+> `recuperacao-de-senha/envio-do-email-de-redefinicao.ts` e o resumo esta na
+> secao *O conflito que T011 encontrou* deste arquivo.
 
 ## O que T001 entrega, e so isso
 
@@ -248,88 +256,93 @@ E o pacote registra **um** numero de carencia e **uma** condicao. Nenhum outro
 numero foi acrescentado: o P6 recusa numero que o legado nao tem, e tambem
 numero que o pacote nao registra.
 
-## O que T009 entrega, e so isso
+## O que T011 entrega, e so isso
 
-> *o comportamento de US-4 existe e os critérios CA-4.1, CA-4.2, CA-4.3, CA-4.4,
-> CA-4.5 passam contra o sistema novo*
-> — `.specify/specs/001-identidade-e-acesso/tasks.md`, T009
+> *o comportamento de US-5 existe e os critérios CA-5.1, CA-5.2, CA-5.3 passam
+> contra o sistema novo*
+> — `.specify/specs/001-identidade-e-acesso/tasks.md`, T011
 
 | arquivo | o que e |
 |---|---|
-| `redefinicao-de-senha/chave-de-redefinicao.ts` | o `VO-ChaveDeAtivacao` do *reset*: o formato `instante:resumo`, as 24 horas e os seis ramos de conferencia |
-| `redefinicao-de-senha/erro-de-redefinicao.ts` | os codigos, as mensagens e os dois destinos de recusa de chave |
-| `redefinicao-de-senha/contas-para-redefinicao.ts` | a fatia de `AGG-Conta` que US-4 usa, ligada ao repositorio de T002 |
-| `redefinicao-de-senha/geracao-de-hash-de-senha.ts` | a **gravacao** do hash da senha — a contraparte que T003 deixou marcada para ca |
-| `redefinicao-de-senha/contexto-de-redefinicao.ts` | o contexto por requisicao e os pontos de extensao dos dois fluxos |
-| `redefinicao-de-senha/pedido-de-redefinicao.ts` | passos 1 a 3 de UC-20: procurar a conta, gerar e gravar a chave, enviar |
-| `redefinicao-de-senha/redefinir-senha.ts` | passos 4 a 7: conferir chave e prazo, recusar a senha, gravar, invalidar a chave |
-| `redefinicao-de-senha/redefinicao-de-senha.test.ts` | os cinco critérios, as bordas do P6, a ordem dos ganchos e as regras que a implementacao quebraria em silencio |
+| `recuperacao-de-senha/envio-do-email-de-redefinicao.ts` | o passo 3 de UC-20 — o envio do e-mail de redefinicao — e o relato da falha dele; **e o conflito** |
+| `recuperacao-de-senha/envio-do-email-de-redefinicao.test.ts` | os tres critérios **nos dois lados do conflito**, mais o P7, o P6 e a ausencia de estado entre pedidos |
 
-**Dois arquivos de fora mudaram, e nenhum por gosto:** `index.ts` ganhou as duas
-operacoes com a declaracao de permissao que o P4 exige, e `modulo.test.ts`
-cresceu nas duas chaves correspondentes. **Nenhuma interface de tarefa fechada
-foi alterada** — em particular, `PrimitivaDeBcrypt` de T003 **nao** ganhou metodo
-de geracao, para nao quebrar os simulados das suites dela por um motivo que nao
-e de US-4; o lado de gravacao nasceu ao lado, reusando o prefixo e o
-pre-processamento que o verificador exporta.
+**A operacao sai pelo barril e NAO entra na composicao**, por um motivo que e de
+escopo e nao de gosto: a tabela *Contratos* de `plan.md` nomeia a operacao
+*"pedir redefinicao de senha"*, e ela e de **T009** (US-4), cuja linha em
+`tasks.md` seguia `[ ]`. T011 entrega o passo de envio dessa operacao, nao a
+operacao; por-la em `ModuloDeIdentidadeEAcesso` a faria parecer passo de fluxo
+inteiro, que e a mesma razao pela qual as duas operacoes de BR-MIGRAR-111 saem so
+pelo barril.
 
-**A permissao das duas operacoes e nenhuma, e a declaracao e o ponto.** A chave
-de redefinicao e **um dos cinco atestados** que o P4 manda nao esconder, e UC-20
-e literal: *"a posse do e-mail e a autorizacao — nao ha capacidade envolvida"*.
-Um teste afirma que nenhuma consulta dos dois fluxos toca `capabilities`,
-`user_roles` ou `options`.
+**T011 foi construida com T009 ainda aberta**, pelo mesmo precedente de T003 com
+T002: a fatia e a que US-5 descreve, escrita contra as portas. O que fica
+**explicitamente** para T009, e nao foi tocado aqui: gerar a chave, resumi-la,
+grava-la na conta, as 24 horas dela, substituir a anterior num pedido novo
+(CA-4.3) e **montar a mensagem** — o corpo carrega a chave em claro, e CA-4.1
+diz que *"o valor em claro so existe no e-mail enviado"*. `enviarEmailDeRedefinicao`
+recebe a `MensagemDeEmail` pronta; quem a monta, e com quais ganchos, e T009.
 
-**Um numero entra aqui, e e o do pacote:** as 24 horas da chave
-(BR-MIGRAR-024 / `U4`), em ponto de configuracao nomeado, **filtravel**
-(`ESC-FILTRAVEL`) e com teste nas duas pontas da borda. Nenhum outro numero foi
-acrescentado — ver abaixo os tres que o pacote nao registra.
+**CA-5.2 passou inteiro, e nao esta em conflito com nada.** O registro tem os
+tres campos que o critério nomeia — instante (da porta de relogio, em segundos
+inteiros UTC), destinatario e o motivo **como o canal informou** — e e **so
+escrita**: `registrar` devolve `void`, nenhuma ramificacao do codigo o consulta e
+nao ha `try`/`catch` em volta dele, porque tratar o erro de escrever log **seria**
+a ramificacao que o P7 proibe. O colaborador e **obrigatorio** no contexto, nao
+opcional: CA-5.2 nao tem condicao, e um colaborador opcional deixaria a
+composicao escolher nao cumprir o critério.
 
-**O que T009 nao faz, de proposito:** nao encerra sessao nenhuma (pos-condicao de
-UC-20 e `ESC-SESSAO`; REQ-008 esta bloqueado) e o teste afirma isso pelo efeito
-no banco — nenhum comando sai para `usermeta`; nao limita taxa nem conta pedido
-(P6, REQ-160 em `do-not-rewrite.md`); nao apaga a chave no login, que e CA-1.4 e
-ja esta em `autenticacao/autenticar.ts`; nao redireciona nem pinta tela; e **nao
-registra a falha de envio nem a transforma em aviso proprio**, que e US-5 / T011
-— aqui a tentativa volta como **valor** (`envio`), que e de onde T011 parte sem
-alterar arquivo deste modulo.
+**CA-5.3 passou, e passou por ausencia.** Nada fica latchado: sem contador de
+tentativa, sem marca de "ja falhou", sem espera entre pedidos e sem estado de
+modulo. Onze pedidos produzem onze tentativas de envio, e esta afirmado por
+teste. As tres ausencias sao regra: `do-not-rewrite.md` poe `REQ-005` e
+`REQ-160` fora do pacote, e o P6 fecha — *"Onde o legado nao tem numero, o
+sistema novo tambem nao tem"*.
 
-### 🔴 O que T009 encontrou aberto, e NAO decidiu
+**Nenhum numero novo entrou neste modulo com T011**, e nenhum ponto de extensao
+foi inventado: os ganchos que o legado tem em volta deste passo sao de composicao
+da mensagem, logo de T009, e o ponto de substituicao do envio **e a porta**
+(`wp_mail()` e uma das 38 funcoes substituiveis, BR-MIGRAR-103 / `EXT-SUBST`).
 
-1. **Como a chave em claro e gerada.** Comprimento e alfabeto nao estao no
-   pacote — ele fixa os 24 caracteres da *senha de aplicacao* (`U6`) e **nao** os
-   desta. `GeradorDeChaveDeRedefinicao` chega por argumento, sem valor padrao:
-   o P6 recusa numero que o legado nao tem **e** numero que o pacote nao
-   registra, como T007 ja havia registrado.
-2. **Com qual funcao a chave e resumida.** CA-4.1 fixa *"guardada com hash"* e o
-   modelo de dados fixa o instante prefixado; nenhum documento nomeia o
-   algoritmo, e no legado ele e um objeto registrado globalmente — logo um dos 42
-   pontos de `EXT-SUBST`, e **nao** a funcao que confere a senha da conta.
-   Tambem chega por argumento.
-3. **Os literais do e-mail.** O e-mail nao e uma das 113 telas e nao tem tabela
-   de mensagens em `target_screens.md`: assunto, corpo e forma do link nao estao
-   em documento nenhum. `MontagemDoEmailDeRedefinicao` chega por argumento, e o
-   que o dominio garante e so o que ele pode garantir — a chave em claro nao e
-   devolvida a quem pediu e nao e gravada em lugar algum. O destinatario **nao**
-   e imposto pelo dominio, porque no legado o envelope inteiro passa por ponto de
-   extensao antes do envio.
+### 🔴 O conflito que T011 encontrou, e NAO resolveu
 
-E tres divergencias de contagem ou de clausula ficaram **registradas no codigo**,
-cada uma onde ela mora, para fechar contra o oraculo (`ESC-ORACULO`, que nesta
-arvore nao existe):
+**CA-5.1 e a analise do legado dizem o contrario uma da outra, e as duas sao
+decisao humana.**
 
-- **"chave ja usada" nao tem codigo proprio.** `plan.md` a lista como erro desta
-  operacao; o legado nao tem como distingui-la de "nunca existiu", porque o que
-  sobra da chave usada e a sentinela vazia. Dar-lhe codigo proprio diria ao
-  visitante algo que o legado nao diz (P1).
-- **O instante exato do prazo.** A conferencia e estrita (`agora < instante +
-  prazo`), logo o ultimo instante aceito e `prazo - 1`. CA-4.2 so se pronuncia
-  sobre *"mais de 24 horas"*, e a borda da sessao usa a comparacao do outro lado.
-  O teste fixa as duas pontas para que a diferenca, se houver, apareca.
-- **A clausula de gravacao da chave.** O repositorio de T002 localiza a linha por
-  `ID`; o pacote nao registra por qual coluna o legado a localiza, e a diferenca
-  so e observavel com **login duplicado**, que o banco aceita (BR-MIGRAR-022,
-  REQ-010 bloqueado). Nenhum metodo foi acrescentado ao repositorio de T002 por
-  isso.
+| lado | o que manda | onde esta escrito |
+|---|---|---|
+| avisar | *"Falha no envio devolve ao requisitante um aviso distinto do caso de sucesso"* | `spec.md` CA-5.1; `plan.md` § *Contratos* |
+| nao avisar | *"O e-mail nao saiu \| o assinante **nao tem como saber**: nenhum estado registra a falha de envio neste fluxo, ao contrario do que acontece na solicitacao de dados pessoais"* | `UC-20` § *Excecoes*, confianca 🟢 `confirmado` |
+
+Tres evidencias do pacote somam ao lado "nao avisar": (1) a regra `D3` que US-5
+cita e ancorada em `privacy-tools.php:226` — e a **solicitacao de dado
+pessoal** —, e a propria `spec.md` poe a ressalva *"(o fluxo de privacidade ja
+faz assim; este fluxo nao faz)"*; (2) `target_screens.md` lista as **8** strings
+literais de `SCR-002` e as 3 de `SCR-006`, e **nenhuma** e falha de envio, com
+`diff` de string **zero** exigido; (3)
+`parity_tests/06-autenticacao-e-sessao.feature`, que cobre UC-20, **nao tem**
+cenario de falha de envio — ele existe so em
+`12-solicitacao-de-dado-pessoal.feature`, o outro fluxo.
+
+**T011 bateu nisso e nao escolheu**, pelo mesmo caminho de T002 com REQ-017:
+`relatoAoRequisitante` e **argumento obrigatorio, sem valor padrao**. Nenhuma
+composicao compila sem alguem decidir, a escolha fica legivel onde foi feita, os
+dois lados estao implementados e afirmados por teste, e um teste afirma que eles
+diferem **somente** em `avisoAoRequisitante` — o relato, o registro e a
+tentativa de envio sao identicos nos dois. A explicacao inteira, com as citacoes,
+esta no cabecalho de `recuperacao-de-senha/envio-do-email-de-redefinicao.ts`.
+
+Duas consequencias que quem decidir precisa ter na mao, e que o card REQ-007 nao
+menciona:
+
+1. o lado que avisa carrega **codigo, nao texto**: nao existe msgid registrado
+   para esse aviso, e inventar um quebraria o `diff` zero de `SCR-002`. Quem
+   decidir por avisar registra tambem a string, e ela e **tela nova**, nao
+   paridade;
+2. avisar "o e-mail nao saiu" e um canal novo de informacao sobre a conta. Isso
+   nao e argumento contra — `ESC-ENUMERACAO` (BR-MIGRAR-110) registra que este
+   produto enumera conta **de proposito**, por decisao humana —, mas e um ponto
+   a decidir junto, e nao foi decidido aqui.
 
 ## Por que estas tres portas, e nao outras
 

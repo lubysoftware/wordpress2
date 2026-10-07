@@ -41,7 +41,7 @@
       *entrega:* 6 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-006-1, UT-006-2, UT-006-3, UT-006-4, UT-006-5, UT-006-6), com o mesmo dado de entrada, ação e resultado esperado. O teste de regra de negócio (UT-006-6) entra na mesma suíte.
       *satisfaz:* CA-4.1, CA-4.2, CA-4.3, CA-4.4, CA-4.5
       *depende de:* T009
-- [ ] **T011** Informar ao titular quando o envio do e-mail de redefinição falha (US-5)
+- [x] **T011** Informar ao titular quando o envio do e-mail de redefinição falha (US-5)
       *entrega:* o comportamento de US-5 existe e os critérios CA-5.1, CA-5.2, CA-5.3 passam contra o sistema novo
       *satisfaz:* CA-5.1, CA-5.2, CA-5.3
       *depende de:* T001, T002, T009
