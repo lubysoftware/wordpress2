@@ -140,10 +140,12 @@ export interface BaseDeAutorizacao {
   /**
    * Os casos de traducao de capacidade sobre objeto — os 86 `case` de `PERM-3`.
    *
-   * Vazio nesta tarefa, e **nao e omissao**: a resolucao por autoria e estado do
-   * objeto e US-8 / T017, que `tasks.md` poe depois desta tarefa. A revogacao
-   * pelas quatro constantes **nao** entra por aqui: ela e a primeira da ordem
-   * declarada e nao e substituivel — ver `decisao-de-capacidade.ts`.
+   * O de conteudo e `casoDeConteudo( fonte )`, de `traducao-de-conteudo.ts`
+   * (US-8 / T017): a resolucao por autoria e por estado do objeto. Os demais
+   * chegam com a feature do objeto de cada um.
+   *
+   * A revogacao pelas quatro constantes **nao** entra por aqui: ela e a primeira
+   * da ordem declarada e nao e substituivel — ver `decisao-de-capacidade.ts`.
    */
   readonly casosDeTraducao?: readonly CasoDeTraducao[];
   readonly ganchos?: GanchosDeAutorizacao;

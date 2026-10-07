@@ -105,7 +105,8 @@ const CAPACIDADE_QUE_DEFINE_SUPER_ADMIN_FORA_DA_REDE: Capacidade = 'delete_users
  * nao pode ser 'mais um filtro'"*):
  *
  * 1. as quatro constantes do dono do servidor, **sempre**, e nao substituiveis;
- * 2. os casos de traducao de objeto que o contexto trouxer (US-8 / T017);
+ * 2. os casos de traducao de objeto que o contexto trouxer — o de conteudo e
+ *    `casoDeConteudo()`, de `traducao-de-conteudo.ts` (US-8 / T017);
  * 3. o ramo final: a propria capacidade pedida.
  *
  * Um caso de objeto nao consegue, portanto, reabrir o que uma constante fechou —
@@ -122,6 +123,7 @@ export function capacidadesExigidas(
       contaId: contexto.ator.contaId,
       argumentos,
       constantes: contexto.constantes ?? CONSTANTES_DE_FABRICA,
+      emRede: contexto.rede.ativa,
     },
     [revogacaoPorConstante, ...(contexto.casosDeTraducao ?? [])],
   );
@@ -160,8 +162,8 @@ export function ehSuperAdmin(contexto: ContextoDeAutorizacao): boolean {
  * fazer 1.279 vezes por requisicao.
  *
  * Os argumentos variadicos sao o `...$args` do legado: o objeto, quando a
- * capacidade e sobre um objeto. Nesta tarefa nenhum caso os consome; os casos que
- * os consomem sao US-8 / T017.
+ * capacidade e sobre um objeto. Quem os consome sao os casos de traducao de
+ * objeto — os de conteudo estao em `traducao-de-conteudo.ts` (US-8 / T017).
  */
 export function perguntarPermissao(
   contexto: ContextoDeAutorizacao,

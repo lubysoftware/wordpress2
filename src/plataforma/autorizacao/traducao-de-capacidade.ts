@@ -26,11 +26,14 @@
  * ## O que esta aqui e o que nao esta
  *
  * Esta: a **forma** da traducao e a ordem em que os casos sao consultados.
- * **Nao** estao os 86 casos de objeto: `edit_post`, `delete_post`, o estado
- * anterior do conteudo descartado, o objeto inexistente, a pagina inicial — isso
- * e US-8 / **T017**, que `tasks.md` poe depois desta tarefa e dependente dela. E
- * nao estao os dez atalhos de nomenclatura de `PERM-6` (BR-MIGRAR-092), que
- * chegam com os casos deles.
+ *
+ * Os casos de objeto **sobre conteudo** — `edit_post`, `delete_post`, `read_post`,
+ * o estado anterior do conteudo descartado, o objeto inexistente, a pagina inicial
+ * e a de politica de privacidade — sao US-8 / **T017** e estao em
+ * `traducao-de-conteudo.ts`. Dos 86 `case` do legado continuam fora os de termo,
+ * comentario, metadado, senha de aplicacao e rede, cada um na feature do seu
+ * objeto, e os dez atalhos de nomenclatura de `PERM-6` (BR-MIGRAR-092), que chegam
+ * com os casos deles.
  *
  * O ponto de encaixe e {@link CasoDeTraducao}: um caso devolve `null` para dizer
  * *"nao e meu"* e a consulta continua. Quem declara a ORDEM e a decisao, nao
@@ -63,6 +66,21 @@ export interface PedidoDeTraducao {
   readonly argumentos: readonly unknown[];
   /** As quatro constantes do dono do servidor. Ver `revogacao-por-constante.ts`. */
   readonly constantes: ConstantesDoServidor;
+  /**
+   * `is_multisite()` — a instalacao e em rede?
+   *
+   * Esta aqui porque ha caso de traducao cuja **lista devolvida** depende do modo
+   * de instalacao, e nao do ator: BR-MIGRAR-042 (`D4`) resolve
+   * `manage_privacy_options` em `manage_network` em rede e em `manage_options`
+   * fora dela, e a nota de paradigma da propria regra e *"o alvo precisa resolver
+   * `MULTISITE` **antes** de autorizar"*. Acrescentado por **T017**, que precisa
+   * da regra no ramo da pagina de politica de privacidade.
+   *
+   * E so o sinalizador, e nao o estado de rede inteiro: a lista de super
+   * administradores e nome de login e pertence a decisao, nao a traducao
+   * (`PERM-9`).
+   */
+  readonly emRede: boolean;
 }
 
 /**

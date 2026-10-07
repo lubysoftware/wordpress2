@@ -65,7 +65,7 @@
       *entrega:* 8 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-014-1, UT-014-2, UT-014-3, UT-014-4, UT-014-5, UT-014-6, UT-014-7, UT-014-8), com o mesmo dado de entrada, ação e resultado esperado. Os 3 testes de regra de negócio (UT-014-6, UT-014-7, UT-014-8) entram na mesma suíte.
       *satisfaz:* CA-7.1, CA-7.2, CA-7.3, CA-7.4, CA-7.5
       *depende de:* T015
-- [ ] **T017** Resolver permissão sobre um objeto conforme autoria e estado do objeto (US-8)
+- [x] **T017** Resolver permissão sobre um objeto conforme autoria e estado do objeto (US-8)
       *entrega:* o comportamento de US-8 existe e os critérios CA-8.1, CA-8.2, CA-8.3, CA-8.4, CA-8.5 passam contra o sistema novo
       *satisfaz:* CA-8.1, CA-8.2, CA-8.3, CA-8.4, CA-8.5
       *depende de:* T001, T002, T015
