@@ -77,7 +77,7 @@
       *entrega:* o comportamento de US-9 existe e os critérios CA-9.1, CA-9.2, CA-9.3, CA-9.4 passam contra o sistema novo
       *satisfaz:* CA-9.1, CA-9.2, CA-9.3, CA-9.4
       *depende de:* T001, T002, T015
-- [ ] **T020** [P] Testes de US-9
+- [x] **T020** [P] Testes de US-9
       *entrega:* 5 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-016-1, UT-016-2, UT-016-3, UT-016-4, UT-016-5), com o mesmo dado de entrada, ação e resultado esperado. O teste de regra de negócio (UT-016-5) entra na mesma suíte.
       *satisfaz:* CA-9.1, CA-9.2, CA-9.3
       *depende de:* T019
