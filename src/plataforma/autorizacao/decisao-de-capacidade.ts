@@ -22,7 +22,7 @@
  * `PERM-9` (BR-MIGRAR-095) e ADR-0009 nao descrevem uma lista de condicoes: eles
  * descrevem uma **sequencia**, e o ADR recusou por escrito a alternativa de
  * verificar a negacao depois do ponto de extensao (*"permitiria a um plugin
- * remover a negacao. Seria a ordem errada, e o codigo escolheu a outra"*). Os seis
+ * remover a negacao. Seria a ordem errada, e o codigo escolheu a outra"*). Os sete
  * passos de {@link perguntarPermissao}, na ordem do legado
  * (`class-wp-user.php:787`-`:833`):
  *
@@ -31,9 +31,10 @@
  * | 1 | traduzir a capacidade pedida na lista exigida | `PERM-3`: ninguem pergunta pela meta-capacidade, todos perguntam pelo que o mapeamento devolveu |
  * | 2 | atalho do super administrador, **em rede** | `PERM-9`: acontece **antes** do ponto de extensao, logo extensao nenhuma lhe retira poder; so `do_not_allow` o detem |
  * | 3 | montar o mapa de capacidades do ator | `PERM-1`: funde os papeis e sobrepoe as individuais |
- * | 4 | ponto de extensao `user_has_cap` | pode conceder e pode retirar — e o que faz de cada regra deste catalogo um *default* filtravel (`ESC-FILTRAVEL`) |
- * | 5 | `exist` a todos, `do_not_allow` a ninguem | **depois** do ponto de extensao: e o que impede conceder `do_not_allow` por filtro |
- * | 6 | exigir **todas** as da lista; lista vazia e permitido | `PERM-1` e `PERM-6` |
+ * | 4 | as concessoes de **prioridade 1** do nucleo | `PERM-7`: as quatro capacidades que nenhum papel concede entram aqui, **antes** de qualquer interceptador de terceiro (T019) |
+ * | 5 | ponto de extensao `user_has_cap` | pode conceder e pode retirar — e o que faz de cada regra deste catalogo um *default* filtravel (`ESC-FILTRAVEL`) |
+ * | 6 | `exist` a todos, `do_not_allow` a ninguem | **depois** do ponto de extensao: e o que impede conceder `do_not_allow` por filtro |
+ * | 7 | exigir **todas** as da lista; lista vazia e permitido | `PERM-1` e `PERM-6` |
  *
  * Trocar dois destes passos de lugar nao produz um defeito visivel: produz um
  * sistema que decide diferente em um caso que ninguem testa. E por isso que a
@@ -75,6 +76,10 @@ import {
   type Capacidade,
 } from './capacidade.js';
 import { capacidadesDoAtor } from './capacidades-do-ator.js';
+import {
+  CONCESSOES_POR_EXTENSAO_DE_FABRICA,
+  aplicarConcessoesPorExtensao,
+} from './concessao-por-extensao.js';
 import type { ContextoDeAutorizacao } from './contexto-de-autorizacao.js';
 import {
   CONSTANTES_DE_FABRICA,
@@ -183,19 +188,36 @@ export function perguntarPermissao(
   // 3. O mapa do ator: papeis fundidos, individuais por cima (PERM-1).
   const capacidadesMontadas = capacidadesDoAtor(contexto.ator, contexto.matriz);
 
-  // 4. `user_has_cap`: pode conceder e pode retirar.
+  // 4. As concessoes de PRIORIDADE 1 do nucleo: as quatro capacidades que nenhum
+  //    papel concede (PERM-7). Vem ANTES do passo 5 de proposito — e o que a
+  //    prioridade 1 significa, e e o que permite ao interceptador de terceiro
+  //    retirar o que o nucleo concedeu. `ehSuperAdmin` chega como funcao para
+  //    preservar o curto-circuito do legado: fora da rede ela nao e avaliada.
+  const capacidadesConcedidas = aplicarConcessoesPorExtensao(
+    capacidadesMontadas,
+    {
+      exigidas,
+      argumentos,
+      ator: contexto.ator,
+      redeAtiva: contexto.rede.ativa,
+      ehSuperAdmin: () => ehSuperAdmin(contexto),
+    },
+    contexto.concessoesPorExtensao ?? CONCESSOES_POR_EXTENSAO_DE_FABRICA,
+  );
+
+  // 5. `user_has_cap`: pode conceder e pode retirar.
   const gancho = contexto.ganchos?.aoMontarCapacidadesDoAtor;
   const capacidadesFiltradas =
     gancho === undefined
-      ? capacidadesMontadas
-      : gancho(capacidadesMontadas, exigidas, argumentos, contexto.ator);
+      ? capacidadesConcedidas
+      : gancho(capacidadesConcedidas, exigidas, argumentos, contexto.ator);
 
-  // 5. As duas sinteticas, DEPOIS do ponto de extensao e nesta ordem.
+  // 6. As duas sinteticas, DEPOIS do ponto de extensao e nesta ordem.
   const capacidades = new Map(capacidadesFiltradas);
   capacidades.set(CAPACIDADE_CONCEDIDA_A_TODOS, true);
   capacidades.delete(CAPACIDADE_NEGADA);
 
-  // 6. Todas as exigidas, e so as concedidas contam: no legado a comparacao e
+  // 7. Todas as exigidas, e so as concedidas contam: no legado a comparacao e
   //    sobre `array_filter`, logo capacidade presente com valor falso conta como
   //    AUSENTE. E lista vazia passa — lista vazia significa permitido (PERM-6).
   return exigidas.every((nome) => capacidades.get(nome) === true);

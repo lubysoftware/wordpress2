@@ -73,7 +73,7 @@
       *entrega:* 7 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-015-1, UT-015-2, UT-015-3, UT-015-4, UT-015-5, UT-015-6, UT-015-7), com o mesmo dado de entrada, ação e resultado esperado. Os 2 testes de regra de negócio (UT-015-6, UT-015-7) entram na mesma suíte.
       *satisfaz:* CA-8.1, CA-8.2, CA-8.3, CA-8.4, CA-8.5
       *depende de:* T017
-- [ ] **T019** Declarar na matriz as capacidades que o legado só concede por extensão (US-9)
+- [x] **T019** Declarar na matriz as capacidades que o legado só concede por extensão (US-9)
       *entrega:* o comportamento de US-9 existe e os critérios CA-9.1, CA-9.2, CA-9.3, CA-9.4 passam contra o sistema novo
       *satisfaz:* CA-9.1, CA-9.2, CA-9.3, CA-9.4
       *depende de:* T001, T002, T015
