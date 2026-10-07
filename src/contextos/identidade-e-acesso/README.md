@@ -9,6 +9,15 @@ decidido **em outro lugar**, e o que ninguem decidiu.
 
 > *(Este paragrafo vinha duplicado e cortado ao meio por um merge anterior, com
 > duas listas de tarefas fechadas que se contradiziam. Ficou uma, com as seis.)*
+portas), **T002** (forma de armazenamento), **T003** (US-1, autenticar), **T005**
+(US-2, saida), **T007** (US-3, prazo da sessao) e **T013** (US-6, cadastro
+aberto). Este arquivo e a leitura obrigatoria de quem pegar a tarefa seguinte:
+ele diz o que ja esta decidido, o que esta decidido **em outro lugar**, e o que
+ninguem decidiu.
+
+> As duas linhas acima estavam duplicadas, uma listando T005 e outra T007, por um
+> merge que juntou duas worktrees que escreveram o mesmo paragrafo. T013 as
+> fundiu numa so, sem tirar nenhuma tarefa da lista.
 
 > 🔴 **Antes de qualquer coisa, se a sua tarefa toca a matriz de papeis:** o
 > conflito entre `REQ-017` e a resposta 5 **continua aberto**, T002 esbarrou
@@ -343,6 +352,126 @@ menciona:
    nao e argumento contra — `ESC-ENUMERACAO` (BR-MIGRAR-110) registra que este
    produto enumera conta **de proposito**, por decisao humana —, mas e um ponto
    a decidir junto, e nao foi decidido aqui.
+## O que T013 entrega, e so isso
+
+> *o comportamento de US-6 existe e os critérios CA-6.1, CA-6.2, CA-6.3, CA-6.4,
+> CA-6.5, CA-6.6 passam contra o sistema novo*
+> — `.specify/specs/001-identidade-e-acesso/tasks.md`, T013
+
+| arquivo | o que e |
+|---|---|
+| `cadastro/cadastrar.ts` | a operacao, nos passos de UC-21 e na ordem dele |
+| `cadastro/configuracao-de-cadastro.ts` | `U1`, `U2` e `U3` como ponto de configuracao nomeado, com os valores de fabrica |
+| `cadastro/validacao-de-cadastro.ts` | tamanho, validade, lista de proibidos e derivacao do apelido |
+| `cadastro/criacao-de-conta.ts` | a gravacao da linha de `users` e as quatro conferencias de `wp_insert_user` |
+| `cadastro/atribuicao-de-papel.ts` | o papel padrao e o nivel **derivado** — e a chave `{site}user_level` que T002 deixou so nomeada |
+| `cadastro/chave-de-redefinicao.ts` | a emissao da chave de 24 h, o valor gravado e o caminho que vai no e-mail |
+| `cadastro/notificacao-de-conta-nova.ts` | a mensagem ao titular, como ponto de substituicao (`EXT-SUBST`) |
+| `cadastro/geracao-de-segredo.ts` | o alfabeto e o sorteio dos dois segredos |
+| `cadastro/erro-de-cadastro.ts` | os codigos e as mensagens, e o envelopamento que o legado faz |
+| `cadastro/contexto-de-cadastro.ts` | o contexto por requisicao (AD-02) e os cinco pontos de extensao |
+| `autenticacao/geracao-de-hash-de-senha.ts` | o gemeo de `verificacao-de-senha.ts`: o lado que **gera** o hash |
+| `cadastro/cadastrar.test.ts` | os seis critérios, as bordas do P6 e as regras que a implementacao quebraria em silencio |
+
+**Dois arquivos de fora mudaram, e nenhum por gosto:**
+
+1. **`autenticacao/normalizacao-de-credencial.ts` ganhou o modo estrito.** T003 o
+   deixou de fora com o endereco escrito: *"o modo estrito (que reduz a ASCII)
+   **nao** esta aqui: a entrada nao o usa, e quem o usa e o cadastro (US-6 /
+   T013)"*. Entrou como **parametro da mesma funcao**, porque o legado tem uma
+   funcao so — duas funcoes divergiriam no primeiro ajuste — e com teste de
+   regressao afirmando que o modo nao estrito nao mudou.
+2. **`index.ts` e `modulo.test.ts` ganharam `cadastrar`**, com a declaracao
+   explicita de permissao que o P4 exige: **nenhuma capacidade**, porque o ator e o
+   **visitante**, que por definicao nao tem papel, e porque UC-21 poe a autorizacao
+   na **opcao** `users_can_register`. E a unica operacao deste modulo cuja porta
+   **nasce fechada**, e isso tambem e declaracao.
+
+**Dois nomes passaram a colidir no barril, e nenhum dos dois sumiu.**
+`destinoDeRetorno` e `primeiroCodigoDeErro` existem nas duas familias, com
+proposito paralelo. O barril desfez a ambiguidade do mesmo jeito que ja havia
+desfeito a das duas `Conta`: export explicito para a familia mais antiga e o nome
+da outra ao lado (`destinoDeRetornoDoCadastro`,
+`primeiroCodigoDeErroDeCadastro`), com os dois alcancaveis tambem pelo caminho
+deles.
+
+**Cinco numeros entram aqui, e dois deles o pacote nao registra.** Os 60 do login
+e os 50 do apelido sao `U2` (BR-MIGRAR-022), as 24 horas da chave sao `U4`
+(BR-MIGRAR-024), e os tres estao em ponto de configuracao nomeado com teste de
+borda, como o **P6** exige. Os comprimentos dos **dois segredos gerados** — a
+senha inicial e a chave — nao estao em documento nenhum deste pacote: ele registra
+24 caracteres para a credencial de aplicacao (`U6`) e 12 para a ativacao de
+cadastro em rede (`U9`, que e `BC-12` e esta fora deste pacote), e **nada** para o
+cadastro aberto. Eles reproduzem o legado, estao marcados no codigo e fecham
+contra o oraculo — e nenhum dos dois e observavel por quem se cadastra, porque
+CA-6.4 fixa que a senha nao e definida nem recebida pelo titular.
+
+**O que T013 nao faz, de proposito:** nao autentica a conta criada (o legado nao
+abre sessao no cadastro); nao conta tentativa e nao limita taxa (`REQ-160` esta em
+`do-not-rewrite.md` e o **P6** poe limite de taxa fora do nucleo); nao cria
+cadastro pendente nem reserva nome (`U7`/UC-41, `BC-12`, fora deste pacote); nao
+**consome** a chave de redefinicao (recusar depois de 24 h, apagar no uso: US-4 /
+T009); nao monta HTML e nao escolhe cadeia de tela (as 8 literais de `SCR-005` sao
+da borda).
+
+### 🔴 O que T013 encontrou aberto, e NAO resolveu
+
+1. **O texto de nenhuma mensagem deste fluxo esta no pacote.**
+   `target_screens.md` cataloga as 8 cadeias literais de `SCR-005` e as 8 sao da
+   **tela** — rotulo, titulo, botao, link. Nenhuma mensagem de validacao e nenhuma
+   linha do e-mail aparece em documento nenhum: elas vivem no arquivo que UC-21
+   lista em *"Implementado em"* sem transcrever. T013 fez o que T003 ja havia feito
+   com a mesma lacuna em `autenticacao/erro-de-autenticacao.ts`: reproduziu o
+   legado, em **ingles** (porque `EC-05` fixa que o `msgid` em ingles **e** a chave
+   do catalogo), e marcou cada bloco para conferencia contra o oraculo
+   (`ESC-ORACULO`, BR-MIGRAR-116), que nesta arvore nao existe.
+2. **O legado joga fora o motivo quando a criacao da conta falha.** Um login de 61
+   caracteres faz o visitante ler *"Couldn't register you… please contact the site
+   admin!"*, e nao o texto do limite: o codigo especifico nasce, atravessa uma
+   fronteira de funcao e e descartado. CA-6.2 continua satisfeito — *"devolvem
+   erro, nunca truncamento"* —, e surfacear o codigo produziria um sistema **mais
+   informativo** que o legado, que o **P1** trata como divergencia. T013
+   reproduziu o envelopamento, pos o motivo original em `causa` como
+   observabilidade que **nenhuma ramificacao le** (**P7**), e marcou para o
+   oraculo.
+3. **Com o apelido derivado do login e sem truncamento, os dois limites de `U2`
+   fazem faixas diferentes.** Login de 51 a 60 caracteres recusa pelo **apelido**;
+   de 61 em diante recusa pelo **login**. Os dois codigos sao alcancaveis e CA-6.2
+   e exercitado por inteiro — mas isso depende de a derivacao do apelido **nao**
+   cortar o login em 50. BR-MIGRAR-022 e CA-6.2 proibem o truncamento com a
+   palavra *"erro, nao truncamento"*, e foi essa leitura que T013 implementou; a
+   leitura alternativa (cortar o login para derivar o apelido) tornaria o limite de
+   apelido inalcancavel neste fluxo e esvaziaria metade do critério. Fica
+   registrado para o oraculo.
+4. **O aviso ao administrador do site nao foi escrito.** No legado o cadastro
+   aberto pede a notificacao no modo que manda **duas** mensagens — titular e
+   administrador. UC-21 (passo 5, um ator secundario, uma linha de sequencia, duas
+   pos-condicoes) e CA-6.5 (*"**o titular** recebe"*) registram **so** a do
+   titular, e o texto da outra nao esta no pacote. T013 **nao escolheu** entre
+   omitir e inventar: escreveu o que o pacote registra, deixou o retorno da
+   notificacao como **lista** de tentativas para que a segunda mensagem entre sem
+   mudar a forma de nada, e deixou a decisao aqui.
+5. **O legado grava mais linhas de `usermeta` ao criar a conta do que as duas do
+   papel** — um bloco de preferencias de perfil e, so no cadastro aberto, o
+   marcador de aviso de senha padrao. **Nenhuma esta no pacote**: o *Modelo de
+   dados* de `plan.md` nomeia **uma** chave desta tabela (`{prefixo}capabilities`)
+   e as pos-condicoes de UC-21 declaram duas coisas, nenhuma delas uma linha de
+   perfil. Como o criterio desta area e *"efeito no banco"*, a ausencia delas e
+   divergencia a conferir, e nao escolha de desenho — inventar nome e valor de
+   onze chaves que nenhum documento nomeia inventaria onze bytes gravados.
+6. **O algoritmo do resumo da chave de redefinicao nao e deste pacote.** CA-4.1
+   diz *"guardada com hash"* e nada mais; `tech-stack.json` detalha o hash de
+   `user_pass` peca por peca e nao fala desta coluna; e no legado as duas
+   primitivas **nao sao a mesma**. T013 poe o resumo atras de um ponto de
+   substituicao obrigatorio e sem padrao — escolher um algoritmo aqui inventaria a
+   forma de um byte gravado. A escolha e de **T009**.
+7. **`preProcessarSenhaParaBcrypt`, em `autenticacao/verificacao-de-senha.ts`, nao
+   corta espaco das pontas, e o legado corta dentro do pre-processamento.** Pelo
+   caminho do produto as duas pontas coincidem, porque `autenticar` corta antes da
+   cadeia e a geracao de T013 corta dentro dela; **chamar o verificador direto com
+   senha cercada de espaco recusaria uma senha que o legado aceita.** T013 nao
+   mexeu no arquivo de T003: a correcao e de uma linha e muda um ponto de
+   substituicao publicado, o que nao e entrega desta tarefa.
 
 ## Por que estas tres portas, e nao outras
 
@@ -406,7 +535,7 @@ E `wp_destroy_other_sessions()` e `wp_destroy_all_sessions()` entram **definidas
 e sem nenhum chamador**, como estao hoje: BR-MIGRAR-111 cita a resposta 7 —
 *"existir sem ser chamada e parte do que se clona"*.
 
-## O que ninguem decidiu, e que nem T001, nem T003, nem T005 decidiram tampouco
+## O que ninguem decidiu, e que nenhuma tarefa fechada decidiu tampouco
 
 0. **Quantos codigos de erro de entrada sao.** `plan.md` (secao Contratos) e
    BR-MIGRAR-110 dizem **quatro** codigos distintos *"que nomeiam o login ou o

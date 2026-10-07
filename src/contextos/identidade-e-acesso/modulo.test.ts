@@ -112,9 +112,14 @@ test('a superficie do modulo tem exatamente as operacoes das tarefas fechadas', 
   // `solicitarRedefinicaoDeSenha` e `redefinirSenha`, as duas sem capacidade
   // nenhuma — a chave de redefinicao e um dos CINCO ATESTADOS que o P4 manda
   // nao esconder, e UC-20 fixa que "a posse do e-mail e a autorizacao".
+  // que PRODUZ a identidade com que as capacidades sao decididas. T013 (US-6):
+  // `cadastrar`, tambem sem capacidade — quem autoriza e a OPCAO
+  // `users_can_register`, que nasce desligada (`U1`), e o ator e o visitante,
+  // que por definicao nao tem papel.
   assert.deepEqual(Object.keys(modulo).sort(), [
     'armazenamento',
     'autenticar',
+    'cadastrar',
     'nome',
     'portas',
     'redefinirSenha',

@@ -64,6 +64,12 @@ import type {
   ContextoDoPedidoDeRedefinicao,
 } from './redefinicao-de-senha/contexto-de-redefinicao.js';
 import type { ArmazenamentoDeSessoes } from './sessao/registro-de-sessoes.js';
+import {
+  cadastrar,
+  type DadosDoCadastro,
+  type ResultadoDoCadastro,
+} from './cadastro/cadastrar.js';
+import type { ContextoDeCadastro } from './cadastro/contexto-de-cadastro.js';
 
 export * from './portas/index.js';
 export * from './armazenamento/index.js';
@@ -127,6 +133,37 @@ export * from './redefinicao-de-senha/redefinir-senha.js';
   `recuperacao-de-senha/envio-do-email-de-redefinicao.ts` antes de compor.
 */
 export * from './recuperacao-de-senha/envio-do-email-de-redefinicao.js';
+export * from './autenticacao/geracao-de-hash-de-senha.js';
+export * from './cadastro/atribuicao-de-papel.js';
+export * from './cadastro/cadastrar.js';
+export * from './cadastro/chave-de-redefinicao.js';
+export * from './cadastro/configuracao-de-cadastro.js';
+export * from './cadastro/contexto-de-cadastro.js';
+export * from './cadastro/criacao-de-conta.js';
+export * from './cadastro/erro-de-cadastro.js';
+export * from './cadastro/geracao-de-segredo.js';
+export * from './cadastro/notificacao-de-conta-nova.js';
+export * from './cadastro/validacao-de-cadastro.js';
+
+/*
+  ── DOIS NOMES QUE COLIDEM NO BARRIL, E NENHUM DOS DOIS SOME ────────────────
+
+  `destinoDeRetorno` e `primeiroCodigoDeErro` existem nas DUAS familias, com o
+  mesmo nome e proposito paralelo: uma na entrada (US-1) e uma no cadastro
+  (US-6). A colisao e simetria, nao descuido — manter o mesmo nome nos dois
+  arquivos e o que faz a leitura de um ensinar a leitura do outro, e renomear
+  dentro de um deles esconderia o paralelo.
+
+  O barril desfaz a ambiguidade do mesmo jeito que ja desfez a das duas `Conta`,
+  logo acima: export EXPLICITO ganha do `export *`, o nome nu fica com a familia
+  mais antiga e a outra sai com o nome dela ao lado. Nada deixa de ser
+  alcancavel, e cada funcao continua alcancavel tambem pelo caminho dela
+  (`./cadastro/cadastrar.js`, `./cadastro/erro-de-cadastro.js`).
+*/
+export { destinoDeRetorno } from './autenticacao/autenticar.js';
+export { destinoDeRetorno as destinoDeRetornoDoCadastro } from './cadastro/cadastrar.js';
+export { primeiroCodigoDeErro } from './autenticacao/erro-de-autenticacao.js';
+export { primeiroCodigoDeErro as primeiroCodigoDeErroDeCadastro } from './cadastro/erro-de-cadastro.js';
 
 /** As tres portas de que este modulo depende, na forma em que ele as recebe. */
 export interface PortasDeIdentidadeEAcesso {
@@ -149,6 +186,7 @@ export interface PortasDeIdentidadeEAcesso {
  * | `sessaoDaRequisicao` | US-3 | T007 | **nenhuma capacidade**, declarada (ver abaixo) |
  * | `solicitarRedefinicaoDeSenha` | US-4 | T009 | **nenhuma capacidade**, declarada (ver abaixo) |
  * | `redefinirSenha` | US-4 | T009 | **nenhuma capacidade**, declarada (ver abaixo) |
+ * | `cadastrar` | US-6 | T013 | **nenhuma capacidade**, declarada (ver abaixo) |
  */
 export interface ModuloDeIdentidadeEAcesso {
   readonly nome: 'identidade-e-acesso';
@@ -259,6 +297,31 @@ export interface ModuloDeIdentidadeEAcesso {
     entrada: EntradaDaRedefinicao,
     contexto: ContextoDaRedefinicaoDeSenha,
   ): ResultadoDaRedefinicao;
+
+   /**
+   * Cadastra o visitante quando o cadastro aberto esta ligado (US-6, T013).
+   *
+   * **Permissao exigida: nenhuma capacidade, e a declaracao e o ponto.** UC-21 poe
+   * na propria linha de autorizacao do caso de uso que quem autoriza e a **opcao**
+   * `users_can_register` — *"que nasce desligada; sem ela, este caso de uso nao
+   * existe na instalacao"* — e `target_screens.md` repete para a tela: *"nenhuma
+   * checagem `current_user_can()` neste arquivo"*. O ator e o **visitante**, que por
+   * definicao nao tem papel: exigir capacidade aqui tornaria o cadastro aberto
+   * impossivel.
+   *
+   * E a unica operacao deste modulo cuja porta **nasce fechada**, e isso tambem e
+   * declaracao: o P4 manda preservar o default de cada camada, e aqui o default e
+   * `false` por `U1` (BR-MIGRAR-021). Nas outras tres o default e aberto, e a
+   * declaracao serve para que ninguem o feche sem decidir.
+   *
+   * O contexto chega por argumento, e nao pela composicao, pelo mesmo motivo de
+   * `autenticar`: identidade, opcao da instalacao e estado de rede sao escopo de
+   * REQUISICAO (AD-02, BR-MIGRAR-105).
+   */
+  cadastrar(
+    dados: DadosDoCadastro,
+    contexto: ContextoDeCadastro,
+  ): ResultadoDoCadastro;
 }
 
 /** O que a instalacao informa ao modulo. Ver `armazenamento/index.ts`. */
@@ -295,5 +358,6 @@ export function criarModuloDeIdentidadeEAcesso(
     sessaoDaRequisicao,
     solicitarRedefinicaoDeSenha,
     redefinirSenha,
+    cadastrar,
   };
 }
