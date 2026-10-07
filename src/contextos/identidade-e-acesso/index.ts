@@ -49,6 +49,20 @@ import {
   type CredencialApresentada,
   type SessaoDaRequisicao,
 } from './sessao/sessao-da-requisicao.js';
+import {
+  solicitarRedefinicaoDeSenha,
+  type PedidoDeRedefinicao,
+  type ResultadoDoPedidoDeRedefinicao,
+} from './redefinicao-de-senha/pedido-de-redefinicao.js';
+import {
+  redefinirSenha,
+  type EntradaDaRedefinicao,
+  type ResultadoDaRedefinicao,
+} from './redefinicao-de-senha/redefinir-senha.js';
+import type {
+  ContextoDaRedefinicaoDeSenha,
+  ContextoDoPedidoDeRedefinicao,
+} from './redefinicao-de-senha/contexto-de-redefinicao.js';
 import type { ArmazenamentoDeSessoes } from './sessao/registro-de-sessoes.js';
 
 export * from './portas/index.js';
@@ -94,6 +108,13 @@ export * from './autenticacao/erro-de-autenticacao.js';
 export * from './autenticacao/normalizacao-de-credencial.js';
 export * from './autenticacao/prazos-de-sessao.js';
 export * from './autenticacao/verificacao-de-senha.js';
+export * from './redefinicao-de-senha/chave-de-redefinicao.js';
+export * from './redefinicao-de-senha/contas-para-redefinicao.js';
+export * from './redefinicao-de-senha/contexto-de-redefinicao.js';
+export * from './redefinicao-de-senha/erro-de-redefinicao.js';
+export * from './redefinicao-de-senha/geracao-de-hash-de-senha.js';
+export * from './redefinicao-de-senha/pedido-de-redefinicao.js';
+export * from './redefinicao-de-senha/redefinir-senha.js';
 
 /** As tres portas de que este modulo depende, na forma em que ele as recebe. */
 export interface PortasDeIdentidadeEAcesso {
@@ -114,6 +135,8 @@ export interface PortasDeIdentidadeEAcesso {
  * | `autenticar` | US-1 | T003 | **nenhuma capacidade**, declarada (ver abaixo) |
  * | `sair` | US-2 | T005 | **nenhuma capacidade**, declarada (ver abaixo) |
  * | `sessaoDaRequisicao` | US-3 | T007 | **nenhuma capacidade**, declarada (ver abaixo) |
+ * | `solicitarRedefinicaoDeSenha` | US-4 | T009 | **nenhuma capacidade**, declarada (ver abaixo) |
+ * | `redefinirSenha` | US-4 | T009 | **nenhuma capacidade**, declarada (ver abaixo) |
  */
 export interface ModuloDeIdentidadeEAcesso {
   readonly nome: 'identidade-e-acesso';
@@ -189,6 +212,41 @@ export interface ModuloDeIdentidadeEAcesso {
     agoraEmSegundos: number,
     carencia?: number,
   ): SessaoDaRequisicao;
+
+  /**
+   * Pede a redefinicao de senha por chave enviada ao e-mail da conta (US-4,
+   * T009 — passos 1 a 3 de UC-20).
+   *
+   * **Permissao exigida: nenhuma, e aqui a declaracao vale dobrado.** A chave de
+   * redefinicao e **um dos cinco atestados** que o P4 da constituicao manda nao
+   * esconder: *"cinco atestados decidem acesso sem consultar capacidade alguma
+   * ... chave de redefinicao de senha de 24 horas apagada no primeiro acesso ...
+   * uma matriz que ignore esses cinco descreve um sistema mais fechado do que o
+   * real"*. UC-20 diz o mesmo pelo campo *Autorizacao*: *"a posse do e-mail e a
+   * autorizacao — nao ha capacidade envolvida"*. Exigir capacidade aqui trancaria
+   * justamente quem nao consegue entrar.
+   *
+   * O contexto chega por argumento, como em `autenticar`: identidade e estado de
+   * requisicao sao escopo de REQUISICAO (AD-02, BR-MIGRAR-105).
+   */
+  solicitarRedefinicaoDeSenha(
+    pedido: PedidoDeRedefinicao,
+    contexto: ContextoDoPedidoDeRedefinicao,
+  ): ResultadoDoPedidoDeRedefinicao;
+
+  /**
+   * Grava a senha nova contra a chave apresentada (US-4, T009 — passos 4 a 7 de
+   * UC-20).
+   *
+   * **Permissao exigida: nenhuma, pelo mesmo motivo acima** — e com um segundo
+   * motivo proprio: quem redefine a senha nao esta autenticado, logo nao ha
+   * identidade sobre a qual perguntar capacidade. O prazo de 24 horas e a
+   * conferencia da chave **sao** o controle de acesso desta operacao.
+   */
+  redefinirSenha(
+    entrada: EntradaDaRedefinicao,
+    contexto: ContextoDaRedefinicaoDeSenha,
+  ): ResultadoDaRedefinicao;
 }
 
 /** O que a instalacao informa ao modulo. Ver `armazenamento/index.ts`. */
@@ -223,5 +281,7 @@ export function criarModuloDeIdentidadeEAcesso(
     autenticar,
     sair,
     sessaoDaRequisicao,
+    solicitarRedefinicaoDeSenha,
+    redefinirSenha,
   };
 }

@@ -33,7 +33,7 @@
       *entrega:* 5 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-003-1, UT-003-2, UT-003-3, UT-003-4, UT-003-5), com o mesmo dado de entrada, ação e resultado esperado. O teste de regra de negócio (UT-003-5) entra na mesma suíte.
       *satisfaz:* CA-3.1, CA-3.2, CA-3.3, CA-3.4
       *depende de:* T007
-- [ ] **T009** Redefinir a senha por chave enviada ao e-mail da conta, válida por 24 horas (US-4)
+- [x] **T009** Redefinir a senha por chave enviada ao e-mail da conta, válida por 24 horas (US-4)
       *entrega:* o comportamento de US-4 existe e os critérios CA-4.1, CA-4.2, CA-4.3, CA-4.4, CA-4.5 passam contra o sistema novo
       *satisfaz:* CA-4.1, CA-4.2, CA-4.3, CA-4.4, CA-4.5
       *depende de:* T001, T002

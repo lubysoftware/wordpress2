@@ -108,14 +108,19 @@ test('a superficie do modulo tem exatamente as operacoes das tarefas fechadas', 
   // invoca. Ver `sessao/encerramento-de-sessao.ts`.
   // que o papel decide o que a pessoa faz depois, nao se ela entra. T007
   // (US-3): `sessaoDaRequisicao`, tambem sem capacidade exigida, porque e ela
-  // que PRODUZ a identidade com que as capacidades sao decididas.
+  // que PRODUZ a identidade com que as capacidades sao decididas. T009 (US-4):
+  // `solicitarRedefinicaoDeSenha` e `redefinirSenha`, as duas sem capacidade
+  // nenhuma — a chave de redefinicao e um dos CINCO ATESTADOS que o P4 manda
+  // nao esconder, e UC-20 fixa que "a posse do e-mail e a autorizacao".
   assert.deepEqual(Object.keys(modulo).sort(), [
     'armazenamento',
     'autenticar',
     'nome',
     'portas',
+    'redefinirSenha',
     'sair',
     'sessaoDaRequisicao',
+    'solicitarRedefinicaoDeSenha',
   ]);
 });
 

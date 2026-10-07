@@ -1,8 +1,8 @@
 # Modulo de identidade e acesso — BC-05
 
 Feature `001-identidade-e-acesso`. Tarefas fechadas: **T001** (esqueleto e
-portas), **T002** (forma de armazenamento), **T003** (US-1, entrada) e **T005**
-(US-2, saida). Este arquivo e a leitura obrigatoria de quem pegar a proxima
+portas), **T002** (forma de armazenamento), **T003** (US-1, entrada), **T005**
+(US-2, saida) e **T009** (US-4, redefinicao de senha por chave). Este arquivo e a leitura obrigatoria de quem pegar a proxima
 tarefa: ele diz o que ja esta decidido, o que esta decidido **em outro lugar**,
 e o que ninguem decidiu.
 portas), **T002** (forma de armazenamento), **T003** (US-1, autenticar) e
@@ -247,6 +247,89 @@ teste afirmando isso, e a escolha e conferencia contra o oraculo
 E o pacote registra **um** numero de carencia e **uma** condicao. Nenhum outro
 numero foi acrescentado: o P6 recusa numero que o legado nao tem, e tambem
 numero que o pacote nao registra.
+
+## O que T009 entrega, e so isso
+
+> *o comportamento de US-4 existe e os critérios CA-4.1, CA-4.2, CA-4.3, CA-4.4,
+> CA-4.5 passam contra o sistema novo*
+> — `.specify/specs/001-identidade-e-acesso/tasks.md`, T009
+
+| arquivo | o que e |
+|---|---|
+| `redefinicao-de-senha/chave-de-redefinicao.ts` | o `VO-ChaveDeAtivacao` do *reset*: o formato `instante:resumo`, as 24 horas e os seis ramos de conferencia |
+| `redefinicao-de-senha/erro-de-redefinicao.ts` | os codigos, as mensagens e os dois destinos de recusa de chave |
+| `redefinicao-de-senha/contas-para-redefinicao.ts` | a fatia de `AGG-Conta` que US-4 usa, ligada ao repositorio de T002 |
+| `redefinicao-de-senha/geracao-de-hash-de-senha.ts` | a **gravacao** do hash da senha — a contraparte que T003 deixou marcada para ca |
+| `redefinicao-de-senha/contexto-de-redefinicao.ts` | o contexto por requisicao e os pontos de extensao dos dois fluxos |
+| `redefinicao-de-senha/pedido-de-redefinicao.ts` | passos 1 a 3 de UC-20: procurar a conta, gerar e gravar a chave, enviar |
+| `redefinicao-de-senha/redefinir-senha.ts` | passos 4 a 7: conferir chave e prazo, recusar a senha, gravar, invalidar a chave |
+| `redefinicao-de-senha/redefinicao-de-senha.test.ts` | os cinco critérios, as bordas do P6, a ordem dos ganchos e as regras que a implementacao quebraria em silencio |
+
+**Dois arquivos de fora mudaram, e nenhum por gosto:** `index.ts` ganhou as duas
+operacoes com a declaracao de permissao que o P4 exige, e `modulo.test.ts`
+cresceu nas duas chaves correspondentes. **Nenhuma interface de tarefa fechada
+foi alterada** — em particular, `PrimitivaDeBcrypt` de T003 **nao** ganhou metodo
+de geracao, para nao quebrar os simulados das suites dela por um motivo que nao
+e de US-4; o lado de gravacao nasceu ao lado, reusando o prefixo e o
+pre-processamento que o verificador exporta.
+
+**A permissao das duas operacoes e nenhuma, e a declaracao e o ponto.** A chave
+de redefinicao e **um dos cinco atestados** que o P4 manda nao esconder, e UC-20
+e literal: *"a posse do e-mail e a autorizacao — nao ha capacidade envolvida"*.
+Um teste afirma que nenhuma consulta dos dois fluxos toca `capabilities`,
+`user_roles` ou `options`.
+
+**Um numero entra aqui, e e o do pacote:** as 24 horas da chave
+(BR-MIGRAR-024 / `U4`), em ponto de configuracao nomeado, **filtravel**
+(`ESC-FILTRAVEL`) e com teste nas duas pontas da borda. Nenhum outro numero foi
+acrescentado — ver abaixo os tres que o pacote nao registra.
+
+**O que T009 nao faz, de proposito:** nao encerra sessao nenhuma (pos-condicao de
+UC-20 e `ESC-SESSAO`; REQ-008 esta bloqueado) e o teste afirma isso pelo efeito
+no banco — nenhum comando sai para `usermeta`; nao limita taxa nem conta pedido
+(P6, REQ-160 em `do-not-rewrite.md`); nao apaga a chave no login, que e CA-1.4 e
+ja esta em `autenticacao/autenticar.ts`; nao redireciona nem pinta tela; e **nao
+registra a falha de envio nem a transforma em aviso proprio**, que e US-5 / T011
+— aqui a tentativa volta como **valor** (`envio`), que e de onde T011 parte sem
+alterar arquivo deste modulo.
+
+### 🔴 O que T009 encontrou aberto, e NAO decidiu
+
+1. **Como a chave em claro e gerada.** Comprimento e alfabeto nao estao no
+   pacote — ele fixa os 24 caracteres da *senha de aplicacao* (`U6`) e **nao** os
+   desta. `GeradorDeChaveDeRedefinicao` chega por argumento, sem valor padrao:
+   o P6 recusa numero que o legado nao tem **e** numero que o pacote nao
+   registra, como T007 ja havia registrado.
+2. **Com qual funcao a chave e resumida.** CA-4.1 fixa *"guardada com hash"* e o
+   modelo de dados fixa o instante prefixado; nenhum documento nomeia o
+   algoritmo, e no legado ele e um objeto registrado globalmente — logo um dos 42
+   pontos de `EXT-SUBST`, e **nao** a funcao que confere a senha da conta.
+   Tambem chega por argumento.
+3. **Os literais do e-mail.** O e-mail nao e uma das 113 telas e nao tem tabela
+   de mensagens em `target_screens.md`: assunto, corpo e forma do link nao estao
+   em documento nenhum. `MontagemDoEmailDeRedefinicao` chega por argumento, e o
+   que o dominio garante e so o que ele pode garantir — a chave em claro nao e
+   devolvida a quem pediu e nao e gravada em lugar algum. O destinatario **nao**
+   e imposto pelo dominio, porque no legado o envelope inteiro passa por ponto de
+   extensao antes do envio.
+
+E tres divergencias de contagem ou de clausula ficaram **registradas no codigo**,
+cada uma onde ela mora, para fechar contra o oraculo (`ESC-ORACULO`, que nesta
+arvore nao existe):
+
+- **"chave ja usada" nao tem codigo proprio.** `plan.md` a lista como erro desta
+  operacao; o legado nao tem como distingui-la de "nunca existiu", porque o que
+  sobra da chave usada e a sentinela vazia. Dar-lhe codigo proprio diria ao
+  visitante algo que o legado nao diz (P1).
+- **O instante exato do prazo.** A conferencia e estrita (`agora < instante +
+  prazo`), logo o ultimo instante aceito e `prazo - 1`. CA-4.2 so se pronuncia
+  sobre *"mais de 24 horas"*, e a borda da sessao usa a comparacao do outro lado.
+  O teste fixa as duas pontas para que a diferenca, se houver, apareca.
+- **A clausula de gravacao da chave.** O repositorio de T002 localiza a linha por
+  `ID`; o pacote nao registra por qual coluna o legado a localiza, e a diferenca
+  so e observavel com **login duplicado**, que o banco aceita (BR-MIGRAR-022,
+  REQ-010 bloqueado). Nenhum metodo foi acrescentado ao repositorio de T002 por
+  isso.
 
 ## Por que estas tres portas, e nao outras
 
