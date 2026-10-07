@@ -45,7 +45,7 @@
       *entrega:* o comportamento de US-5 existe e os critérios CA-5.1, CA-5.2, CA-5.3 passam contra o sistema novo
       *satisfaz:* CA-5.1, CA-5.2, CA-5.3
       *depende de:* T001, T002, T009
-- [x] **T012** [P] Testes de US-5
+- [ ] **T012** [P] Testes de US-5 — REFAZER: mesma causa de T010 e T014, e os quatro testes (UT-007-1 a UT-007-4) estouram em `Cannot read properties of undefined (reading 'trim')`. A suíte monta o contexto numa forma que a implementação de T011 não usa — ver `recuperacao-de-senha/envio-do-email-de-redefinicao.ts` e o contrato em `redefinicao-de-senha/contexto-de-redefinicao.ts`. Escreva contra o que T011 entregou; o que a suíte protege é o comportamento do passo 3 de UC-20, não a forma que ela imaginou.
       *entrega:* 4 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-007-1, UT-007-2, UT-007-3, UT-007-4), com o mesmo dado de entrada, ação e resultado esperado. O teste de regra de negócio (UT-007-4) entra na mesma suíte.
       *satisfaz:* CA-5.1, CA-5.2, CA-5.3
       *depende de:* T011
