@@ -8,4 +8,11 @@ preparo: scripts/preparar.sh
 # "o processo do agente saiu com código 0" — e o agente sai 0 deixando teste
 # vermelho. Foi o que pôs dezoito testes quebrados na main, e custou US$ 16,79
 # em refação.
-verificar: npm test
+# O `node` vem fixado porque o daemon instalado hoje roda a conferência num
+# shell de LOGIN, e o perfil de login desta máquina põe `/usr/local/bin` na
+# frente do PATH — onde vive um node v14, que não tem a flag `--test`. Medido:
+# o daemon enxerga v22.17.1 e a conferência enxergava v14.21.3, e a T018 e a
+# T020 foram reprovadas com `node: bad option: --test` tendo 391/391 e 389/389
+# testes verdes. O defeito já está consertado no daemon (o shell deixa de ser
+# de login), e esta linha existe só até esse daemon estar instalado.
+verificar: export PATH="$HOME/.nvm/versions/node/v22.17.1/bin:$PATH"; npm test
