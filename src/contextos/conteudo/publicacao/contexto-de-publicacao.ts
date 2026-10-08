@@ -51,10 +51,20 @@
  * 1. **O relogio.** `wp_publish_post()` nao le o tempo: ele **nao** atualiza
  *    `post_modified` nem `post_modified_gmt`, e nao compara data nenhuma. A
  *    comparacao de data que decide agendado contra publicado esta em
- *    `wp_insert_post()` (`:4798`-`:4808`, T013) e a verificacao dupla em
+ *    `wp_insert_post()` (`:4797`-`:4809`, T013) e a verificacao dupla em
  *    `check_and_publish_future_post()` (`:5482`, tambem T013). Pedir a porta de
  *    relogio aqui convidaria a tocar o carimbo de modificacao, que e **efeito no
  *    banco** (area 3 da Decisao 2) e que o legado nao toca neste caminho.
+ *
+ *    **T013 manteve essa ausencia.** O relogio que a verificacao dupla precisa
+ *    chega em `ContextoDeAgendamento`, que **estende** este contexto em
+ *    `../agendamento/publicacao-agendada.ts`: assim quem publica por ato
+ *    explicito continua sem relogio nenhum em maos, e a unica operacao que le o
+ *    tempo e a que o legado faz ler. O que T013 acrescentou **aqui** foram duas
+ *    coisas que nao sao relogio — o metodo de agendar na porta da fila e a
+ *    conversao de fuso ({@link DataGmtDeDataLocal}) —, porque as duas sao
+ *    consumidas pelo ouvinte do ponto 3 da transicao, por onde US-1 tambem
+ *    passa.
  * 2. **O cache de objeto.** `clean_post_cache( $post->ID )` roda entre o
  *    comando e a transicao (`:5450`), e nao ha cache nesta arvore — ver a
  *    divergencia declarada no README deste modulo e no cabecalho de
@@ -207,8 +217,9 @@ export interface ClassificacaoNaPublicacao {
 export const GANCHO_DE_PUBLICACAO_AGENDADA = 'publish_future_post';
 
 /**
- * A unica coisa que esta feature pede a fila agendada no caminho de publicacao:
- * **limpar** o evento pendente daquele conteudo (CA-1.5).
+ * O que esta feature pede a fila agendada: **limpar** o evento pendente daquele
+ * conteudo (CA-1.5, T003) e **poe-lo de volta** na data da publicacao (CA-6.4 e
+ * o agendamento de US-6, T013).
  *
  * **Por que fila e porta, e nao consulta pela porta de dados:** no legado a fila
  * **e** uma linha de `options` (`wp-includes/cron.php`), logo seria tecnicamente
@@ -219,17 +230,21 @@ export const GANCHO_DE_PUBLICACAO_AGENDADA = 'publish_future_post';
  *
  * ## O que esta porta deliberadamente NAO tem
  *
- * - **Nao agenda.** `wp_schedule_single_event()` entra em T013 (US-6), que e
- *   quem poe o evento na fila (`_future_post_hook()`,
- *   `wp-includes/post.php:8205`). Dar aqui o metodo de agendar convidaria T003 a
- *   reproduzir meia US-6.
  * - **Nao dispara e nao executa.** AD-07 e literal: *"o disparo nao bloqueante
  *   tem de **falhar**, e o criterio de aceite e a falha"*. Nenhum metodo desta
- *   porta permite que este modulo avance a fila.
- * - **Nao tem trava e nao tem prazo.** Os numeros da fila (60 segundos de
- *   transiente, 10 minutos de `WP_CRON_LOCK_TIMEOUT`) sao da feature 011, e o P6
- *   manda que cada numero viva no ponto de configuracao da tarefa que o
- *   implementa.
+ *   porta permite que este modulo avance a fila: quem chega a
+ *   `publicarSeAindaAgendado()` (`agendamento/publicacao-agendada.ts`) ja foi
+ *   chamado **pela** fila, e e por isso que a verificacao dupla existe.
+ * - **Nao consulta a fila.** Nao ha `wp_next_scheduled()` aqui, porque nenhum
+ *   dos dois caminhos do legado o chama: `_future_post_hook()` limpa e agenda
+ *   sem perguntar se ja havia evento (`:8205`-`:8207`), e a verificacao dupla faz
+ *   o mesmo par (`:5497`-`:5498`). Quem acrescentasse a consulta para "evitar
+ *   duplicata" trocaria a limpeza incondicional por uma condicional.
+ * - **Nao tem trava, nao tem prazo e nao tem janela de duplicata.** Os numeros da
+ *   fila (60 segundos de transiente, 10 minutos de `WP_CRON_LOCK_TIMEOUT`, e os
+ *   10 minutos da janela em que `wp_schedule_single_event()` recusa evento
+ *   identico, `wp-includes/cron.php:135`) sao da feature 011, e o P6 manda que
+ *   cada numero viva no ponto de configuracao da tarefa que o implementa.
  */
 export interface FilaNaPublicacao {
   /**
@@ -246,7 +261,61 @@ export interface FilaNaPublicacao {
    * CA-1.5 seja afirmavel por teste, e nenhum ramo do fluxo o consulta (P7).
    */
   limparGancho(gancho: string, argumentos: readonly unknown[]): number | false;
+
+  /**
+   * `wp_schedule_single_event( $timestamp, $hook, $args )`
+   * (`wp-includes/cron.php:48`) — o evento **unico**, que e o que o agendamento
+   * poe na fila.
+   *
+   * Entrega de **T013** (US-6). Dois chamadores no legado, e os dois estao nesta
+   * feature:
+   *
+   * | chamador | instante que ele passa | linha |
+   * |---|---|---|
+   * | `_future_post_hook()` | `strtotime( get_gmt_from_date( $post->post_date ) . ' GMT' )` | `:8207` |
+   * | `check_and_publish_future_post()` | `strtotime( $post->post_date_gmt . ' GMT' )`, ja calculado para a comparacao | `:5498` |
+   *
+   * ⚠️ **Os dois leem a data de colunas diferentes para chegar ao mesmo
+   * instante**, e a assimetria e do legado: o primeiro parte da data **local** e
+   * converte, o segundo parte da coluna que ja esta em UTC. Com fuso bem
+   * configurado as duas dao o mesmo numero; com `gmt_offset` alterado entre a
+   * gravacao e o disparo, nao. Esta reproduzido como esta, com a nota em cada
+   * chamador.
+   *
+   * **O retorno e ignorado pelos dois chamadores** (P7), e isso guarda duas
+   * falhas silenciosas que a fila decide e que este modulo nao pode decidir:
+   * instante `<= 0` e recusado de saida (`wp-includes/cron.php:50`), e evento
+   * identico dentro da janela de 10 minutos e recusado como duplicata
+   * (`:134`). Nos dois casos o conteudo fica em `future` sem evento na fila, e o
+   * legado nao avisa ninguem. Entra no resultado da operacao apenas para que o
+   * criterio seja afirmavel por teste.
+   */
+  agendarEventoUnico(
+    instanteEmSegundos: number,
+    gancho: string,
+    argumentos: readonly unknown[],
+  ): boolean;
 }
+
+/**
+ * `get_gmt_from_date( $data )` — a data local do site convertida para UTC, no
+ * formato da coluna (`wp-includes/formatting.php:3741`).
+ *
+ * Entrega de **T013** (US-6), e chega como funcao pelo mesmo motivo que
+ * {@link EnderecoDoConteudo}: a conversao le a opcao de fuso do site
+ * (`timezone_string` ou `gmt_offset`, via `wp_timezone()`), que e **dado** de
+ * `plataforma/opcoes/` e nao relogio — a separacao esta escrita no cabecalho de
+ * `../portas/porta-de-relogio.ts` (*"O fuso do site ... chega pela porta de
+ * dados"*), e e ela que mantem a porta de relogio sem fuso e sem formato.
+ *
+ * **O modo de falha viaja, e ele e silencioso:** data que o PHP nao consegue
+ * criar faz a funcao devolver `gmdate( $format, 0 )`, isto e
+ * `'1970-01-01 00:00:00'` (`:3744`-`:3745`). Quem a consome em
+ * `_future_post_hook()` leva esse valor a `strtotime()`, chega a `0`, e a fila
+ * recusa o instante — logo o conteudo fica agendado sem evento, sem erro e sem
+ * registro. E P7, e esta reproduzido.
+ */
+export type DataGmtDeDataLocal = (dataLocal: string) => string;
 
 /**
  * `get_permalink( $conteudoId )` — o endereco do conteudo
@@ -445,6 +514,16 @@ export interface ContextoDePublicacao {
   readonly tipoDeConteudo: (nome: string) => TipoDeConteudoNaAutorizacao | null;
 
   readonly enderecoDoConteudo: EnderecoDoConteudo;
+
+  /**
+   * `get_gmt_from_date()`, que o ouvinte de agendamento usa ao entrar em
+   * `future` (T013). Ver {@link DataGmtDeDataLocal}.
+   *
+   * Esta no contexto da **publicacao**, e nao so no do agendamento, porque quem
+   * a consome e o ouvinte do ponto 3 da transicao
+   * (`transicao-de-estado.ts`) — que e o mesmo ponto por onde US-1 passa.
+   */
+  readonly dataGmtDeDataLocal: DataGmtDeDataLocal;
 
   readonly ganchos?: GanchosDaPublicacao;
 }

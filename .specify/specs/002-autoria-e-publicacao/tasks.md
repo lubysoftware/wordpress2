@@ -49,7 +49,7 @@
       *entrega:* 4 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-023-1, UT-023-2, UT-023-3, UT-023-4), com o mesmo dado de entrada, ação e resultado esperado. O teste de regra de negócio (UT-023-4) entra na mesma suíte.
       *satisfaz:* CA-5.1, CA-5.2, CA-5.3
       *depende de:* T011
-- [ ] **T013** Agendar a publicação para data futura, com verificação dupla na hora de publicar (US-6)
+- [x] **T013** Agendar a publicação para data futura, com verificação dupla na hora de publicar (US-6)
       *entrega:* o comportamento de US-6 existe e os critérios CA-6.1, CA-6.2, CA-6.3, CA-6.4, CA-6.5 passam contra o sistema novo
       *satisfaz:* CA-6.1, CA-6.2, CA-6.3, CA-6.4, CA-6.5
       *depende de:* T001, T002, T003
