@@ -2,7 +2,7 @@
 
 > Ordem de dependência. `[P]` marca tarefa que não disputa arquivo com nenhuma outra desta feature e portanto pode rodar em paralelo com as demais, uma vez satisfeita a dependência dela: toda tarefa de teste, que toca só a própria suíte, e a tarefa de implementação cuja história não compartilha módulo com nenhuma outra história daqui.
 
-- [ ] **T001** Preparar o esqueleto do módulo de classificação
+- [x] **T001** Preparar o esqueleto do módulo de classificação
       *entrega:* o módulo carrega com a porta de dados declarada e os oito contextos de classificação do núcleo registrados, sem regra implementada
       *satisfaz:* — (infraestrutura)
 - [ ] **T002** Portar a forma de armazenamento de rótulo, contexto e junção
