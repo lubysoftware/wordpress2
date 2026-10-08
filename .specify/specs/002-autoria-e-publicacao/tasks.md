@@ -5,7 +5,7 @@
 - [x] **T001** Preparar o esqueleto do módulo de conteúdo
       *entrega:* o módulo carrega com as portas de dados, de relógio e de envio de e-mail declaradas, e o vocabulário de estado editorial do legado declarado como enumeração fechada
       *satisfaz:* — (infraestrutura)
-- [ ] **T002** Portar a forma de armazenamento de conteúdo, metadado e versão anterior
+- [x] **T002** Portar a forma de armazenamento de conteúdo, metadado e versão anterior
       *entrega:* as estruturas da seção Modelo de dados do plano existem e são lidas e gravadas pela porta de dados, incluindo a auto-referência que liga filho, anexo e versão ao registro pai
       *satisfaz:* — (infraestrutura)
       *depende de:* T001

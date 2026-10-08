@@ -94,17 +94,22 @@ test('o modulo carrega com as tres portas declaradas', () => {
   assert.equal(modulo.portas.relogio, portas.relogio);
 });
 
-test('nenhuma regra de negocio implementada: a superficie do modulo e so o que T001 entrega', () => {
+test('nenhuma regra de negocio implementada: a superficie do modulo e so o que T001 e T002 entregam', () => {
   const { portas } = portasDeTeste();
 
   const modulo = criarModuloDeConteudo(portas);
 
-  // Quando T002 e as historias entrarem, esta lista cresce NA TAREFA DELAS —
-  // uma entrada por operacao da tabela *Contratos* de `plan.md`. Ela esta aqui
-  // para que nenhuma operacao chegue antes da propria tarefa, que e o que o P4
-  // da constituicao cobra: "toda operacao exposta nova nasce com declaracao
-  // explicita de permissao".
-  assert.deepEqual(Object.keys(modulo).sort(), ['nome', 'portas']);
+  // A lista cresceu em T002, que acrescentou `armazenamento` — e nao cresceu
+  // mais do que isso. Quando as historias entrarem, ela cresce NA TAREFA DELAS,
+  // uma entrada por operacao da tabela *Contratos* de `plan.md`. Esta
+  // afirmacao esta aqui para que nenhuma operacao chegue antes da propria
+  // tarefa, que e o que o P4 da constituicao cobra: "toda operacao exposta nova
+  // nasce com declaracao explicita de permissao".
+  assert.deepEqual(Object.keys(modulo).sort(), [
+    'armazenamento',
+    'nome',
+    'portas',
+  ]);
 });
 
 test('criar o modulo nao toca em porta nenhuma (EXT-ORDEM: nada se resolve no carregamento)', () => {

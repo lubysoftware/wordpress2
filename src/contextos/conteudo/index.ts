@@ -1,12 +1,13 @@
 /**
  * Modulo de conteudo — BC-01 de `target_architecture.md`.
  *
- * Esqueleto da feature `002-autoria-e-publicacao`, tarefa T001. O que existe
- * aqui e o que T001 entrega: o modulo carrega com as tres portas declaradas e
- * com o vocabulario de estado editorial do legado como enumeracao fechada, e
+ * Feature `002-autoria-e-publicacao`, tarefas T001 e T002. O que existe aqui e o
+ * que as duas entregam: o modulo carrega com as tres portas declaradas, com o
+ * vocabulario de estado editorial do legado como enumeracao fechada e com a
+ * forma de armazenamento de conteudo, metadado e versao anterior — e
  * **nenhuma regra de negocio implementada**. Gravacao, publicacao, agendamento,
  * identificador na URL, submissao, revisao, versao anterior e rascunho
- * automatico entram nas tarefas delas (T002 em diante), e a leitura obrigatoria
+ * automatico entram nas tarefas delas (T003 em diante), e a leitura obrigatoria
  * de cada uma esta em `./README.md`.
  *
  * Duas coisas que este arquivo faz de proposito:
@@ -30,6 +31,10 @@
  *   proprio depois conta com isso.
  */
 
+import {
+  criarArmazenamentoDeConteudo,
+  type ArmazenamentoDeConteudo,
+} from './armazenamento/index.js';
 import type {
   PortaDeDados,
   PortaDeEmail,
@@ -38,6 +43,7 @@ import type {
 
 export * from './portas/index.js';
 export * from './estado-editorial.js';
+export * from './armazenamento/index.js';
 
 /** As tres portas de que este modulo depende, na forma em que ele as recebe. */
 export interface PortasDeConteudo {
@@ -49,14 +55,24 @@ export interface PortasDeConteudo {
 /**
  * O modulo carregado.
  *
- * A superficie e deliberadamente so isto enquanto T001 e a tarefa fechada: cada
- * historia acrescenta aqui a sua operacao — as seis da tabela *Contratos* de
- * `plan.md` —, com a declaracao explicita de permissao que o P4 da constituicao
- * exige, e nenhuma antes da propria tarefa.
+ * Cada historia acrescenta aqui a sua operacao — as seis da tabela *Contratos*
+ * de `plan.md` —, com a declaracao explicita de permissao que o P4 da
+ * constituicao exige, e nenhuma antes da propria tarefa. Hoje ha duas coisas: as
+ * portas, de T001, e o armazenamento, de T002.
+ *
+ * O armazenamento **nao e operacao**, e por isso nao declara permissao: ele nao
+ * decide nada. A primeira operacao desta interface e a gravacao de T005 (US-2),
+ * e e ela que nasce com a declaracao de permissao — *"gravar conteudo"* na
+ * tabela *Contratos* exige a capacidade do tipo, e CA-1.1 a cobra na publicacao.
  */
 export interface ModuloDeConteudo {
   readonly nome: 'conteudo';
   readonly portas: PortasDeConteudo;
+  /**
+   * A forma de armazenamento de conteudo, metadado e versao anterior (T002).
+   * Le e grava **somente** pela porta de dados.
+   */
+  readonly armazenamento: ArmazenamentoDeConteudo;
 }
 
 /**
@@ -80,5 +96,8 @@ export function criarModuloDeConteudo(
   return {
     nome: 'conteudo',
     portas,
+    // Compor o armazenamento monta nome de tabela e nada mais: nenhuma consulta
+    // sai daqui, que e o que `EXT-ORDEM` cobra e o que `modulo.test.ts` afirma.
+    armazenamento: criarArmazenamentoDeConteudo(portas.dados),
   };
 }
