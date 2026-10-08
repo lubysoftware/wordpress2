@@ -37,7 +37,7 @@
       *entrega:* o comportamento de US-4 existe e os critérios CA-4.1, CA-4.2, CA-4.3, CA-4.4, CA-4.5 passam contra o sistema novo
       *satisfaz:* CA-4.1, CA-4.2, CA-4.3, CA-4.4, CA-4.5
       *depende de:* T001, T002
-- [x] **T010** [P] Testes de US-4 — REFAZER: a suíte atual chama uma superfície que não existe e estoura em execução. Ela monta o contexto com `gerarChave()` e `hashDeSenha()`, e a implementação de T009 (já nesta árvore) pede `gerador{gerar}`, `hashDaChave{gerar}` e `montagemDoEmail` — ver `redefinicao-de-senha/contexto-de-redefinicao.ts`. Escreva os testes contra o contrato que T009 entregou; o que a suíte protege é o comportamento de UC-20, não a forma que ela imaginou.
+- [x] **T010** [P] Testes de US-4
       *entrega:* 6 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-006-1, UT-006-2, UT-006-3, UT-006-4, UT-006-5, UT-006-6), com o mesmo dado de entrada, ação e resultado esperado. O teste de regra de negócio (UT-006-6) entra na mesma suíte.
       *satisfaz:* CA-4.1, CA-4.2, CA-4.3, CA-4.4, CA-4.5
       *depende de:* T009
@@ -45,7 +45,7 @@
       *entrega:* o comportamento de US-5 existe e os critérios CA-5.1, CA-5.2, CA-5.3 passam contra o sistema novo
       *satisfaz:* CA-5.1, CA-5.2, CA-5.3
       *depende de:* T001, T002, T009
-- [x] **T012** [P] Testes de US-5 — REFAZER: mesma causa de T010 e T014, e os quatro testes (UT-007-1 a UT-007-4) estouram em `Cannot read properties of undefined (reading 'trim')`. A suíte monta o contexto numa forma que a implementação de T011 não usa — ver `recuperacao-de-senha/envio-do-email-de-redefinicao.ts` e o contrato em `redefinicao-de-senha/contexto-de-redefinicao.ts`. Escreva contra o que T011 entregou; o que a suíte protege é o comportamento do passo 3 de UC-20, não a forma que ela imaginou.
+- [x] **T012** [P] Testes de US-5
       *entrega:* 4 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-007-1, UT-007-2, UT-007-3, UT-007-4), com o mesmo dado de entrada, ação e resultado esperado. O teste de regra de negócio (UT-007-4) entra na mesma suíte.
       *satisfaz:* CA-5.1, CA-5.2, CA-5.3
       *depende de:* T011
@@ -53,7 +53,7 @@
       *entrega:* o comportamento de US-6 existe e os critérios CA-6.1, CA-6.2, CA-6.3, CA-6.4, CA-6.5, CA-6.6 passam contra o sistema novo
       *satisfaz:* CA-6.1, CA-6.2, CA-6.3, CA-6.4, CA-6.5, CA-6.6
       *depende de:* T001, T002, T009
-- [x] **T014** [P] Testes de US-6 — REFAZER: mesma causa da T010. A suíte estoura em `Cannot read properties of undefined (reading 'ativa')` porque monta o contexto numa forma que `cadastro/` não usa. A operação de T013 chama-se `cadastrar`. Escreva contra o contrato real.
+- [x] **T014** [P] Testes de US-6
       *entrega:* 8 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-009-1, UT-009-2, UT-009-3, UT-009-4, UT-009-5, UT-009-6, UT-009-7, UT-009-8), com o mesmo dado de entrada, ação e resultado esperado. Os 2 testes de regra de negócio (UT-009-7, UT-009-8) entram na mesma suíte.
       *satisfaz:* CA-6.1, CA-6.2, CA-6.3, CA-6.4, CA-6.5, CA-6.6
       *depende de:* T013
