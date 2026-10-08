@@ -29,7 +29,7 @@
       *entrega:* o comportamento de US-3 existe e os critérios CA-3.1, CA-3.2, CA-3.3, CA-3.4 passam contra o sistema novo
       *satisfaz:* CA-3.1, CA-3.2, CA-3.3, CA-3.4
       *depende de:* T001, T002, T005
-- [ ] **T008** [P] Testes de US-3
+- [x] **T008** [P] Testes de US-3
       *entrega:* 6 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-021-1, UT-021-2, UT-021-3, UT-021-4, UT-021-5, UT-021-6), com o mesmo dado de entrada, ação e resultado esperado. Os 2 testes de regra de negócio (UT-021-5, UT-021-6) entram na mesma suíte.
       *satisfaz:* CA-3.1, CA-3.2, CA-3.3, CA-3.4
       *depende de:* T007
