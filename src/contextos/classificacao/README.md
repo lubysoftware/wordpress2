@@ -1,10 +1,10 @@
 # Modulo de classificacao — BC-02
 
-Entregue por **T001** (o esqueleto), **T002** (a forma de armazenamento) e
-**T003** (a separacao entre rotulo e contexto, US-1) da feature
-`003-classificacao-do-conteudo`. Este arquivo e a leitura obrigatoria de quem
-pegar T005 em diante: ele diz o que ja esta decidido, o que esta decidido **em
-outro lugar**, e o que ninguem decidiu.
+Entregue por **T001** (o esqueleto), **T002** (a forma de armazenamento),
+**T003** (a separacao entre rotulo e contexto, US-1) e **T005** (a classificacao
+do conteudo, US-2) da feature `003-classificacao-do-conteudo`. Este arquivo e a
+leitura obrigatoria de quem pegar T007 em diante: ele diz o que ja esta decidido,
+o que esta decidido **em outro lugar**, e o que ninguem decidiu.
 
 ## O que T001 entrega, e so isso
 
@@ -20,7 +20,7 @@ outro lugar**, e o que ninguem decidiu.
 | `registro/contextos-do-nucleo.ts` | as **oito** declaracoes, na ordem de `create_initial_taxonomies()` |
 | `registro/registro-de-contextos.ts` | o `$wp_taxonomies`, por composicao e nao por modulo |
 | `registro/erro-de-registro.ts` | os dois codigos de `WP_Error`, com as mensagens do legado |
-| `modulo.test.ts` | afirma a entrega de T001, T002 e T003 na superficie do modulo, e as invariantes de arquitetura |
+| `modulo.test.ts` | afirma a entrega de T001, T002, T003 e T005 na superficie do modulo, e as invariantes de arquitetura |
 | `registro/registro-de-contextos.test.ts` | afirma os oito, a ordem, os defaults e as duas recusas |
 
 ## O que T002 entrega, e so isso
@@ -63,8 +63,9 @@ Tres coisas que T002 **nao** fez, e nao e esquecimento:
 
 **Nenhum arquivo de `registro/` toca a porta** — ha teste que afirma isso
 (`criar o modulo nao toca na porta`). A porta de dados e usada por
-`armazenamento/`, que e T002, e por `rotulo-e-contexto/`, que e T003 — e **so por
-elas**, sempre pelos repositorios de T002 e nunca por consulta propria.
+`armazenamento/`, que e T002, por `rotulo-e-contexto/`, que e T003, e por
+`vinculo-de-objeto/`, que e T005 — e **so por elas**, sempre pelos repositorios de
+T002 e nunca por consulta propria.
 
 **Um numero so aparece neste modulo, e ele tem teste de borda nos dois lados:**
 os **32 bytes** do nome do contexto (`LIMITE_DE_BYTES_DO_NOME_DO_CONTEXTO`), com
@@ -132,6 +133,99 @@ Quatro coisas que T003 **nao** fez, e nao e esquecimento:
    primeira nao existe nesta arvore e e a razao pela qual o ramo de slug vazio de
    `wp_update_term()` (`:3416`) ficou com T009. A segunda e o conflito aberto
    abaixo.
+
+## O que T005 entrega, e so isso
+
+> *o comportamento de US-2 existe e os criterios CA-2.1, CA-2.2, CA-2.3, CA-2.4
+> passam contra o sistema novo*
+> — `.specify/specs/003-classificacao-do-conteudo/tasks.md`, T005
+
+Tudo em `vinculo-de-objeto/`, e o `index.ts` dessa pasta e a leitura de entrada:
+
+| arquivo | o que e |
+|---|---|
+| `vinculo-de-objeto/escopo-de-vinculo-de-objeto.ts` | o escopo por argumento com as **quatro** pecas do armazenamento, a colaboracao com BC-01 por ligacao tardia, e as seis ausencias declaradas |
+| `vinculo-de-objeto/rotulos-informados.ts` | a lista como ela chega, e onde **CA-2.2** se decide — com a 🔴 analise de onde o legado cobra a capacidade de criar termo |
+| `vinculo-de-objeto/caso-de-atribuicao-de-rotulo.ts` | os **dois** atalhos de `PERM-6` desta historia: `assign_categories` e `assign_post_tags` para `edit_posts` |
+| `vinculo-de-objeto/contagem-de-uso.ts` | **CA-2.3**: uma coluna, **tres** criterios de calculo, quem escolhe entre eles, e o adiamento declarado e nao construido |
+| `vinculo-de-objeto/substituir-vinculos.ts` | **CA-2.1**: `wp_set_object_terms()`, com os oito passos da sequencia e os cinco que sao condicionais |
+| `vinculo-de-objeto/remover-vinculos.ts` | a outra metade de CA-2.1: `wp_remove_object_terms()`, com a degradacao do legado declarada |
+| `vinculo-de-objeto/classificar-conteudo.ts` | **CA-2.4** e o portao de CA-2.2: os tres `if` de `wp_insert_post()`, e as tres recusas **silenciosas** |
+| `vinculo-de-objeto/us-2-classificar-conteudo.test.ts` | 32 testes: os quatro criterios por efeito no banco, por sequencia de comandos e por ausencia de comando |
+
+**Quatro operacoes entraram na superficie do modulo**, cada uma com a declaracao
+de permissao que o **P4** exige — e **so uma delas verifica capacidade**, porque
+so uma corresponde a um ponto em que o legado verifica:
+
+| operacao | no legado | permissao |
+|---|---|---|
+| `classificarConteudo` | o bloco de `wp_insert_post()` (`wp-includes/post.php:5053`-`:5109`) | a que o contexto declara em `assign_terms`, **verificada** (`:5105`) |
+| `substituirVinculosDoObjeto` | `wp_set_object_terms()` (`taxonomy.php:2851`) | **nenhuma**: o nucleo a chama sem ator |
+| `removerVinculosDoObjeto` | `wp_remove_object_terms()` (`:3038`) | **nenhuma**, idem |
+| `recontarUsoDosRotulos` | `wp_update_term_count()` (`:3587`) | **nenhuma**, idem |
+
+**Por que a historia e duas camadas e nao uma:** no legado os portoes estao
+**todos** na camada de cima, e `wp_set_object_terms()` nao verifica nem capacidade
+nem tipo de objeto. Fundi-las forcaria um erro em qualquer direcao — com portao,
+recusaria a atribuicao que o proprio nucleo faz sem ator (o termo padrao na
+publicacao, `post.php:5438`); sem portao, CA-2.2 e CA-2.4 nao teriam onde morar.
+
+**T005 nao acrescentou porta**, e precisou de tres coisas que nao estao no banco
+deste contexto: `post_type_exists()` e as duas contagens que atravessam `posts`.
+As tres chegam por `ConteudoNaClassificacao`, declarada aqui e implementada em
+BC-01 — a imagem espelhada de `ClassificacaoNaPublicacao`, que BC-01 declara e
+este modulo implementa (AD-10, ligacao tardia; AD-08 poe portas somente nas cinco
+bordas).
+
+**T005 acrescentou duas leituras ao armazenamento de T002**, e as duas estao
+declaradas no arquivo da estrutura com o conjunto de argumentos exato que as
+justifica:
+
+1. `vinculos.listarRotulosDoObjeto()` — a **leitura inversa**, que T002 havia
+   deixado inteira para T009. O recorte entrou porque sem ela *"substituir
+   integralmente"* nao existe: CA-2.1 depende de conhecer o conjunto anterior. E
+   a cadeia que `WP_Term_Query` produz para os dois conjuntos de argumentos que
+   `wp_set_object_terms()` passa, e **nada alem deles** — sem filtro por nome,
+   apelido, pai, hierarquia ou contagem, e sem onde encaixar `terms_clauses`.
+   Quando a consulta por fragmento chegar (T009 e feature 015, T007), este metodo
+   passa a ser uma chamada a ela.
+2. `rotulosNoContexto.listarRotulosPorIdsNoContexto()` — a volta de
+   `term_taxonomy_id` para `term_id` que o legado da **de proposito** entre a
+   diferenca e a remocao (`:2954`). Encurta-la apagaria uma leitura da sequencia.
+
+**Dois numeros entraram com T005, os dois com teste de borda:** o `1` da primeira
+posicao da escrita ordenada (`PRIMEIRA_ORDEM_DO_VINCULO`, de `++$term_order`
+sobre `0`, `:2968`) e o `'publish'` unico de
+`ESTADOS_CONTADOS_NO_CRITERIO_DE_CONTEUDO` (`:4214`) — que nao e numero mas e
+valor de fabrica com ponto de configuracao nomeado, como o **P6** exige, e com o
+filtro que o altera em execucao declarado e nao emitido.
+
+Cinco coisas que T005 **nao** fez, e nao e esquecimento:
+
+1. **Nao criou rotulo.** `wp_insert_term()` e a operacao *"criar ou renomear
+   rotulo"* da tabela *Contratos* e e **T009**. A consequencia esta declarada e
+   tem teste com 🔴 no nome: em contexto **plano**, o rotulo informado por nome
+   que o legado criaria **nao e criado** — e em contexto hierarquico nao ha
+   consequencia, porque a normalizacao do legado ja o transformou em `0`.
+2. **Nao resolveu rotulo por apelido nem por nome.** `term_exists()` com cadeia
+   tenta `sanitize_title()` e depois o nome, e as duas passam por
+   `WP_Term_Query`: T003 ja havia declarado as duas ausencias, com dono em T009 e
+   na feature 015.
+3. **Nao aplicou termo padrao.** O laco que decide se a lista chega vazia ou com o
+   padrao dentro roda **antes** desta chamada, em `wp_insert_post()` e em
+   `wp_publish_post()`, e e **T007**. BC-01 ja declarou a porta que o faz
+   (`ClassificacaoNaPublicacao.definirTermos`), e e esta tarefa que a implementa.
+4. **Nao portou o adiamento da contagem.** `wp_defer_term_counting()` e
+   `wp_update_term_count()` guardam estado em `static`, que e exatamente a
+   travessia **D-A** de `parity_specs.md`, e nenhum chamador desta historia o
+   liga — quem liga e `wp_delete_post()` (BC-01) e os importadores (BC-12). Com
+   ele desligado, que e o **default de fabrica**, o caminho e identico. A
+   consequencia e declarada: a contagem e sempre imediata, que e garantia **mais
+   forte** que a do legado.
+5. **Nao executou o terceiro criterio de contagem.** `update_count_callback` e
+   nome de funcao PHP, e o legado delega a contagem inteira a ele **sem emitir
+   comando proprio** — e o que esta tarefa reproduz. Um despachante de nome de
+   funcao seria o barramento que `REQ-162` poe fora de escopo.
 
 ## Por que uma porta so
 
@@ -254,7 +348,7 @@ o barramento encaixe os cinco na posicao do legado. Isto e declaracao, nao
 decisao: **a tensao entre o P2 e o `wont` de `REQ-162` e anterior a esta tarefa e
 nao foi resolvida por ela.**
 
-## O que ninguem decidiu, e que T001, T002 e T003 nao decidiram tampouco
+## O que ninguem decidiu, e que T001, T002, T003 e T005 nao decidiram tampouco
 
 As duas primeiras estao em `spec.md`, secao *Perguntas em aberto*. **As duas
 batiam em T002, e T002 as deixou abertas** — o que ela fez foi reproduzir o
@@ -324,8 +418,38 @@ abaixo e **nova, e e de T003**: nenhum documento do pacote a menciona.
    passam a descrever o oposto do comportamento. O P1 e literal: *"Divergir exige
    uma decisao humana registrada, citada no codigo que divergiu"*.
 
-E havia uma quarta, que o plano chama de risco 3 e a spec nao poe entre as
-perguntas: **a fusao de `terms` com `term_taxonomy`**. Esta T002 resolveu, e
+4. 🔴 **Onde a capacidade de criar termo e cobrada no caminho de classificar, e
+   essa e de T005.**
+
+   **CA-2.2** diz *"criar termo novo pela tela de edicao exige a capacidade de
+   criar termo daquele contexto; sem ela o rotulo desconhecido e ignorado, sem
+   criar nada"*, e UC-05 repete no passo 3 e na excecao. A leitura do legado
+   mostra que o portao de `edit_terms` existe — em **cinco** lugares, todos no
+   caminho que **cria** o termo: `_wp_ajax_add_hierarchical_term()`
+   (`wp-admin/includes/ajax-actions.php:613`), `wp_ajax_add_tag()` (`:1116`), a
+   caixa de categoria da tela (`wp-admin/includes/meta-boxes.php:676`), o
+   XML-RPC (`class-wp-xmlrpc-server.php:1685`) e a tela de lista de termos.
+
+   **No caminho de atribuicao ele nao existe:** `wp_set_object_terms()` nao tem
+   `current_user_can` no corpo e chama `wp_insert_term()` direto
+   (`wp-includes/taxonomy.php:2896`), e a caixa de etiqueta da tela e cobrada por
+   `assign_terms` e nao por `edit_terms` (`meta-boxes.php:582`). O efeito em
+   papeis de fabrica e conhecido: **autor cria etiqueta e nao cria categoria**.
+
+   **O que T005 fez:** nao cobra `edit_terms` ao atribuir, porque cobrar
+   recusaria a etiqueta que o legado cria para o autor (P1, e a resposta 2). Em
+   contexto **hierarquico** CA-2.2 vale pelo mecanismo do proprio legado — a
+   normalizacao de `wp_set_post_terms()` transforma o nome em `0`
+   (`wp-includes/post.php:5212`) e o `0` sai de `term_exists()` sem consultar o
+   banco (`taxonomy.php:1651`), logo o rotulo desconhecido **e** ignorado sem
+   criar nada —, e isso esta afirmado por teste. Em contexto **plano** a criacao
+   depende de `assign_terms`, como no legado.
+   **Para quem decidir:** a analise inteira, com as duas saidas possiveis e o que
+   cada uma obriga a reescrever na redacao de CA-2.2, esta no cabecalho de
+   `vinculo-de-objeto/rotulos-informados.ts`.
+
+E havia uma quarta — agora quinta — que o plano chama de risco 3 e a spec nao poe
+entre as perguntas: **a fusao de `terms` com `term_taxonomy`**. Esta T002 resolveu, e
 resolveu por leitura e nao por escolha: a fusao e do *aggregate*, nao das tabelas
 (`target_domain_model.md` e literal — *"o esquema fica intacto (AD-11), e as duas
 tabelas continuam existindo"*; `target_data_model.md` repete na coluna de
@@ -335,7 +459,7 @@ continua sendo o `term_taxonomy_id` do legado — que e o que o risco 3 temia ve
 mudar. **A fusao fisica nao foi feita, e ela e o item 3** daquela mesma secao de
 `target_data_model.md`.
 
-E uma quinta, que nenhuma das duas listas traz e que **vale dizer para a proxima
+E uma sexta, que nenhuma das duas listas traz e que **vale dizer para a proxima
 onda**: `plan.md` escreve, na linha de `term_taxonomy`, que *"a hierarquia do
 legado atravessa a tabela errada... Corrigir isso e interno e invisivel, e e a
 parte que mais simplifica"*. **T002 nao corrigiu**, pela mesma razao de zero
@@ -397,3 +521,25 @@ afirmacoes de que **nenhum comando sai** (contexto nao registrado nas duas
 operacoes de escrita, nome vazio, e as tres leituras de declaracao, que nao tocam
 o banco) e uma de que nenhum comando menciona `term_relationships`, porque a
 cascata e de T009.
+
+**E o que T005 entrega:** a primeira linha daquela tabela — *"a substituicao
+integral dos vinculos e as contagens"*, com `@cascata`. A suite de US-2 afirma a
+**sequencia inteira** da substituicao, passo a passo, com os textos dos dez
+comandos na ordem do legado, e afirma o conjunto exato do que sumiu e do que ficou
+que o **P5** cobra: o `DELETE` alcanca **so** a juncao, e nenhum comando toca
+`terms` nem `term_taxonomy` a nao ser para gravar a contagem. Oito afirmacoes sao
+de que **nenhum comando sai** — contexto nao registrado, tipo de objeto nao
+declarado, capacidade ausente, identificador inexistente, rotulo por nome (nos
+dois contextos), rotulo compartilhado no conjunto anterior, lista vazia na
+recontagem e `acrescentar` nas tres coisas que ele protege. E tres sao de **qual
+criterio de contagem** foi usado, porque `DB-TRG2` e o contador *"que mais
+facilmente se unifica por engano"*: a colaboracao com BC-01 e um duble que
+registra as chamadas, e e ele que torna a escolha afirmavel sem inspecionar o SQL
+de outro contexto.
+
+As diferencas de texto declaradas contra o legado, nesta tarefa, sao **tres**, e
+as tres estao registradas no metodo que as emite: as duas listas `IN` que o legado
+monta por concatenacao e REQ-164 proibe (`listarRotulosPorIdsNoContexto` e a
+leitura inversa), e o espaco em branco da leitura inversa — o legado emite
+`SELECT $distinct $fields` com `$distinct` vazio e quebra as clausulas em linhas
+(`class-wp-term-query.php:752`). O conjunto de linhas e o mesmo nas tres.

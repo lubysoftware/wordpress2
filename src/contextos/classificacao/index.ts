@@ -1,15 +1,16 @@
 /**
  * Modulo de classificacao — BC-02 de `target_architecture.md`.
  *
- * Feature `003-classificacao-do-conteudo`, tarefas T001, T002 e T003. O que
- * existe aqui e o que as tres entregam: o modulo carrega com a porta de dados
- * declarada, com os oito contextos de classificacao do nucleo registrados, com a
- * forma de armazenamento de rotulo, contexto e juncao — e com **a separacao
- * entre rotulo e contexto** (US-1), que e a primeira regra de negocio desta
- * feature a entrar, em `./rotulo-e-contexto/`. A classificacao (US-2) entra em
- * T005, o termo padrao (US-3) em T007, a manutencao da lista (US-4) em T009 e a
- * proibicao de apagar o padrao (US-5) em T011. A leitura obrigatoria de cada uma
- * esta em `./README.md`.
+ * Feature `003-classificacao-do-conteudo`, tarefas T001, T002, T003 e T005. O
+ * que existe aqui e o que as quatro entregam: o modulo carrega com a porta de
+ * dados declarada, com os oito contextos de classificacao do nucleo registrados,
+ * com a forma de armazenamento de rotulo, contexto e juncao, com **a separacao
+ * entre rotulo e contexto** (US-1, em `./rotulo-e-contexto/`) e com **a
+ * classificacao do conteudo** (US-2, em `./vinculo-de-objeto/`), que e a
+ * primeira historia desta feature a escrever na juncao. O termo padrao (US-3)
+ * entra em T007, a manutencao da lista (US-4) em T009 e a proibicao de apagar o
+ * padrao (US-5) em T011. A leitura obrigatoria de cada uma esta em
+ * `./README.md`.
  *
  * BC-02 e a fusao de `taxonomias-e-termos` com `links-e-bookmarks`, e
  * `target_architecture.md` chama a fusao de *"contraintuitiva e necessaria"*:
@@ -55,11 +56,27 @@ import {
   type ResultadoDaRenomeacao,
   type RotuloLido,
 } from './rotulo-e-contexto/index.js';
+import {
+  classificarConteudo,
+  recontarUsoDosRotulos,
+  removerVinculosDoObjeto,
+  substituirVinculosDoObjeto,
+  type ColaboracaoDaClassificacao,
+  type ColaboracaoDoVinculo,
+  type EscopoDeVinculoDeObjeto,
+  type PedidoDeClassificacao,
+  type PedidoDeRemocaoDeVinculo,
+  type PedidoDeVinculo,
+  type ResultadoDaClassificacao,
+  type ResultadoDaRemocaoDeVinculo,
+  type ResultadoDoVinculo,
+} from './vinculo-de-objeto/index.js';
 
 export * from './portas/index.js';
 export * from './registro/index.js';
 export * from './armazenamento/index.js';
 export * from './rotulo-e-contexto/index.js';
+export * from './vinculo-de-objeto/index.js';
 
 /**
  * A porta de que este modulo depende, na forma em que ele a recebe.
@@ -75,13 +92,27 @@ export interface PortasDeClassificacao {
   readonly dados: PortaDeDados;
 }
 
+/*
+ * ⚠️ **T005 nao acrescentou porta, e isso merece uma linha.** US-2 precisa de
+ * tres coisas que nao estao no banco deste contexto — `post_type_exists()` e as
+ * duas contagens que atravessam `posts` — e nenhuma delas virou porta: AD-08 poe
+ * portas somente nas cinco bordas, e AD-10 manda resolver chamada entre
+ * contextos **no momento da chamada**. Elas chegam por argumento, na forma de
+ * `ConteudoNaClassificacao`, declarada em
+ * `./vinculo-de-objeto/escopo-de-vinculo-de-objeto.ts` e implementada em BC-01 —
+ * a imagem espelhada de `ClassificacaoNaPublicacao`, que BC-01 declara e este
+ * modulo implementa.
+ */
+
 /**
  * O modulo carregado.
  *
  * A superficie cresce **uma historia por vez**: cada tarefa acrescenta aqui a
  * sua operacao — as cinco da tabela *Contratos* de `plan.md` —, com a declaracao
  * explicita de permissao que o **P4** da constituicao exige, e nenhuma antes da
- * propria tarefa. Com T003 fechada, o que entrou foram as de US-1.
+ * propria tarefa. Com T003 fechada entraram as cinco de US-1; com T005, as
+ * **quatro** de US-2 — e so uma delas verifica capacidade, porque so uma delas
+ * corresponde a um ponto em que o legado verifica.
  *
  * O armazenamento **nao e operacao**, e por isso nao declara permissao: ele nao
  * decide nada. Quem decide e a historia que o chama.
@@ -180,6 +211,83 @@ export interface ModuloDeClassificacao {
    * leituras coincidem em tudo que uma instalacao nova alcanca.
    */
   renomearRotulo(pedido: PedidoDeRenomeacao): ResultadoDaRenomeacao;
+
+  /**
+   * Classifica um conteudo num contexto declarado para o tipo dele — o bloco de
+   * classificacao de `wp_insert_post()` (US-2, T005, **CA-2.4** e o portao de
+   * **CA-2.2**).
+   *
+   * **Permissao exigida: a que o contexto declara em
+   * `capacidades.atribuirRotulos` (`$tax->cap->assign_terms`), e ela E
+   * verificada** — e a unica operacao deste modulo que verifica capacidade, e
+   * verifica porque e aqui que o legado a verifica
+   * (`wp-includes/post.php:5105`). Para `category` e `post_tag` ela resolve para
+   * **`edit_posts`**: *"atribuir termo e poder de conteudo, nao de
+   * classificacao"* (UC-05).
+   *
+   * As **tres recusas sao silenciosas** — tipo de objeto nao declarado, contexto
+   * nao registrado e capacidade ausente —, como os tres `if` do legado, e o
+   * motivo viaja no resultado sem que nenhum ramo do fluxo o consulte (P7).
+   */
+  classificarConteudo(
+    colaboracao: ColaboracaoDaClassificacao,
+    pedido: PedidoDeClassificacao,
+  ): ResultadoDaClassificacao;
+
+  /**
+   * Substitui integralmente os vinculos de um objeto num contexto —
+   * `wp_set_object_terms()` (US-2, T005, **CA-2.1**).
+   *
+   * **Permissao exigida: nenhuma**, e isso e leitura do legado: a funcao nao tem
+   * `current_user_can` no corpo e o nucleo a chama **sem ator** — no laco do
+   * termo padrao da publicacao (`wp-includes/post.php:5438`) e na fila agendada,
+   * onde nao ha ninguem autenticado. Quem cobra capacidade e a camada de cima
+   * ({@link ModuloDeClassificacao.classificarConteudo}) e as outras superficies.
+   *
+   * E **nao** verifica se o contexto se aplica ao tipo do objeto: a guarda e
+   * `taxonomy_exists()` e nada mais, porque e assim no legado. Cobrar aqui
+   * recusaria classificar um marcador em `link_category`, que e o dono da coluna
+   * polimorfica da juncao.
+   */
+  substituirVinculosDoObjeto(
+    colaboracao: ColaboracaoDoVinculo,
+    pedido: PedidoDeVinculo,
+  ): ResultadoDoVinculo;
+
+  /**
+   * Remove vinculos de um objeto num contexto — `wp_remove_object_terms()`
+   * (US-2, T005, a outra metade de **CA-2.1**).
+   *
+   * **Permissao exigida: nenhuma**, pelo mesmo motivo. Ela e API publica (P8) e
+   * e chamada de dentro da substituicao, com a diferenca entre o conjunto
+   * anterior e o informado.
+   *
+   * ⚠️ Devolve `false` quando nao havia o que remover, e `false` **nao e erro**:
+   * e o `return false` de `wp-includes/taxonomy.php:3110`, que a substituicao
+   * recebe e deixa passar.
+   */
+  removerVinculosDoObjeto(
+    colaboracao: ColaboracaoDoVinculo,
+    pedido: PedidoDeRemocaoDeVinculo,
+  ): ResultadoDaRemocaoDeVinculo;
+
+  /**
+   * Recalcula e grava a contagem de uso dos rotulos informados —
+   * `wp_update_term_count()` (US-2, T005, **CA-2.3**).
+   *
+   * **Permissao exigida: nenhuma** — as duas funcoes do legado
+   * (`wp_update_term_count()` e `wp_update_term_count_now()`) nao verificam
+   * capacidade e sao chamadas de dentro da atribuicao e da remocao, sem ator.
+   *
+   * Entra na superficie porque e **API publica** (P8) e porque a cascata de
+   * T009 e T011 vai chama-la; a escolha entre os tres criterios de `DB-TRG2` e
+   * feita aqui dentro, na hora de contar, e nao pelo chamador.
+   */
+  recontarUsoDosRotulos(
+    colaboracao: ColaboracaoDoVinculo,
+    rotulosNoContextoIds: readonly number[],
+    contexto: string,
+  ): boolean;
 }
 
 /**
@@ -218,6 +326,18 @@ export function criarModuloDeClassificacao(
    */
   const escopo: EscopoDeRotuloEContexto = { contextos, armazenamento };
 
+  /*
+   * O escopo das operacoes de US-2 (T005), fechado sobre a MESMA composicao.
+   *
+   * Ele e mais largo que o de US-1 por uma peca so, e e a peca da historia: a
+   * juncao (`vinculos`). O que US-2 **nao** recebe aqui e a colaboracao com BC-01
+   * — `post_type_exists()` e as duas contagens que atravessam `posts` —, porque
+   * ela e de quem chama e nao desta composicao: chega por argumento em cada
+   * operacao, que e o que AD-10 pede para toda chamada entre contextos. Ver
+   * `vinculo-de-objeto/escopo-de-vinculo-de-objeto.ts`.
+   */
+  const escopoDoVinculo: EscopoDeVinculoDeObjeto = { contextos, armazenamento };
+
   return {
     nome: 'classificacao',
     portas,
@@ -231,5 +351,18 @@ export function criarModuloDeClassificacao(
     contextoAceitaTipoDeObjeto: (tipoDeObjeto, contexto) =>
       contextoAceitaTipoDeObjeto(escopo, tipoDeObjeto, contexto),
     renomearRotulo: (pedido) => renomearRotulo(escopo, pedido),
+    classificarConteudo: (colaboracao, pedido) =>
+      classificarConteudo(escopoDoVinculo, colaboracao, pedido),
+    substituirVinculosDoObjeto: (colaboracao, pedido) =>
+      substituirVinculosDoObjeto(escopoDoVinculo, colaboracao, pedido),
+    removerVinculosDoObjeto: (colaboracao, pedido) =>
+      removerVinculosDoObjeto(escopoDoVinculo, colaboracao, pedido),
+    recontarUsoDosRotulos: (colaboracao, rotulosNoContextoIds, contexto) =>
+      recontarUsoDosRotulos(
+        escopoDoVinculo,
+        colaboracao,
+        rotulosNoContextoIds,
+        contexto,
+      ),
   };
 }

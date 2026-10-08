@@ -240,6 +240,32 @@ export interface RepositorioDeRotulosNoContexto {
    */
   listarContextosDoRotulo(rotuloId: number): readonly string[];
   /**
+   * O caminho de volta, de rotulo-no-contexto para rotulo, **naquele** contexto:
+   * `SELECT tt.term_id FROM {site}term_taxonomy AS tt WHERE tt.taxonomy = ? AND
+   * tt.term_taxonomy_id IN (?, ...)` (`wp-includes/taxonomy.php:2954`).
+   *
+   * Acrescentado por **T005**, e o motivo de ele existir e uma volta que o legado
+   * da de proposito: `wp_set_object_terms()` calcula a diferenca em
+   * `term_taxonomy_id`, traduz **de volta** para `term_id` com esta cadeia e so
+   * entao chama `wp_remove_object_terms()`, que resolve cada `term_id` outra vez
+   * para `term_taxonomy_id` (`:2950`-`:2958`). Encurtar o caminho — passar os
+   * `term_taxonomy_id` direto para a remocao — deixaria de emitir esta leitura e
+   * mudaria a sequencia de comandos, que e o que a area 3 da Decisao 2 de
+   * `parity_specs.md` compara.
+   *
+   * Lista vazia **nao emite comando** e devolve lista vazia: no legado a cadeia
+   * so e montada dentro de `if ( $delete_tt_ids )` (`:2952`).
+   *
+   * ⚠️ A lista `IN` e um marcador por item, e nao a concatenacao com apostrofos
+   * do legado (`:2953`), porque REQ-164 proibe concatenacao — o mesmo desvio
+   * declarado em `vinculo.ts`, com a mesma consequencia nenhuma sobre o conjunto
+   * devolvido.
+   */
+  listarRotulosPorIdsNoContexto(
+    contexto: string,
+    rotulosNoContextoIds: readonly number[],
+  ): readonly number[];
+  /**
    * Os filhos diretos de um rotulo, em **todos** os contextos:
    * ``SELECT term_id, term_taxonomy_id FROM {site}term_taxonomy WHERE `parent` = ?``
    * (`wp-includes/taxonomy.php:2121`).
@@ -378,6 +404,22 @@ export function criarRepositorioDeRotulosNoContexto(
           parametros: [rotuloId],
         })
         .map((linha) => comoTexto(linha['taxonomy']));
+    },
+
+    listarRotulosPorIdsNoContexto(contexto, rotulosNoContextoIds) {
+      if (rotulosNoContextoIds.length === 0) {
+        return [];
+      }
+
+      return dados
+        .selecionar({
+          texto:
+            `SELECT tt.term_id FROM ${tabela} AS tt ` +
+            `WHERE tt.taxonomy = ? AND tt.term_taxonomy_id IN (` +
+            `${rotulosNoContextoIds.map(() => '?').join(', ')})`,
+          parametros: [contexto, ...rotulosNoContextoIds],
+        })
+        .map((linha) => comoInteiro(linha['term_id']));
     },
 
     listarFilhosDoRotulo(rotuloPaiId) {
