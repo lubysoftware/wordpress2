@@ -35,6 +35,16 @@ pegar a tarefa seguinte: ele diz o que ja esta decidido, o que esta decidido
 > explicacao inteira esta em `armazenamento/matriz-de-fabrica.ts` e o resumo
 > esta na secao *O que ninguem decidiu* deste arquivo.
 
+> 🔴 **E se a sua tarefa toca a credencial de aplicacao:** a spec de paridade e o
+> caso de uso **discordam** sobre o que ela autoriza — o cenario de
+> `parity_tests/06-autenticacao-e-sessao.feature` afirma que o conjunto permitido
+> por ela e *"menor que o da sessao"*, e UC-22, BR-MIGRAR-026 e `permissions.md`
+> §8.2 afirmam que autenticar com ela *"nao reduz as capacidades do usuario"*.
+> T021 esbarrou nisso e **nao resolveu**: o ponto em disputa e o **consumo**
+> (`REQ-012`, fora deste pacote) e a emissao foi construida como as tres fontes de
+> regra mandam. Quem pegar `REQ-012` precisa da decisao antes de comecar. A
+> explicacao inteira esta na secao *O que T021 encontrou aberto* deste arquivo.
+
 > 🔴 **E se a sua tarefa toca o fluxo de redefinicao de senha:** a spec e a
 > analise do legado **discordam** sobre avisar o requisitante quando o e-mail
 > nao sai (CA-5.1 contra `UC-20` § *Excecoes*). T011 esbarrou nisso e **nao
@@ -651,6 +661,119 @@ aberto que o legado, em um nome. Nao foi corrigido aqui porque a correcao e na
 entrega de outras tarefas, com testes proprios, e porque `update_languages` nao
 esta em documento algum desta arvore. Fica nomeado em `concessao-por-extensao.ts`.
 
+## O que T021 entrega, e so isso
+
+> *o comportamento de US-10 existe e os critérios CA-10.1, CA-10.2, CA-10.3,
+> CA-10.4, CA-10.5 passam contra o sistema novo*
+> — `.specify/specs/001-identidade-e-acesso/tasks.md`, T021
+
+| arquivo | o que e |
+|---|---|
+| `armazenamento/senha-de-aplicacao.ts` | a quinta estrutura dentro de `usermeta`: a **lista** de credenciais, com os sete campos do item e a chave da lista |
+| `armazenamento/chaves-e-tabelas.ts` | ganhou `CHAVE_DE_SENHAS_DE_APLICACAO` — `_application_passwords`, **sem prefixo**, como a de sessao |
+| `senha-de-aplicacao/autorizacao-de-senha-de-aplicacao.ts` | o atalho de `PERM-6`: as **seis** capacidades resolvem em `edit_user` daquela conta |
+| `senha-de-aplicacao/geracao-de-credencial.ts` | os **24 caracteres**, o identificador, o resumo como colaborador e o agrupamento de exibicao |
+| `senha-de-aplicacao/erro-de-senha-de-aplicacao.ts` | os codigos e as mensagens das recusas |
+| `senha-de-aplicacao/contexto-de-senha-de-aplicacao.ts` | o contexto por requisicao, os dois pontos de extensao e a marca de uso da instalacao |
+| `senha-de-aplicacao/emitir-credencial.ts` | a operacao de emitir (passos 1 a 4 de UC-22) |
+| `senha-de-aplicacao/revogar-credencial.ts` | a operacao de revogar (fluxo *Revogar uma senha* de UC-22) |
+| `senha-de-aplicacao/us-10-credencial-de-aplicacao.test.ts` | os cinco critérios, a ordem dos passos, a ordem dos ganchos e o efeito no banco |
+
+**Esta e a primeira operacao deste modulo que EXIGE capacidade**, e por isso as
+duas entraram na interface do modulo composto com a permissao declarada, como o
+**P4** cobra: `edit_user` **daquela conta**, que e a linha *Autorizacao* de UC-22
+inteira. As quatro operacoes anteriores declaram *"nenhuma capacidade"*; estas duas
+declaram a de UC-22, e `modulo.test.ts` cresceu nas duas chaves.
+
+**Tres coisas que a entrega faz e que um porte perde sem o teste notar**, as tres
+com teste nomeado:
+
+1. **Lista vazia significa PERMITIDO, e e por ela que o titular existe neste fluxo.**
+   O ator de UC-22 e o **assinante**, que de fabrica tem `read` e nada mais: se a
+   traducao de `create_app_password` sobre a propria conta devolvesse qualquer
+   capacidade, ninguem administraria a propria credencial. O teste afirma a lista
+   vazia **antes** de afirmar a emissao, nos dois lados do conflito REQ-017.
+2. **A permissao e conferida ANTES de qualquer conferencia de nome.** Trocar a
+   ordem transformaria a emissao num oraculo de nomes: quem nao pode editar a conta
+   descobriria, pela mensagem, se o nome que tentou ja existe ali.
+3. **Revogar nao reindexa a lista, e a credencial seguinte nasce depois do maior.**
+   E a chave do arranjo serializado, que o oraculo compara byte a byte. Ver a
+   PARADA em `proximaChaveDaLista`.
+
+**O que T021 nao faz, de proposito:** nao autentica com a credencial — e `REQ-012`,
+que esta em `do-not-rewrite.md` e **nao** entrou neste pacote (risco 2 do
+`plan.md`) —, nao registra o uso (o campo existe e nasce nulo, quem o escreve e
+`REQ-012`), nao renomeia credencial, nao apaga **todas** as de uma conta, nao
+exige conexao segura (e pre-condicao de rota, ver abaixo) e **nao da escopo nem
+prazo a credencial**, que e decisao humana registrada na terceira *Pergunta em
+aberto* da `spec.md`.
+
+### 🔴 Cinco pontos que T021 encontrou abertos, e NAO resolveu
+
+**1. A spec de paridade e o caso de uso DISCORDAM sobre o que a credencial
+autoriza.** `parity_tests/06-autenticacao-e-sessao.feature`, cenario *"A senha de
+aplicacao e credencial de segunda classe, por desenho"*, termina com *"E esse
+conjunto e **menor** que o da sessao nas duas"*. UC-22, BR-MIGRAR-026 e
+`permissions.md` §8.2 dizem o contrario, com todas as letras: *"autenticar com ela
+**nao** reduz as capacidades do usuario"*, *"a senha de aplicacao vale exatamente o
+que a conta vale… um programa com a senha de aplicacao de um administrador e um
+administrador"*. **Nao e a mesma coisa dita de dois jeitos: e uma asserção de
+paridade contra uma regra de negocio.** T021 **nao escolheu** — a instrucao desta
+tarefa manda parar e dizer quando a spec e a analise discordam, e a tabela *Nao
+negociavel* da constituicao poe mudar regra de `domain.md` fora do alcance de quem
+codifica. O ponto em disputa e o **consumo** da credencial, que e `REQ-012` e nao
+esta neste pacote, logo nada desta entrega depende da resposta: aqui a credencial e
+emitida sem escopo e sem reducao, como as tres fontes de regra mandam. Quem pegar
+`REQ-012` **nao pode** comecar antes de isto ser decidido: a asserção do cenario e
+a regra de negocio nao podem passar as duas.
+
+**2. A pre-condicao de conexao segura de UC-22 nao foi construida.** A segunda
+pre-condicao do caso de uso e *"a conexao e segura, ou a instalacao dispensou o
+requisito"*, e no legado quem a cobra e a **camada de rota**. O slot
+`framework-http` de `plan.md` esta em aberto e nada nesta arvore sabe se a conexao
+e segura. **Consequencia declarada:** hoje a emissao nao a exige, logo neste ponto
+o sistema e **mais aberto** que o legado, e fecha quando a borda HTTP existir — sem
+alterar arquivo deste modulo. Fica nomeada no cabecalho de
+`contexto-de-senha-de-aplicacao.ts`, com o nome do ponto de extensao e o default de
+fabrica, para quem montar a borda nao descobrir a pre-condicao depois.
+
+**3. O `case` de `edit_user` e de T023, e dele existe aqui so o primeiro ramo.**
+UC-22 lista *"`edit_user` sobre si mesmo devolve lista vazia"*
+entre as regras aplicadas, e sem esse ramo o fluxo principal do caso de uso nao
+existe — logo ele esta implementado. O resto do `case` (a exigencia de `edit_users`
+e, **em rede**, a protecao do super administrador) e US-11 / **T023**.
+**Consequencia declarada e coberta por teste:** hoje administrar a credencial de
+**outra** conta cai no ramo final da traducao, devolve `edit_user` — nome que papel
+algum concede — e e **negado**; este sistema e, nesse ponto, mais **fechado** que o
+legado. CA-10.4 continua satisfeito, porque a pergunta feita e literalmente a mesma
+de editar aquela conta; o que falta e a resposta dela. T023 a liga **sem** alterar
+arquivo desta entrega: basta passar o `case` dela em `casosDeEdicaoDeConta` e na
+cadeia do contexto, e ha teste com dublê mostrando as duas pontas funcionando.
+
+**4. O resumo da credencial nao tem algoritmo registrado no pacote, e nao foi
+escolhido aqui.** BR-MIGRAR-026 diz *"guardados com hash em metadado"* e para ai; o
+slot `hash-de-senha` do `plan.md` descreve o hash da **senha da conta**, e o legado
+nao usa o mesmo caminho para credencial gerada de alta entropia — e isso e parte do
+que *"de segunda classe"* quer dizer. `ResumoDaSenhaDeAplicacao` entra **obrigatorio
+e sem valor padrao**, exatamente como `resumoDaChave` de T009, e a escolha fica
+legivel onde for feita. Fecha contra o oraculo (`ESC-ORACULO`).
+
+**5. Tres enumeracoes desta tarefa, nao do pacote**, as tres isoladas em um lugar
+so para que a correcao tenha endereco: os **seis nomes** de capacidade (UC-22 e
+BR-MIGRAR-092 falam em *"as seis"* e nao nomeiam nenhuma), os **sete campos** do
+item gravado (o pacote nomeia quatro, e o valor gravado e comparado byte a byte) e
+os **textos de erro** (o pacote nao transcreve nenhum, e vale a regra de
+`erro-de-cadastro.ts`: em ingles, porque o `msgid` e a chave do catalogo). As tres
+fecham contra o oraculo, que nesta arvore nao existe.
+
+E uma divergencia de contagem, registrada como T003 registrou a dos codigos de
+erro da entrada: a tabela *Contratos* do `plan.md` lista **um** erro para emitir e
+*"idem"* para revogar; o fluxo do legado emite quatro codigos. T021 implementou os
+que o fluxo emite e **nao** escolheu entre o pacote e o legado — ver o cabecalho de
+`erro-de-senha-de-aplicacao.ts`. A recusa por permissao, que e o unico erro que a
+tabela conta, volta como **motivo** e nao como codigo, porque no legado quem a
+emite e a camada de rota.
+
 ## Por que estas tres portas, e nao outras
 
 `target_architecture.md` **AD-08** conta cinco portas no sistema todo — dados,
@@ -755,7 +878,14 @@ e sem nenhum chamador**, como estao hoje: BR-MIGRAR-111 cita a resposta 7 —
    lista continua faltando, e ela e a decisao humana. Ver *O que T019 entrega*.
 3. **Escopo da senha de aplicacao** — o legado nao lhe da escopo nem prazo.
    Dar-lhe escopo e divergencia do identico e exige decisao humana registrada
-   (P1).
+   (P1). **T021 tambem nao escolheu:** a credencial nasce sem escopo e sem prazo,
+   como no legado, e a consequencia que `permissions.md` §8.2 registra —
+   *"um programa com a senha de aplicacao de um administrador e um
+   administrador"* — e reproduzida de proposito. E T021 encontrou, ao lado desta,
+   uma pergunta que **ninguem tinha registrado**: a spec de paridade afirma que a
+   credencial autoriza **menos** que a sessao, e o caso de uso e o catalogo de
+   regras afirmam que autoriza **o mesmo**. Ver o ponto 1 de *O que T021 encontrou
+   aberto*.
 4. **Qual oraculo vale** se a instalacao executavel de referencia mostrar matriz
    diferente da derivada.
 
@@ -807,6 +937,14 @@ O cenario *"As duas operacoes de encerramento de sessao existem sem caminho de
 uso"* de `parity_tests/06-autenticacao-e-sessao.feature` e o que confere a
 entrega de T005 nesse ponto, e ele tem tres assercoes, nao uma: existencia,
 ausencia de chamador e efeito no banco quando invocadas direto.
+
+O cenario *"A senha de aplicacao e credencial de segunda classe, por desenho"*, do
+mesmo arquivo, e o que conferiria a entrega de **T021** — e ele tem quatro
+assercoes, das quais **duas** sao desta entrega (o comprimento gerado e o valor
+guardado com hash) e duas sao do consumo, que e `REQ-012` e nao esta neste pacote.
+🔴 **A ultima delas contradiz UC-22 e BR-MIGRAR-026**, e a contradicao esta
+registrada e nao resolvida no ponto 1 de *O que T021 encontrou aberto*: quem pegar
+`REQ-012` precisa dela decidida antes de comecar.
 
 As specs de paridade desta feature estao em
 `.specify/migration/parity_tests/06-autenticacao-e-sessao.feature`,

@@ -15,6 +15,9 @@
  * | sessao | arranjo serializado em `usermeta` | `sessao.ts` |
  * | definicao de papel | opcao `{site}user_roles` | `papel.ts`, `matriz-de-fabrica.ts` |
  *
+ * **T021** acrescentou a quinta, que tambem nao e tabela e tambem vive dentro de
+ * `usermeta`: a lista de credenciais de aplicacao, em `senha-de-aplicacao.ts`.
+ *
  * **Nada aqui resolve no carregamento** (`EXT-ORDEM`, BR-MIGRAR-106): criar o
  * armazenamento monta nome de tabela e nada mais — nenhuma consulta sai, nenhuma
  * opcao e lida. **E nada aqui guarda estado de modulo** (`EXT-CONTEXTO`,
@@ -43,6 +46,10 @@ import {
   type RepositorioDeMetadadosDeConta,
 } from './perfil.js';
 import {
+  criarRepositorioDeSenhasDeAplicacao,
+  type RepositorioDeSenhasDeAplicacao,
+} from './senha-de-aplicacao.js';
+import {
   criarRepositorioDeSessoes,
   type RepositorioDeSessoes,
 } from './sessao.js';
@@ -64,6 +71,17 @@ export interface Armazenamento {
   readonly perfil: RepositorioDeMetadadosDeConta;
   readonly sessoes: RepositorioDeSessoes;
   readonly papeis: RepositorioDePapeis;
+  /**
+   * A lista de credenciais de aplicacao, tambem dentro de `usermeta` (**T021**,
+   * US-10).
+   *
+   * E a **quinta** estrutura desta pasta, e a secao *Modelo de dados* do
+   * `plan.md` conta quatro — porque la ela esta dentro de `usermeta`, que e uma
+   * das quatro, e nao como estrutura propria. O que a torna um repositorio e o
+   * mesmo motivo de `sessoes`: o arranjo tem forma propria, e dar significado a
+   * cada chave de `usermeta` nao e trabalho de `perfil.ts`.
+   */
+  readonly senhasDeAplicacao: RepositorioDeSenhasDeAplicacao;
 }
 
 export function criarArmazenamento(
@@ -78,10 +96,12 @@ export function criarArmazenamento(
     perfil,
     sessoes: criarRepositorioDeSessoes(perfil),
     papeis: criarRepositorioDePapeis(dados, perfil),
+    senhasDeAplicacao: criarRepositorioDeSenhasDeAplicacao(perfil),
   };
 }
 
 export {
+  CHAVE_DE_SENHAS_DE_APLICACAO,
   CHAVE_DE_TOKENS_DE_SESSAO,
   chaveDeCapacidades,
   chaveDeNivel,
@@ -110,6 +130,17 @@ export {
   type MetadadoDeConta,
   type RepositorioDeMetadadosDeConta,
 } from './perfil.js';
+
+export {
+  camposGravaveisDeSenhaDeAplicacao,
+  criarRepositorioDeSenhasDeAplicacao,
+  lerCamposDeSenhaDeAplicacao,
+  proximaChaveDaLista,
+  type CamposDeSenhaDeAplicacao,
+  type CamposGravaveisDeSenhaDeAplicacao,
+  type RegistroDeSenhaDeAplicacao,
+  type RepositorioDeSenhasDeAplicacao,
+} from './senha-de-aplicacao.js';
 
 export {
   camposDeSessao,
