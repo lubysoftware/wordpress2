@@ -21,7 +21,7 @@
       *entrega:* o comportamento de US-2 existe e os critérios CA-2.1, CA-2.2, CA-2.3 passam contra o sistema novo
       *satisfaz:* CA-2.1, CA-2.2, CA-2.3
       *depende de:* T001, T002
-- [ ] **T006** [P] Testes de US-2
+- [x] **T006** [P] Testes de US-2
       *entrega:* 4 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-020-1, UT-020-2, UT-020-3, UT-020-4), com o mesmo dado de entrada, ação e resultado esperado. O teste de regra de negócio (UT-020-4) entra na mesma suíte.
       *satisfaz:* CA-2.1, CA-2.2, CA-2.3
       *depende de:* T005
