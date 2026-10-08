@@ -131,9 +131,20 @@ export function atribuirPapel(
   contaId: number,
   papel: string,
 ): ResultadoDaAtribuicaoDePapel {
-  const capacidadesGravadas = papeis.gravarCapacidadesDaConta(contaId, [
-    { capacidade: papel, concedida: true },
-  ]);
+  const capacidadesGravadas = papeis.gravarCapacidadesDaConta(
+    contaId,
+    // Papel **vazio** nao grava nome nenhum, e e o ramo `else` de
+    // `set_role()` (`class-wp-user.php:631`-`:636`): `if ( ! empty( $role ) )`
+    // poe a chave, senao o mapa fica so com o que nao e papel — que numa conta
+    // recem-criada e nada. Gravar `'' => true` poria no metadado uma chave de
+    // nome vazio que o legado nunca escreve.
+    //
+    // Acrescentado em **T023**, que e a dona do caso geral (ver o aviso do
+    // cabecalho): o cadastro aberto nunca chega aqui com papel vazio, porque
+    // `default_role` e `subscriber`, mas a criacao por administrador chega —
+    // `edit_user()` aceita papel vazio no portao de papel.
+    papel === '' ? [] : [{ capacidade: papel, concedida: true }],
+  );
 
   const nivel = nivelDasCapacidades(nomesDaContaComPapel(papeis, papel));
   const nivelGravado = papeis.gravarNivelDaConta(contaId, nivel);

@@ -31,13 +31,15 @@
  * | `catalogo-de-capacidades.ts` | CA-7.5, a conferencia — e o que ela **nao** fecha |
  * | `conteudo-na-autorizacao.ts` | **T017**: o que o mapeamento le do conteudo, como porta |
  * | `traducao-de-conteudo.ts` | **T017**: a resolucao por autoria e por estado do objeto (US-8) |
+ * | `conta-na-autorizacao.ts` | **T023**: as tres leituras que os `case` de conta fazem, como porta |
+ * | `traducao-de-conta.ts` | **T023**: os cinco `case` de conta, inclusive a lista vazia de si mesmo (US-11) |
  *
  * **O que esta pasta nao tem, e de proposito:** os `case` de objeto que nao sao de
- * conteudo — termo, comentario, metadado, senha de aplicacao, rede —, cada um na
- * feature do seu objeto; as quatro capacidades que o legado concede so por ponto de
- * extensao (US-9 / T019); os dez atalhos de nomenclatura de `PERM-6` (chegam com os
- * casos deles); e o recorte de rede de `PERM-10` — este ultimo com a consequencia
- * declarada em `revogacao-por-constante.ts`.
+ * conteudo nem de conta — termo, comentario, metadado, senha de aplicacao, rede —,
+ * cada um na feature do seu objeto; as quatro capacidades que o legado concede so
+ * por ponto de extensao (US-9 / T019); os dez atalhos de nomenclatura de `PERM-6`
+ * (chegam com os casos deles); e o recorte de rede de `PERM-10` — este ultimo com a
+ * consequencia declarada em `revogacao-por-constante.ts`.
  * | `catalogo-de-capacidades.ts` | CA-7.5 e CA-9.3, a conferencia — e o que ela **nao** fecha |
  *
  * **O que esta pasta nao tem, e de proposito:** os 86 casos de traducao de
@@ -141,6 +143,23 @@ export {
   type RelatorDeUsoIndevido,
   type TipoDeConteudoNaAutorizacao,
 } from './conteudo-na-autorizacao.js';
+
+export { type FonteDeContaNaAutorizacao } from './conta-na-autorizacao.js';
+
+export {
+  CAPACIDADES_DE_EDICAO_DE_CONTA,
+  CAPACIDADES_DE_EXCLUSAO_DE_CONTA,
+  CAPACIDADES_DE_PROMOCAO_DE_CONTA,
+  CAPACIDADE_DE_ADMINISTRACAO_DE_CONTAS_DA_REDE,
+  CAPACIDADE_DE_CRIACAO_DE_CONTAS,
+  CAPACIDADE_DE_EDICAO_DE_CONTA,
+  CAPACIDADE_DE_EDICAO_DE_CONTAS,
+  CAPACIDADE_DE_EXCLUSAO_DE_CONTAS,
+  CAPACIDADE_DE_PROMOCAO_DE_CONTAS,
+  CAPACIDADE_DE_REMOCAO_DE_CONTA,
+  CAPACIDADE_DE_REMOCAO_DE_CONTAS,
+  casoDeConta,
+} from './traducao-de-conta.js';
 
 export {
   CAPACIDADE_DA_PAGINA_ESPECIAL,

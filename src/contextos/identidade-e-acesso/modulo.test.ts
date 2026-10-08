@@ -116,13 +116,29 @@ test('a superficie do modulo tem exatamente as operacoes das tarefas fechadas', 
   // `cadastrar`, tambem sem capacidade — quem autoriza e a OPCAO
   // `users_can_register`, que nasce desligada (`U1`), e o ator e o visitante,
   // que por definicao nao tem papel.
+  //
+  // T023 (US-11): as CINCO primeiras operacoes desta interface que exigem
+  // capacidade — `promoverContas`, `apagarContas`, `removerContasDoSite`,
+  // `criarContaPorAdministrador` e `alterarContaPorAdministrador` —, e cada uma
+  // exige DUAS: a da acao e a da conta alvo, uma a uma (CA-11.1, e os passos 3 e
+  // 4 de UC-24). A declaracao de cada uma esta na interface do modulo.
+  //
+  // T015 (US-7) e T019 (US-9) **nao** entram nesta lista, e continuam fora de
+  // proposito: "perguntar permissao" e operacao da plataforma, que fica abaixo
+  // de todo contexto, e o que BC-05 acrescenta ali e leitura de dado. Ver o
+  // comentario do `index.ts` onde aqueles exports entram.
   assert.deepEqual(Object.keys(modulo).sort(), [
+    'alterarContaPorAdministrador',
+    'apagarContas',
     'armazenamento',
     'autenticar',
     'cadastrar',
+    'criarContaPorAdministrador',
     'nome',
     'portas',
+    'promoverContas',
     'redefinirSenha',
+    'removerContasDoSite',
     'sair',
     'sessaoDaRequisicao',
     'solicitarRedefinicaoDeSenha',
