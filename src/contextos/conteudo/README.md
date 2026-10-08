@@ -3,10 +3,10 @@
 Esqueleto entregue por **T001** da feature `002-autoria-e-publicacao`, com a
 forma de armazenamento entregue por **T002**, a publicação por ato explícito
 (US-1) entregue por **T003**, a gravação com estado resolvido (US-2) entregue por
-**T005** e o identificador na URL único só a partir da publicação (US-3) entregue
-por **T007**. Este arquivo é a leitura obrigatória de quem pegar T009 em diante:
-ele diz o que já está decidido, o que está decidido **em outro lugar**, e o que
-ninguém decidiu.
+**T005**, o identificador na URL único só a partir da publicação (US-3) entregue
+por **T007** e a submissão para revisão (US-7) entregue por **T015**. Este
+arquivo é a leitura obrigatória de quem pegar T009 em diante: ele diz o que já
+está decidido, o que está decidido **em outro lugar**, e o que ninguém decidiu.
 
 ## O que T001 entrega, e só isso
 
@@ -461,6 +461,108 @@ de um editor.
 | limite de tentativa no laço do sufixo | **ninguém**: o legado não tem, e o **P6** proíbe inventar contagem que o produto não tem |
 | invalidar cache depois da segunda escrita | não há cache nesta árvore (REQ-165 ficou fora do pacote). `clean_post_cache()` está nomeada na posição exata do fluxo |
 
+## O que T015 entrega, e só isso
+
+> *o comportamento de US-7 existe e os critérios CA-7.1, CA-7.2, CA-7.3, CA-7.4,
+> CA-7.5, CA-7.6 passam contra o sistema novo*
+> — `.specify/specs/002-autoria-e-publicacao/tasks.md`, T015
+
+Tudo em `revisao/`, e o caso de uso é **um**: o que a tabela de rastreabilidade
+de `spec.md` liga a US-7 é
+[UC-06](../../../.specify/use-cases/UC-06-submeter-conteudo-para-revisao.md).
+
+| arquivo | o que é |
+|---|---|
+| `revisao/contexto-de-revisao.ts` | o contexto, os **quatro** colaboradores novos e os **dois** pontos de extensão da paginação da fila |
+| `revisao/estado-na-submissao.ts` | **CA-7.1** e **CA-7.5**: os cinco passos de `_wp_translate_postdata()`, e o rebaixamento que T003 registrou e não portou |
+| `revisao/permissao-de-revisao.ts` | **CA-7.1** e **CA-7.6**: as três perguntas de capacidade, e por que a falta de `publish_posts` não recusa nada |
+| `revisao/fila-de-revisao.ts` | **CA-7.2**: as quatro decisões de `wp_edit_posts_query()` e o portão da tela |
+| `revisao/submeter-para-revisao.ts` | a operação, e `wp_update_post()` — que T005 declarou e não portou |
+| `revisao/us-7-submeter-para-revisao.test.ts` | 36 testes dos seis critérios, por efeito no banco, por variável de consulta e por decisão de capacidade |
+
+**As três âncoras que `spec.md` dá para US-7 já estavam na árvore quando esta
+tarefa começou:** `wp-includes/post.php:4731` e `:5561` são de T007 (o
+identificador vazio e a dispensa de unicidade em `pending`), e
+`wp-includes/capabilities.php:369` é de T017 da feature 001 (o `case
+'read_post'`). O que faltava era a **operação**, que este README reservou a T015
+em três lugares diferentes e que `plan.md` declara na tabela *Contratos*:
+*"submeter para revisão | identificador | conteúdo pendente, com o identificador
+na URL esvaziado quando quem submete não pode publicar | sem permissão de
+editar"*.
+
+### As cinco coisas de T015 que um porte distraído faria diferente
+
+1. **O painel não recusa quem não pode publicar: ele rebaixa.** Pedir publicação
+   e pedir revisão são **a mesma requisição** no editor clássico, e o que separa
+   as duas é a capacidade de quem pediu — o comentário do legado é literal:
+   *"Posts 'submitted for approval' are submitted to $_POST the same as if they
+   were being published"* (`wp-admin/includes/post.php:148`-`:159`). Quem
+   transformar o rebaixamento em recusa apaga a história inteira.
+2. **A falta de `publish_posts` não é erro: é a condição do caso.** UC-06 diz
+   *"`edit_posts` basta. O que falta ao colaborador é `publish_posts`, e é essa
+   falta que define o caso"*. A capacidade exigida é `edit_post` **com o
+   objeto** (meta-capacidade); a de publicar é só **perguntada**, e decide duas
+   coisas — o estado gravado (CA-7.1) e o identificador esvaziado (CA-7.4).
+3. **O portão da fila é `edit_posts`, e não `publish_posts`** (`wp-admin/edit.php:44`).
+   CA-7.2 diz *"a fila de quem pode publicar aquele tipo"*, e é verdade que quem
+   publica a vê — porque todo papel de fábrica que tem `publish_posts` tem
+   `edit_posts`. Trocar o portão fecharia a tela para o colaborador, que no
+   legado a abre, e é nela que ele vê o próprio texto em revisão.
+4. **A data de um rascunho caminha a cada salvamento.** É o `$clear_date` de
+   `wp_update_post()` (`:5356`-`:5372`): estado de data flutuante + coluna GMT na
+   sentinela + sem `edit_date` → `post_date` recebe agora. O comentário do legado
+   dá a intenção (*"Drafts shouldn't be assigned a date unless explicitly done so
+   by the user"*) e a coluna dá o efeito.
+5. **Submeter pelo painel sem o campo de discussão FECHA os comentários**
+   (`:169`-`:175`). O painel crava `closed` antes de a gravação ser chamada, e o
+   valor cravado vence o default do **tipo** (`open` de fábrica para `post`). É
+   irmão do achado 5 de T005, por outro caminho.
+
+### 🔴 O que T015 encontrou aberto, e NÃO fechou
+
+**Portar o rebaixamento não resolve a divergência de CA-1.1**, e isso é
+deliberado. O item 5 de *O que ninguém decidiu* continua aberto: o critério de
+US-1 pede *"recusa explícita na tela"*, o painel rebaixa, e as duas superfícies
+seguem diferentes no sistema novo exatamente como são no legado — a API REST
+recusa com `rest_cannot_publish` e 403 (T003, em
+`publicacao/permissao-de-publicacao.ts`), o painel rebaixa para `pending` (T015,
+em `revisao/estado-na-submissao.ts`). Nenhuma das duas tarefas escolhe qual
+leitura do critério vale: o **P1** exige decisão humana registrada para divergir,
+e nenhuma existe.
+
+**E duas coisas que esta tarefa reproduziu com aviso, em vez de corrigir:**
+
+- **o autor do pedido sobrepõe o autor da linha** no caminho do painel, porque
+  `_wp_translate_postdata()` sempre devolve a chave preenchida (`:69`-`:85`) e
+  `wp_update_post()` faz o pedido vencer a linha (`:5367`). Nesta história o
+  efeito é nenhum — quem submete conteúdo próprio já é o autor —, e o aviso está
+  no cabeçalho de `autorDaSubmissao()` porque **CA-8.2 passa por essa linha**:
+  quem pegar T017 precisa dele;
+- **a segunda pergunta de `edit_post`** de `_wp_translate_postdata()` (`:47`) tem
+  outra mensagem que a do portão de `edit_post()` (`:298`), e não é alcançável
+  depois dele. Ela está no código, na posição exata, com a mensagem que o legado
+  tem — mesmo precedente dos dois últimos pares de `ERROS_DA_GRAVACAO`.
+
+### O que T015 NÃO fez, e por quê
+
+| não fez | de quem é |
+|---|---|
+| os oito testes de `backlog/tests.md` (UT-025-1 a UT-025-8) | **T016**, a tarefa `[P]` que roda em paralelo com esta |
+| avisar o autor, o editor ou quem for | **ninguém aqui.** UC-06 é literal: *"Nenhuma notificação sai daqui (…) A revisão depende de alguém abrir a tela"*. US-9 é T019, com a parada registrada |
+| devolver o conteúdo ao autor — o caminho de volta de UC-06 | **T017** (US-8, CA-8.4). `atualizarConteudo` está exportada para ela, e é `wp_update_post()` |
+| a visibilidade privada, que é o outro ramo do rebaixamento (`:142`-`:144`) | **T009** (US-4). O ramo está aqui porque o destino dele é o estado desta história |
+| a comparação de 60 segundos de `publish` ⇄ `future` | **T013** (US-6). A lista `['publish','future']` do rebaixamento está nomeada para ela |
+| `WP_Query`, que materializa a fila | **T009 da feature 004**. No legado a fila do painel **também não** escreve SQL: ela monta variáveis de consulta e entrega, e é isso que esta pasta porta |
+| a consulta pública que CA-7.3 cobra | **T009 da feature 004** — mesmo precedente de CA-2.3 em T005. O que esta tarefa entrega é a **condição**: a linha carrega um estado que o registro declara não público e não consultável |
+| `sanitize_key()` | `plataforma/formatacao/`, feature 015 — chega pelo colaborador `ChaveSanitizada` |
+| a opção de paginação por conta, a barra de contagem por estado e a tela | `plataforma/opcoes/` e BC-10 (`painel/`) |
+| a montagem da data pelos seis campos do formulário | BC-10. O `editarData` da operação é o `edit_date` que sai dali, e ele tem **um** efeito aqui: desligar o `$clear_date` |
+| a atualização das versões de conteúdo pré-3.6 (`:302`-`:316`) | **ninguém**: é rotina de migração de dado, e a resposta 2 fixa *"instalação nova, sem dado a migrar"* |
+| formato de conteúdo, metadado, anexo, `tax_input`, `_edit_last`, trava de edição e conteúdo fixado | BC-07, BC-04, BC-02 e BC-10 — cada um na posição exata em `submeter-para-revisao.ts` |
+| a segunda tentativa de gravação com `strip_invalid_text_for_column()` (`:466`-`:476`) | a camada de dados, feature 015: a porta de T002 não reporta a falha que a dispara |
+| registrar quem decidiu a transição | **ninguém**: REQ-028 está em `do-not-rewrite.md` |
+| emitir ponto de extensão por um barramento | ninguém deste pacote (REQ-162). Os dois desta pasta chegam como interceptador opcional, e ponto sem interceptador é, no legado, um no-op |
+
 ## O que "enumeração fechada" significa aqui — leia antes de usar o tipo
 
 Fechada sobre o **vocabulário de fábrica**: os 12 estados que o núcleo registra
@@ -607,6 +709,12 @@ disto se decide no meio da implementação.
    o legado **tem** (os da API REST). O rebaixamento é o `pending` de CA-7.1, em
    T015, e chega pelo caminho de gravação.
 
+   **T015 portou o rebaixamento e NÃO fechou este item.** Ele está em
+   `revisao/estado-na-submissao.ts`, na posição do legado, e com ele as duas
+   superfícies do sistema novo ficam diferentes **do mesmo jeito** que as do
+   legado: a API recusa, o painel rebaixa. Continua sem decisão humana qual das
+   duas leituras de CA-1.1 vale — e nenhuma das duas tarefas pode tomá-la.
+
 Os quatro primeiros estão em `spec.md`, seção *Perguntas em aberto* (o primeiro,
 como consequência de nada ali especificar o aviso). A tabela *Não negociável* da
 constituição põe cada um deles fora do alcance do agente de codificação. O quinto
@@ -646,6 +754,12 @@ publicar"*, inclusive a cláusula *"a dispensa de unicidade vale também para
 pendente, rascunho automático, revisão e solicitação de dado pessoal"*, e
 *"Colaborador não reserva slug do que está em revisão"*. Os dois estão afirmados
 em `gravacao/us-3-identificador-unico.test.ts`, com o texto de cada consulta.
+
+Com T015, o segundo deles ganha o **Quando** que faltava: o cenário diz *"quando
+ele **submete um conteúdo para revisão** informando um slug"*, e até então a
+árvore tinha o efeito sem a operação que chega nele. `revisao/us-7-submeter-para-revisao.test.ts`
+afirma o cenário inteiro pela porta da submissão — o campo de slug vazio, e
+nenhuma consulta de unicidade saindo.
 
 **Nenhuma delas é executável hoje:** `parity_specs.md` registra que não há
 oráculo executável nesta árvore (o manifesto de telas declara

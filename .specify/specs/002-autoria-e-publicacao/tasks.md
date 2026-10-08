@@ -57,7 +57,7 @@
       *entrega:* 7 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-024-1, UT-024-2, UT-024-3, UT-024-4, UT-024-5, UT-024-6, UT-024-7), com o mesmo dado de entrada, ação e resultado esperado. Os 2 testes de regra de negócio (UT-024-6, UT-024-7) entram na mesma suíte.
       *satisfaz:* CA-6.1, CA-6.2, CA-6.3, CA-6.4, CA-6.5
       *depende de:* T013
-- [ ] **T015** Submeter conteúdo próprio para revisão de quem pode publicar (US-7)
+- [x] **T015** Submeter conteúdo próprio para revisão de quem pode publicar (US-7)
       *entrega:* o comportamento de US-7 existe e os critérios CA-7.1, CA-7.2, CA-7.3, CA-7.4, CA-7.5, CA-7.6 passam contra o sistema novo
       *satisfaz:* CA-7.1, CA-7.2, CA-7.3, CA-7.4, CA-7.5, CA-7.6
       *depende de:* T001, T002, T007

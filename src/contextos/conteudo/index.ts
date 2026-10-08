@@ -53,6 +53,12 @@ import {
   type PedidoDePublicacao,
   type ResultadoDaPublicacao,
 } from './publicacao/index.js';
+import {
+  submeterParaRevisao,
+  type ContextoDeRevisao,
+  type PedidoDeSubmissao,
+  type ResultadoDaSubmissao,
+} from './revisao/index.js';
 
 export * from './portas/index.js';
 export * from './estado-editorial.js';
@@ -78,6 +84,18 @@ export * from './publicacao/index.js';
   que decide `'0'` ao contrario deste runtime.
 */
 export * from './gravacao/index.js';
+/*
+  T015 (US-7) sai pelo barril E pela composicao, pela mesma razao de T003 e de
+  T005: a tabela *Contratos* de `plan.md` lista *"submeter para revisao"* como
+  operacao desta feature, com entrada, saida e erro proprios. O resto da pasta
+  sai pelo barril porque e o que quem monta o contexto da requisicao precisa
+  alcancar: os quatro colaboradores de ligacao tardia, os dois pontos de
+  extensao da paginacao da fila, a fila em si — que e tela e nao operacao de
+  dominio — e `wp_update_post()` sem portao, que tem outros chamadores no legado
+  (a API, o XML-RPC, o importador e T017, que a usa para devolver o conteudo ao
+  autor).
+*/
+export * from './revisao/index.js';
 
 /** As tres portas de que este modulo depende, na forma em que ele as recebe. */
 export interface PortasDeConteudo {
@@ -97,6 +115,7 @@ export interface PortasDeConteudo {
  * |---|---|---|---|
  * | `gravar` | US-2, US-3 | T005, T007 | **nenhuma para gravar, como no legado** — `wp_insert_post()` nao tem portao, e o achado de QA de REQ-020 registra que o card nao tem recusa propria. A **unica** decisao de capacidade do caminho nao recusa: ela esvazia o identificador na URL de quem nao pode publicar, em `pending` (CA-3.4) |
  * | `publicar` | US-1 | T003 | **a capacidade de publicar daquele tipo** (`$post_type->cap->publish_posts`), CA-1.1 |
+ * | `submeterParaRevisao` | US-7 | T015 | **a capacidade de editar AQUELE conteudo** (`edit_post`, com o objeto), somada a de mexer em conteudo alheio quando o autor do pedido nao e quem pede. A capacidade de **publicar** nao e exigida: ela e perguntada, e decide o estado gravado (CA-7.1) e o identificador esvaziado (CA-7.4) |
  *
  * O armazenamento **nao e operacao**, e por isso nao declara permissao: ele nao
  * decide nada.
@@ -160,6 +179,35 @@ export interface ModuloDeConteudo {
     contexto: ContextoDeGravacao,
     pedido: PedidoDeGravacao,
   ): ResultadoDaGravacao;
+
+  /**
+   * Entrega o conteudo proprio para que alguem com poder de publicar o avalie,
+   * gravando o estado `pending` (US-7, T015).
+   *
+   * **Permissao exigida: a capacidade de editar AQUELE conteudo** — `edit_post`
+   * com o objeto, que e **meta-capacidade** e resolve por autoria e por estado
+   * (`wp-includes/capabilities.php:108`). Submeter o conteudo de outra pessoa
+   * exige, por cima, a capacidade de mexer em conteudo alheio daquele tipo
+   * (`wp-admin/includes/post.php:88`-`:105`) — e e isso que faz esta historia
+   * ser sobre conteudo **proprio**. O erro e o que `plan.md` declara na tabela
+   * *Contratos*: *"sem permissao de editar"*.
+   *
+   * ⚠️ **A capacidade de publicar nao e exigida: ela e perguntada.** A falta
+   * dela nao recusa — UC-06 chama este caminho de *"o normal do colaborador"*.
+   * Ela decide duas coisas, e as duas sao criterios desta historia: o estado
+   * que vai para a coluna, porque um pedido de publicacao de quem nao pode
+   * publicar e **rebaixado** para `pending` (CA-7.1), e o identificador na URL,
+   * que e **esvaziado** para que ninguem reserve endereco que nao pode usar
+   * (CA-7.4, a regra que T007 ja portou no caminho de gravacao).
+   *
+   * O contexto chega por argumento, e nao pela composicao, pela mesma razao de
+   * `publicar` e de `gravar`: identidade, matriz de papeis e estado de rede sao
+   * escopo de REQUISICAO (AD-02, BR-MIGRAR-105).
+   */
+  submeterParaRevisao(
+    contexto: ContextoDeRevisao,
+    pedido: PedidoDeSubmissao,
+  ): ResultadoDaSubmissao;
 }
 
 /**
@@ -188,5 +236,6 @@ export function criarModuloDeConteudo(
     armazenamento: criarArmazenamentoDeConteudo(portas.dados),
     publicar,
     gravar: gravarConteudo,
+    submeterParaRevisao,
   };
 }

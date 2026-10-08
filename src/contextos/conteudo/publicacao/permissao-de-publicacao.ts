@@ -81,7 +81,10 @@
  * 2. **nao** reproduzir aqui o rebaixamento do painel. Ele e o estado `pending`
  *    de **US-7** (CA-7.1: *"quem tem permissao de escrever e nao tem de publicar
  *    envia o conteudo para o estado pendente"*), chega em **T015** e passa pelo
- *    caminho de gravacao, nao por este;
+ *    caminho de gravacao, nao por este. ✔ **T015 o portou**, em
+ *    `../revisao/estado-na-submissao.ts`, e **nao** fechou esta divergencia: com
+ *    as duas tarefas, as duas superficies do sistema novo ficam diferentes do
+ *    mesmo jeito que as do legado — a API recusa, o painel rebaixa;
  * 3. **registrar a divergencia de redacao** para quem decide, em vez de
  *    inventar na tela uma recusa que o legado nao tem. O **P1** e literal:
  *    *"divergir exige uma decisao humana registrada, citada no codigo que
