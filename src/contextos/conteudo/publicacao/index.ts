@@ -9,7 +9,7 @@
  * | `contexto-de-publicacao.ts` | o contexto, as duas portas de ligacao tardia e os **dez** pontos de extensao |
  * | `permissao-de-publicacao.ts` | **CA-1.1**: a capacidade do tipo, as recusas literais e a divergencia de redacao do criterio |
  * | `termo-padrao-na-publicacao.ts` | **CA-1.4**: os cinco ramos do laco de termo padrao, e a categoria como excecao por nome |
- * | `transicao-de-estado.ts` | **CA-1.2**, **CA-1.3** e **CA-1.5**: os tres pontos, a cadeia por prioridade e o ouvinte do nucleo |
+ * | `transicao-de-estado.ts` | **CA-1.2**, **CA-1.3** e **CA-1.5**: os tres pontos, a cadeia por prioridade e os ouvintes do nucleo — o do ponto 3 entrou em **T013** |
  * | `publicar.ts` | a operacao e `wp_publish_post()` — as duas, e a razao de serem duas |
  * | `us-1-publicar-conteudo.test.ts` | os cinco criterios, afirmados por efeito no banco e por sequencia de pontos |
  *
@@ -54,6 +54,8 @@
  * | a unicidade do identificador na URL, que `wp_publish_post()` **nao** cobra | **T007** a portou em `../gravacao/identificador-na-url.ts`, e a ausencia **continua aqui**: por esta porta o identificador duplicado sobrevive a publicacao |
  * | o estado `private` como visibilidade | **T009**, US-4 |
  * | o agendamento, a comparacao de data e a verificacao dupla | **T013**, US-6 |
+ * | os criterios da republicacao nula — a guarda esta aqui, as afirmacoes nao | **T011**, US-5 |
+ * | o agendamento, a comparacao de data e a verificacao dupla | **T013**, US-6 — em `../agendamento/`, e e de la que vem o ouvinte do ponto 3 desta pasta |
  * | o rebaixamento para `pending` de quem nao pode publicar | **T015**, US-7 |
  * | a soma de capacidade sobre conteudo alheio | **T017**, US-8 |
  * | a notificacao ao autor — e a parada registrada sobre ela | **T019**, US-9 |
@@ -68,6 +70,7 @@ export {
   type ArmazenamentoNaPublicacao,
   type ClassificacaoNaPublicacao,
   type ContextoDePublicacao,
+  type DataGmtDeDataLocal,
   type EnderecoDoConteudo,
   type FilaNaPublicacao,
   type GanchosDaPublicacao,
@@ -99,6 +102,7 @@ export {
 export { ehRepublicacaoNula } from './republicacao-nula.js';
 
 export {
+  ESTADO_AGENDADO,
   ESTADO_PUBLICADO,
   PONTO_DEPRECIADO_DE_ENTRADA_EM_PUBLICADO,
   PRIORIDADE_DO_OUVINTE_DO_NUCLEO,

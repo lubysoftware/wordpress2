@@ -169,6 +169,19 @@ interface Cenario {
   readonly termosDefinidos: { taxonomia: string; termos: readonly number[] }[];
   /** As chamadas a `wp_clear_scheduled_hook()`, na ordem. */
   readonly limpezasDaFila: { gancho: string; argumentos: readonly unknown[] }[];
+  /**
+   * As chamadas a `wp_schedule_single_event()`, na ordem.
+   *
+   * Acrescentado por **T013**, junto do metodo de agendar na porta da fila. Nesta
+   * suite ele e afirmacao por **ausencia**: o ouvinte que agenda esta registrado
+   * em `future_{$post_type}` e nenhum caminho de US-1 entra em agendado, logo
+   * nenhuma publicacao desta pasta pode por evento na fila.
+   */
+  readonly agendamentos: {
+    instanteEmSegundos: number;
+    gancho: string;
+    argumentos: readonly unknown[];
+  }[];
   /** As opcoes de termo padrao consultadas, na ordem. */
   readonly opcoesLidas: string[];
   /** Os ganchos registrados, para quem precisar substituir um deles. */
@@ -200,6 +213,7 @@ function cenario(opcoes: OpcoesDoCenario = {}): Cenario {
   const pontos: string[] = [];
   const termosDefinidos: Cenario['termosDefinidos'] = [];
   const limpezasDaFila: Cenario['limpezasDaFila'] = [];
+  const agendamentos: Cenario['agendamentos'] = [];
   const opcoesLidas: string[] = [];
 
   const tipos = opcoes.tipos ?? { post: TIPO_POST, page: TIPO_PAGINA };
@@ -271,12 +285,21 @@ function cenario(opcoes: OpcoesDoCenario = {}): Cenario {
         limpezasDaFila.push({ gancho, argumentos });
         return opcoes.eventosRemovidos ?? 1;
       },
+      agendarEventoUnico(instanteEmSegundos, gancho, argumentos) {
+        agendamentos.push({ instanteEmSegundos, gancho, argumentos });
+        return true;
+      },
     },
     tipoDeConteudo(nome) {
       return tipos[nome] ?? null;
     },
     enderecoDoConteudo() {
       return opcoes.endereco === undefined ? ENDERECO : opcoes.endereco;
+    },
+    // `get_gmt_from_date()`: o cenario tem fuso zero, logo a data local e a UTC.
+    // Quem a exercita de verdade e a suite de T013.
+    dataGmtDeDataLocal(dataLocal) {
+      return dataLocal;
     },
     ganchos,
   };
@@ -287,6 +310,7 @@ function cenario(opcoes: OpcoesDoCenario = {}): Cenario {
     pontos,
     termosDefinidos,
     limpezasDaFila,
+    agendamentos,
     opcoesLidas,
     ganchos,
   };
@@ -476,6 +500,7 @@ test('CA-1.2 o ouvinte do nucleo roda ANTES do interceptador de terceiro (priori
   const comObservador: ContextoDePublicacao = {
     ...contexto,
     fila: {
+      ...contexto.fila,
       limparGancho(gancho, argumentos) {
         ordem.push('nucleo');
         return contexto.fila.limparGancho(gancho, argumentos);

@@ -2,14 +2,15 @@
  * Modulo de conteudo — BC-01 de `target_architecture.md`.
  *
  * Feature `002-autoria-e-publicacao`, tarefas T001, T002, T003, T005, T007,
- * T009 e T011. O que existe aqui e o que as sete entregam: o modulo carrega com
- * as tres portas declaradas, com o vocabulario de estado editorial do legado
- * como enumeracao fechada, com a forma de armazenamento de conteudo, metadado e
- * versao anterior e com **cinco** regras de negocio — a publicacao por ato
- * explicito de US-1, a gravacao com estado resolvido de US-2, o identificador na
- * URL unico so a partir da publicacao de US-3, o conteudo privado de US-4 e a
- * republicacao nula de US-5. Agendamento, submissao, revisao, versao anterior e
- * rascunho automatico entram nas tarefas delas (T013 em diante), e a leitura
+ * T009, T011 e T013. O que existe aqui e o que as oito entregam: o modulo
+ * carrega com as tres portas declaradas, com o vocabulario de estado editorial
+ * do legado como enumeracao fechada, com a forma de armazenamento de conteudo,
+ * metadado e versao anterior e com **seis** regras de negocio — a publicacao por
+ * ato explicito de US-1, a gravacao com estado resolvido de US-2, o
+ * identificador na URL unico so a partir da publicacao de US-3, o conteudo
+ * privado de US-4, a republicacao nula de US-5 e o agendamento por comparacao de
+ * data, com verificacao dupla, de US-6. Submissao, revisao, versao anterior e
+ * rascunho automatico entram nas tarefas delas (T015 em diante), e a leitura
  * obrigatoria de cada uma esta em `./README.md`.
  *
  * Duas coisas que este arquivo faz de proposito:
@@ -34,8 +35,14 @@
  */
 
 import {
+  publicarSeAindaAgendado,
+  type ContextoDeAgendamento,
+  type ResultadoDaPublicacaoAgendada,
+} from './agendamento/index.js';
+import {
   criarArmazenamentoDeConteudo,
   type ArmazenamentoDeConteudo,
+  type Conteudo,
 } from './armazenamento/index.js';
 import type {
   PortaDeDados,
@@ -109,6 +116,16 @@ export * from './visibilidade/index.js';
   minha num merge: quem decidir apaga o outro e importa deste.
 */
 export { ESTADO_PRIVADO } from './visibilidade/index.js';
+/*
+  T013 (US-6) sai pelo barril E pela composicao pela mesma razao, e com uma
+  diferenca que o P4 obriga a declarar: a operacao que ela acrescenta e chamada
+  **pela fila**, sem ator nenhum, e por isso a permissao dela e *"nenhuma"* — ver
+  a tabela de operacoes de `ModuloDeConteudo`. O resto da pasta sai pelo barril
+  porque e o que o caminho de GRAVACAO vai alcancar: a comparacao de data que
+  decide agendado contra publicado e regra de T013 e ponto de chamada de T005 e
+  T007.
+*/
+export * from './agendamento/index.js';
 
 /** As tres portas de que este modulo depende, na forma em que ele as recebe. */
 export interface PortasDeConteudo {
@@ -130,9 +147,12 @@ export interface PortasDeConteudo {
  * | `publicar` | US-1 | T003 | **a capacidade de publicar daquele tipo** (`$post_type->cap->publish_posts`), CA-1.1 |
  * | `escolherVisibilidade` | US-4 | T009 | **a mesma capacidade**, e **somente** quando a visibilidade resolve em `private`, CA-4.1 |
  * | `publicar`, pedido sobre conteudo ja publicado | US-5 | T011 | a mesma, e e cobrada antes da guarda de estado — ver `publicacao/republicacao-nula.ts` |
+ * | `publicarSeAindaAgendado` | US-6 | T013 | **nenhuma**, e e o legado: quem chama e a fila, e nao ha ator no disparo |
  *
  * O armazenamento **nao e operacao**, e por isso nao declara permissao: ele nao
- * decide nada.
+ * decide nada. E a comparacao de data de US-6 (`resolverEstadoPelaData`) tambem
+ * nao e operacao: e funcao pura que o caminho de **gravacao** chama, e sai pelo
+ * barril, nao por aqui.
  */
 export interface ModuloDeConteudo {
   readonly nome: 'conteudo';
@@ -222,6 +242,33 @@ export interface ModuloDeConteudo {
     contexto: ContextoDeVisibilidade,
     pedido: PedidoDeVisibilidade,
   ): ResultadoDaVisibilidade;
+  /**
+   * Publica o conteudo agendado quando a fila o aciona — **se** ele ainda
+   * estiver agendado e **se** a data ja tiver chegado (US-6, T013).
+   *
+   * **Permissao exigida: nenhuma.** Nao e lapso: e
+   * `check_and_publish_future_post()` (`wp-includes/post.php:5482`), registrada
+   * no gancho `publish_future_post` com prioridade 10
+   * (`wp-includes/default-filters.php:357`) e chamada **pela fila**, onde nao ha
+   * ator. O **P4** manda declarar a permissao de toda operacao exposta e
+   * *"preservar o default de cada camada, inclusive quando o default e
+   * permissivo"* — aqui o default e a ausencia de portao, e o que guarda a
+   * operacao nao e capacidade: sao as **duas** verificacoes de BR-MIGRAR-006, o
+   * estado corrente e a data (CA-6.3 e CA-6.4).
+   *
+   * **Nao ha, de proposito, operacao de "agendar".** O estado agendado e
+   * calculado pela comparacao de data na gravacao, nao comandado — ADR-0005, e a
+   * divergencia com a tabela *Contratos* de `plan.md` esta registrada em
+   * `agendamento/index.ts` e no README deste modulo.
+   *
+   * O contexto chega por argumento e **estende** o da publicacao com o relogio,
+   * que e o unico lugar desta feature em que o tempo decide: ver
+   * `agendamento/publicacao-agendada.ts`.
+   */
+  publicarSeAindaAgendado(
+    contexto: ContextoDeAgendamento,
+    referencia: number | Conteudo,
+  ): ResultadoDaPublicacaoAgendada;
 }
 
 /**
@@ -251,5 +298,6 @@ export function criarModuloDeConteudo(
     publicar,
     gravar: gravarConteudo,
     escolherVisibilidade,
+    publicarSeAindaAgendado,
   };
 }

@@ -266,6 +266,16 @@ function cenario(opcoes: OpcoesDoCenario = {}): Cenario {
       },
     },
     fila: {
+      /*
+        `agendarEventoUnico` entrou em `FilaNaPublicacao` com T013, e este dublê
+        nasceu antes, numa árvore que não o tinha — o merge das duas só acusou
+        no `tsc`. Devolve `true` porque esta suíte não agenda nada: ela existe
+        para o contexto estar completo, não para ser exercitada. Quem agenda
+        tem suíte própria (US-6).
+      */
+      agendarEventoUnico() {
+        return true;
+      },
       limparGancho(gancho, argumentos) {
         limpezasDaFila.push({ gancho, argumentos });
         return 1;
@@ -274,6 +284,10 @@ function cenario(opcoes: OpcoesDoCenario = {}): Cenario {
     tipoDeConteudo(nome) {
       return nome === 'post' ? TIPO_POST : null;
     },
+    // `dataGmtDeDataLocal` entrou em `ContextoDePublicacao` com T013, e este
+    // dublê nasceu antes. Identidade, porque nenhuma afirmação desta suíte
+    // passa por conversão de fuso — quem converte tem suíte própria (US-6).
+    dataGmtDeDataLocal: (dataLocal: string) => dataLocal,
     enderecoDoConteudo() {
       enderecosResolvidos += 1;
       return ENDERECO;

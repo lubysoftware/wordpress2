@@ -83,15 +83,32 @@
  * - **`__clear_multi_author_cache`** limpa o cache de "o site tem mais de um
  *   autor". Nao ha cache nesta arvore.
  *
- * E um que pende do ponto **3**, nao do 1, e tambem escreve no banco:
- * **`_publish_post_hook`** (`:447` de `default-filters.php`, prioridade 5 em
- * `publish_post`) grava os metadados `_pingme` e `_encloseme` e agenda
- * `do_pings`. E notificacao de link remoto — UC-17, feature 007 — e **nao** esta
- * aqui. Quem a construir registra naquele ponto, com aquela prioridade.
+ * E dois que pendem do ponto **3**, nao do 1:
+ *
+ * - **`_future_post_hook`** (`class-wp-post-type.php:767`, prioridade 5 em
+ *   `future_{$post_type}`) limpa o evento pendente e agenda a publicacao na data.
+ *   **Implementado**, por T013 (US-6), em
+ *   `../agendamento/evento-de-publicacao-agendada.ts`, e disparado na posicao
+ *   dele por {@link transitarEstado}.
+ * - **`_publish_post_hook`** (`:447` de `default-filters.php`, prioridade 5 em
+ *   `publish_post`) grava os metadados `_pingme` e `_encloseme` e agenda
+ *   `do_pings`. E notificacao de link remoto — UC-17, feature 007 — e **nao**
+ *   esta aqui. Quem a construir registra naquele ponto, com aquela prioridade.
+ *
+ * ⚠️ **O ponto 3 emite tres argumentos e `_future_post_hook` aceita dois.** O
+ * legado o registra com `add_action( 'future_' . $this->name, '_future_post_hook',
+ * 5, 2 )`, logo o ouvinte recebe `$post->ID` e `$post` e **nao** recebe
+ * `$old_status` — e o primeiro parametro dele, que seria o identificador, esta
+ * declarado como `$deprecated` e nunca foi usado. Quem construir o barramento
+ * registra assim: numero de argumentos aceitos e parte do registro, nao detalhe.
  */
 
 import type { EstadoEditorial } from '../estado-editorial.js';
 import type { Conteudo } from '../armazenamento/index.js';
+import {
+  agendarPublicacaoFutura,
+  type EventoDePublicacaoAgendada,
+} from '../agendamento/evento-de-publicacao-agendada.js';
 import {
   GANCHO_DE_PUBLICACAO_AGENDADA,
   type ContextoDePublicacao,
@@ -105,6 +122,21 @@ import {
  * `guid` compara (`:8156`) e e ele que vai para a coluna.
  */
 export const ESTADO_PUBLICADO: EstadoEditorial = 'publish';
+
+/**
+ * `future` — o estado agendado.
+ *
+ * Declarado aqui, ao lado de {@link ESTADO_PUBLICADO} e pela mesma razao, porque
+ * neste arquivo ele e **regra** e nao vocabulario: e ele que compoe o nome do
+ * ponto `future_{$post_type}` em que o nucleo registra `_future_post_hook`
+ * (`wp-includes/class-wp-post-type.php:767`), e e por essa comparacao de nome
+ * que o ouvinte de agendamento de T013 roda ou nao roda.
+ *
+ * Entrada de **T013** (US-6). O outro lugar em que este valor e regra e a
+ * comparacao de data de `../agendamento/estado-pela-data.ts`, que o importa
+ * daqui para que as duas nao divirjam.
+ */
+export const ESTADO_AGENDADO: EstadoEditorial = 'future';
 
 /**
  * A prioridade com que o nucleo registra `_transition_post_status` no ponto
@@ -170,6 +202,15 @@ export interface EfeitosDaTransicao {
    * seja afirmavel por teste. No legado o retorno e descartado.
    */
   readonly eventosAgendadosRemovidos: number | false;
+  /**
+   * O que o ouvinte de agendamento deixou na fila, ou `null` quando ele nao
+   * rodou (T013, US-6).
+   *
+   * `null` e o caminho normal de toda transicao que **nao** entra em agendado:
+   * o ouvinte do legado esta registrado em `future_{$post_type}` e so aquele
+   * nome o alcanca. Ver {@link transitarEstado}.
+   */
+  readonly eventoDePublicacaoAgendada: EventoDePublicacaoAgendada | null;
 }
 
 /** `{$old_status}_to_{$new_status}` — o nome montado do ponto 2. */
@@ -234,7 +275,7 @@ function guidDoConteudo(
 function ouvinteDoNucleoNaTransicao(
   contexto: ContextoDePublicacao,
   transicao: TransicaoDeEstado,
-): EfeitosDaTransicao {
+): Omit<EfeitosDaTransicao, 'eventoDePublicacaoAgendada'> {
   let enderecoGravadoNoGuid: string | null = null;
 
   // Bloco 1 (`:8156`). A condicao e sobre os DOIS estados: nao basta entrar em
@@ -276,8 +317,46 @@ function ouvinteDoNucleoNaTransicao(
 }
 
 /**
+ * Os ouvintes que o **nucleo** registra no ponto 3, `{$new_status}_{$post_type}`
+ * — hoje um so: `_future_post_hook`, prioridade
+ * {@link PRIORIDADE_DO_OUVINTE_DE_AGENDAMENTO} (T013, US-6).
+ *
+ * **A condicao e o nome do ponto, e nao um `if` sobre estado.** O ponto 3 tem
+ * nome dinamico, e o nucleo registra o ouvinte em `future_{$post_type}`, uma vez
+ * por tipo **registrado**, dentro de `WP_Post_Type::add_hooks()`
+ * (`wp-includes/class-wp-post-type.php:767`). Logo sao duas condicoes, e as duas
+ * sao do legado:
+ *
+ * 1. **o estado novo e `future`** — e so `future_...` carrega este ouvinte;
+ * 2. **o tipo esta registrado** — `add_hooks()` roda em `register_post_type()`,
+ *    e `remove_hooks()` o desfaz em `unregister_post_type()` (`:856`). Conteudo
+ *    de um tipo que ninguem registrou entra em `future` **sem** evento na fila, e
+ *    fica agendado para sempre. E a mesma tolerancia a tipo e estado nao
+ *    registrados que `../estado-editorial.ts` documenta, e recusar seria outro
+ *    produto (P1).
+ *
+ * Nenhuma das duas e otimizacao: trocar a segunda por *"agenda sempre"* poria na
+ * fila um evento que o legado nao poe.
+ */
+function ouvinteDoNucleoNoPontoDoEstado(
+  contexto: ContextoDePublicacao,
+  transicao: TransicaoDeEstado,
+): EventoDePublicacaoAgendada | null {
+  if (transicao.estadoNovo !== ESTADO_AGENDADO) {
+    return null;
+  }
+
+  if (contexto.tipoDeConteudo(transicao.conteudo.tipo) === null) {
+    return null;
+  }
+
+  return agendarPublicacaoFutura(contexto, transicao.conteudo);
+}
+
+/**
  * `wp_transition_post_status()` — os tres pontos, na ordem, com a cadeia do
- * primeiro ordenada por prioridade (`wp-includes/post.php:5912`).
+ * primeiro e a do terceiro ordenadas por prioridade
+ * (`wp-includes/post.php:5912`).
  *
  * ⚠️ **Esta funcao nao grava o estado**, e o docblock do legado o diz com estas
  * palavras: *"Note that the function does not transition the post object in the
@@ -290,7 +369,7 @@ export function transitarEstado(
   transicao: TransicaoDeEstado,
 ): EfeitosDaTransicao {
   // Ponto 1, cadeia por prioridade: o ouvinte do nucleo em 5 ...
-  const efeitos = ouvinteDoNucleoNaTransicao(contexto, transicao);
+  const efeitosDoPontoUm = ouvinteDoNucleoNaTransicao(contexto, transicao);
 
   // ... e o interceptador de terceiro, que entra em 10 por omissao. Os outros
   // cinco ouvintes de fabrica estao nomeados no cabecalho deste arquivo, com
@@ -307,7 +386,13 @@ export function transitarEstado(
     transicao.conteudo,
   );
 
-  // Ponto 3 (`:5975`).
+  // Ponto 3 (`:5975`), e ele tambem e cadeia por prioridade: o ouvinte do
+  // nucleo em 5 vem antes do interceptador de terceiro, que entra em 10.
+  const eventoDePublicacaoAgendada = ouvinteDoNucleoNoPontoDoEstado(
+    contexto,
+    transicao,
+  );
+
   contexto.ganchos?.aoEntrarNoEstadoDoTipo?.(
     nomeDoPontoDeEstadoDoTipo(transicao.estadoNovo, transicao.conteudo.tipo),
     transicao.conteudo.id,
@@ -315,5 +400,5 @@ export function transitarEstado(
     transicao.estadoAnterior,
   );
 
-  return efeitos;
+  return { ...efeitosDoPontoUm, eventoDePublicacaoAgendada };
 }

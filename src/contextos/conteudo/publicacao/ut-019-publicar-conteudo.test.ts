@@ -567,6 +567,16 @@ function cenario(opcoes: OpcoesDoCenario = {}): Cenario {
       // `wp_clear_scheduled_hook( $hook, $args )` (`wp-includes/cron.php:576`):
       // devolve quantos eventos foram desagendados, e `0` quando nao havia
       // nenhum — *"zero if no events were registered with the hook"*.
+      /*
+        `agendarEventoUnico` entrou em `FilaNaPublicacao` com T013, e este dublê
+        nasceu antes, numa árvore que não o tinha — o merge das duas só acusou
+        no `tsc`. Devolve `true` porque esta suíte não agenda nada: ela existe
+        para o contexto estar completo, não para ser exercitada. Quem agenda
+        tem suíte própria (US-6).
+      */
+      agendarEventoUnico() {
+        return true;
+      },
       limparGancho(gancho, argumentos) {
         limpezas.push({ gancho, argumentos });
         const procurado = JSON.stringify(argumentos);
@@ -589,6 +599,14 @@ function cenario(opcoes: OpcoesDoCenario = {}): Cenario {
     tipoDeConteudo(nome) {
       return tipos[nome] ?? null;
     },
+
+    // `dataGmtDeDataLocal` entrou em `ContextoDePublicacao` com T013, e este
+
+    // dublê nasceu antes. Identidade, porque nenhuma afirmação desta suíte
+
+    // passa por conversão de fuso — quem converte tem suíte própria (US-6).
+
+    dataGmtDeDataLocal: (dataLocal: string) => dataLocal,
 
     enderecoDoConteudo() {
       return opcoes.endereco === undefined ? ENDERECO : opcoes.endereco;

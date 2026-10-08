@@ -4,10 +4,11 @@ Esqueleto entregue por **T001** da feature `002-autoria-e-publicacao`, com a
 forma de armazenamento entregue por **T002**, a publicação por ato explícito
 (US-1) entregue por **T003**, a gravação com estado resolvido (US-2) entregue
 por **T005**, o identificador na URL único só a partir da publicação (US-3)
-entregue por **T007**, o conteúdo privado (US-4) entregue por **T009** e a
-republicação nula (US-5) verificada por **T011**. Este arquivo é a leitura
-obrigatória de quem pegar T013 em diante: ele diz o que já está decidido, o que
-está decidido **em outro lugar**, e o que ninguém decidiu.
+entregue por **T007**, o conteúdo privado (US-4) entregue por **T009**, a
+republicação nula (US-5) verificada por **T011** e o agendamento com verificação
+dupla (US-6) entregue por **T013**. Este arquivo é a leitura obrigatória de quem
+pegar T015 em diante: ele diz o que já está decidido, o que está decidido **em
+outro lugar**, e o que ninguém decidiu.
 
 ## O que T001 entrega, e só isso
 
@@ -33,6 +34,12 @@ tarefas que os implementam (T013, T023, T021 e a feature 005), cada um num ponto
 de configuração nomeado com o valor de fábrica do legado e com teste de borda,
 como o **P6** da constituição exige. Número que aparece aqui antes da tarefa dele
 é número sem teste de borda.
+
+> O primeiro deles já chegou: os **60 segundos** vivem em
+> `FOLGA_DE_AGENDAMENTO_EM_SEGUNDOS`
+> (`agendamento/estado-pela-data.ts`), com a fonte no legado e teste nos dois
+> lados da borda. O cabeçalho da constante registra por que ela **não** virou
+> ponto de configuração alterável em execução: no legado não é.
 
 **Não há consulta nem transição de estado em T001.** A forma de armazenamento
 entrou em T002 e a transição para publicado em T003, cada uma na seção abaixo.
@@ -662,6 +669,107 @@ está certo e a sequência descrita também — o que está deslocado é o núme
 lado. T011 corrigiu apenas as três citações da **própria** âncora, `:5413`, que é
 a regra desta tarefa; o resto é do arquivo de T003 e fica registrado aqui em vez
 de reescrito por conta própria.
+## O que T013 entrega, e só isso
+
+> *o comportamento de US-6 existe e os critérios CA-6.1, CA-6.2, CA-6.3, CA-6.4,
+> CA-6.5 passam contra o sistema novo*
+> — `.specify/specs/002-autoria-e-publicacao/tasks.md`, T013
+
+Tudo em `agendamento/`, mais **duas** adições em `publicacao/` que são do caminho
+que US-1 também atravessa. O caso de uso é
+[UC-04](../../../.specify/use-cases/UC-04-agendar-publicacao-de-conteudo.md), que
+*"estende UC-03"*, e a regra é BR-MIGRAR-006 (`P6`) com o
+[ADR-0005](../../../.specify/adrs/0005-agendamento-por-comparacao-de-data-nao-por-transicao.md).
+
+| arquivo | o que é |
+|---|---|
+| `agendamento/instante-da-data.ts` | o `strtotime()` das quatro comparações, com o `false` do PHP preservado como zero |
+| `agendamento/estado-pela-data.ts` | **CA-6.1** e **CA-6.2**: a conversão bidirecional, a folga de 60 segundos e o anexo fora do bloco |
+| `agendamento/evento-de-publicacao-agendada.ts` | `_future_post_hook()`: limpa e agenda ao entrar em agendado, prioridade 5 no ponto 3 |
+| `agendamento/publicacao-agendada.ts` | **CA-6.3** e **CA-6.4**: `check_and_publish_future_post()`, as duas guardas e o reagendamento |
+| `agendamento/us-6-agendar-publicacao.test.ts` | 31 testes dos cinco critérios, por efeito no banco e por sequência de chamadas à fila |
+| `publicacao/transicao-de-estado.ts` | o ouvinte do **ponto 3** passou a existir, e `ESTADO_AGENDADO` nasceu ao lado de `ESTADO_PUBLICADO` |
+| `publicacao/contexto-de-publicacao.ts` | a porta da fila ganhou `agendarEventoUnico`, e o contexto ganhou `get_gmt_from_date()` |
+
+`publicarSeAindaAgendado` é a segunda entrada de `ModuloDeConteudo`, e a primeira
+cuja **permissão exigida é nenhuma** — quem a chama é a fila, e no legado não há
+ator no disparo (`wp-includes/default-filters.php:357`). O **P4** manda declarar
+a permissão de toda operação exposta *e preservar o default de cada camada,
+inclusive quando o default é permissivo*: declarar "nenhuma", com a âncora, é
+declaração.
+
+### Os três mecanismos de guarda, e por que nenhum deles se remove
+
+ADR-0005 os tabela, e são eles que tornam REQ-024 construível sobre uma fila que
+não é confiável — `plan.md` diz na seção *Sequência* que *"essa verificação dupla
+é o que torna REQ-024 construível mesmo com a fila do legado"*.
+
+| mecanismo | o que faz | onde está |
+|---|---|---|
+| `_future_post_hook()` (`:8205`) | ao entrar em agendado, limpa o evento pendente e agenda um novo na data | `agendamento/evento-de-publicacao-agendada.ts` |
+| `_transition_post_status()` (`:8189`) | em **qualquer** transição, limpa o evento | `publicacao/transicao-de-estado.ts` (T003, CA-1.5) |
+| `check_and_publish_future_post()` (`:5482`) | ao ser chamada pela fila, reconfere estado **e** data | `agendamento/publicacao-agendada.ts` |
+
+A nota de compatibilidade de BR-MIGRAR-006 é endereçada a esta tarefa: *"Num alvo
+com fila real a verificação dupla pareceria redundante — e removê-la mudaria o
+comportamento no primeiro atraso."* É o risco 3 de `plan.md`, e as duas guardas
+estão aqui mesmo que a fila do alvo venha a ser confiável.
+
+### As cinco coisas de T013 que um porte distraído faria diferente
+
+1. **Agendar não é um comando: é o efeito de salvar com data futura.** UC-04 é
+   literal no gatilho (*"não há comando 'agendar'"*) e ADR-0005 descarta a
+   alternativa pelo nome. Por isso T013 **não** criou uma operação `agendar`:
+   criou a comparação de data que o caminho de gravação chama, e a conversão é
+   **bidirecional** — data no passado publica na hora, pela mesma comparação
+   (CA-6.2).
+2. **A folga de 60 segundos não é configurável, e explicitá-la como configuração
+   seria inventar ponto de extensão.** `MINUTE_IN_SECONDS` vem de um `define()`
+   **sem** guarda `defined()` (`default-constants.php:158`) e aparece literal nas
+   duas comparações, sem filtro. T013 deu a ela nome, fonte e teste de borda nos
+   dois lados; torná-la alterável em execução é decisão de outra pessoa, e está
+   registrada no cabeçalho de `agendamento/estado-pela-data.ts`.
+3. **Entrar em agendado limpa o evento DUAS vezes e agenda uma.** São dois
+   ouvintes do núcleo em dois pontos diferentes da mesma transição — o do ponto 1
+   limpa incondicionalmente, o do ponto 3 limpa de novo e agenda. Fundir as duas
+   numa "otimização" muda a sequência que o último cenário de `PT-002` compara.
+4. **As duas metades do agendamento leem colunas diferentes.**
+   `_future_post_hook()` parte de `post_date` e converte com
+   `get_gmt_from_date()`; a verificação dupla parte de `post_date_gmt` cru. O
+   docblock do legado diz o contrário do que o código faz (`:8195`), e o código
+   venceu (**P1**). As duas fontes só coincidem enquanto o fuso do site não muda.
+5. **As bordas de tempo são três, e são diferentes entre si.** Na gravação a
+   comparação é `>=` 60 segundos num sentido e `<` 60 no outro; na hora de
+   publicar é `>` **sem folga nenhuma**. Logo um conteúdo pode ser agendado na
+   gravação por estar 60 segundos à frente e publicado pela fila no segundo exato
+   da data.
+
+### 🔴 O que T013 encontrou aberto, e NÃO fechou
+
+**A tabela *Contratos* de `plan.md` descreve uma operação que o sistema analisado
+não tem, com um erro que ele não comete.** A linha é
+`| agendar publicação | identificador e instante futuro | conteúdo em estado
+agendado, com evento na fila | instante no passado |`, e as duas metades
+divergem da spec, do caso de uso, do ADR e da regra de negócio:
+
+- **não há operação de agendar** — UC-04: *"o autor salva conteúdo publicado com
+  data no futuro — não há comando 'agendar'"*; ADR-0005 descarta *"`future` como
+  transição explícita"* com a consequência medida (*"exigiria que a interface e
+  toda a API distinguissem publicar de agendar"*);
+- **instante no passado não é erro: é publicação imediata** — é o que CA-6.2
+  manda, é o que UC-04 repete (*"a conversão é bidirecional e ninguém a
+  comanda"*) e é o que o `elseif` de `:4804` faz.
+
+**T013 implementou o lado em que spec, caso de uso, ADR e BR-MIGRAR-006
+concordam**, e não criou a operação que erra no passado — porque criá-la
+derrubaria CA-6.2. A autoridade para resolver assim está no próprio `plan.md`,
+que abre dizendo *"a spec diz **o quê** e **por quê**; este arquivo diz
+**como**"* e *"nenhum requisito novo nasce aqui: o que não estiver na spec não é
+requisito, é invenção"* — isto é, o plano se subordina à spec por regra escrita
+nele mesmo, e não houve escolha entre duas decisões humanas. Mesmo assim fica
+**registrado e não fechado**, em `agendamento/index.ts` e aqui: quem revisar a
+tabela *Contratos* decide se a linha se reescreve. Mesmo precedente de T003 com
+CA-1.1.
 
 ## O que "enumeração fechada" significa aqui — leia antes de usar o tipo
 
@@ -752,7 +860,8 @@ Dois irmãos deste achado, que também não se "consertam":
 - **O agendamento não é confiado** (BR-MIGRAR-006, ADR-0005). A verificação dupla
   recusa publicar o que não está agendado e reagenda quando a data não chegou.
   Num alvo com fila real ela pareceria redundante, e removê-la mudaria o
-  comportamento no primeiro atraso. É T013 (US-6).
+  comportamento no primeiro atraso. Entregue por **T013** (US-6) — ver a seção
+  dela, inclusive a divergência de `plan.md` que ficou aberta.
 
 ## O que este módulo não vai ter, por decisão de outra pessoa
 
@@ -773,7 +882,7 @@ disto se decide no meio da implementação.
 
 ## O que ninguém decidiu, e que T001 não decidiu tampouco
 
-> T003 acrescentou o item 5. Os quatro primeiros são de T001.
+> T003 acrescentou o item 5 e T013 o item 6. Os quatro primeiros são de T001.
 
 1. 🔴 **US-9 pede notificação que o sistema analisado não tem.** CA-9.1 e CA-9.2
    exigem aviso ao autor quando o conteúdo é devolvido ou publicado por outra
@@ -819,11 +928,18 @@ disto se decide no meio da implementação.
    precedente: recusa como valor com o código e o texto da API, rebaixamento
    declarado e não aplicado em `visibilidade/permissao-de-conteudo-privado.ts`.
 
+7. 🔴 **A tabela *Contratos* de `plan.md` descreve `agendar publicação` como
+   operação com entrada e erro próprios, e o sistema analisado não tem nem a
+   operação nem o erro.** T013 implementou o lado em que spec, UC-04, ADR-0005 e
+   BR-MIGRAR-006 concordam — a comparação de data, bidirecional, sem comando — e
+   registrou a linha divergente sem reescrevê-la. A análise completa está na
+   seção de T013, acima, e no cabeçalho de `agendamento/index.ts`.
+
 Os quatro primeiros estão em `spec.md`, seção *Perguntas em aberto* (o primeiro,
 como consequência de nada ali especificar o aviso). A tabela *Não negociável* da
 constituição põe cada um deles fora do alcance do agente de codificação. O quinto
-e o sexto não estão em `spec.md`: os dois são divergência entre o critério de
-aceite e o código lido, e o **P1** os põe na mesma mesa.
+o sexto e o sétimo não estão em `spec.md`: são divergências entre o que o pacote
+escreve e o código lido, e o **P1** as põe na mesma mesa.
 
 ### Uma divergência menor, registrada e não corrigida aqui
 
