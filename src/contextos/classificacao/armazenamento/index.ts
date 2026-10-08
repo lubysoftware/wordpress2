@@ -27,6 +27,15 @@
  * `links` — as duas em `chaves-e-tabelas.ts`, com o que elas cobram de quem as
  * portar.
  *
+ * **Duas leituras entraram depois, com T005 (US-2)**, porque sem elas nao existe
+ * "substituir integralmente" e a sequencia de comandos do legado nao se
+ * reproduz. As duas estao declaradas no arquivo da estrutura, com o conjunto de
+ * argumentos exato que as justifica:
+ * {@link RepositorioDeVinculos.listarRotulosDoObjeto} (`vinculo.ts`) e
+ * {@link RepositorioDeRotulosNoContexto.listarRotulosPorIdsNoContexto}
+ * (`rotulo-no-contexto.ts`). Nenhuma das duas e a consulta de termos por filtro,
+ * que continua sendo de T009 e da feature 015.
+ *
  * **Nada aqui resolve no carregamento** (`EXT-ORDEM`, BR-MIGRAR-106): criar o
  * armazenamento monta nome de tabela e nada mais — nenhuma consulta sai, nenhuma
  * opcao e lida, nenhum DDL e emitido. **E nada aqui guarda estado de modulo**
@@ -127,6 +136,7 @@ export {
   lerVinculo,
   SEM_ORDEM,
   type ChaveDoVinculo,
+  type OrdemDaLeituraInversa,
   type RepositorioDeVinculos,
   type Vinculo,
   type VinculoOrdenado,

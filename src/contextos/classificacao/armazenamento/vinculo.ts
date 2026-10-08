@@ -71,19 +71,29 @@
  * valores (`:2986`). A assimetria e observavel na sequencia de comandos, e por
  * isso sao dois metodos e nao um com parametro opcional.
  *
- * ── A LEITURA INVERSA NAO ESTA AQUI, E A AUSENCIA E DECLARADA ──────────────
+ * ── A LEITURA INVERSA: UM RECORTE DELA ENTROU COM T005 ─────────────────────
  *
- * "Quais rotulos tem este objeto" — a leitura que US-2 usa para saber o que
- * substituir — **nao e uma cadeia que o legado envia**: ela e montada por
+ * "Quais rotulos tem este objeto" — a leitura com que US-2 descobre o que
+ * substituir — **nao e uma cadeia que o legado monta de uma vez**: ela sai de
  * `WP_Term_Query`, que acrescenta ``INNER JOIN {$wpdb->term_relationships} AS tr
  * ON tr.term_taxonomy_id = tt.term_taxonomy_id`` (`class-wp-term-query.php:701`) e
  * `tr.object_id IN (...)` (`:602`) a uma consulta montada **por fragmento, com um
  * ponto de extensao entre os fragmentos** — `terms_clauses` e os demais, que o P2
- * poe no contrato publico. Transcrever aqui uma versao simplificada dela
- * produziria uma segunda consulta de termos no sistema, **sem** os pontos de
- * extensao, e seria a forma mais barata de perder o contrato. A consulta de termos
- * e da tarefa da listagem (T009, CA-4.1 a CA-4.5) e da camada de dados por
- * fragmento (feature 015, T007).
+ * poe no contrato publico.
+ *
+ * T002 deixou a leitura inteira de fora, e T005 trouxe **um recorte dela**:
+ * {@link RepositorioDeVinculos.listarRotulosDoObjeto}, que e a cadeia que aquela
+ * consulta produz para os **dois** conjuntos de argumentos que
+ * `wp_set_object_terms()` passa, e nada alem deles. A razao de nao continuar
+ * esperando T009 e que sem esta leitura **nao existe "substituir integralmente"**:
+ * CA-2.1 depende de conhecer o conjunto anterior.
+ *
+ * ⚠️ O que o recorte **nao** e, e por isso ele nao substitui a consulta de termos
+ * de T009 e da feature 015 (T007): nao aceita filtro por nome, apelido, pai,
+ * hierarquia nem contagem, nao tem `number`/`offset`, nao monta fragmento e nao
+ * tem onde encaixar `terms_clauses`. Quando a consulta por fragmento chegar, este
+ * metodo passa a ser uma chamada a ela com esses argumentos — nao uma segunda
+ * implementacao ao lado.
  *
  * ── OS PONTOS DE EXTENSAO DESTE CAMINHO, DECLARADOS E NAO EMITIDOS ─────────
  *
@@ -106,7 +116,11 @@ import type {
   PortaDeDados,
   ValorDeParametro,
 } from '../portas/index.js';
-import { tabelaDeVinculos } from './chaves-e-tabelas.js';
+import {
+  tabelaDeRotulos,
+  tabelaDeRotulosNoContexto,
+  tabelaDeVinculos,
+} from './chaves-e-tabelas.js';
 import { comoInteiro, primeiroValor } from './leitura-de-linha.js';
 
 /**
@@ -159,6 +173,20 @@ export interface VinculoOrdenado {
   readonly ordem: number;
 }
 
+/**
+ * As **duas** ordenacoes que a leitura inversa tem no legado, e so elas.
+ *
+ * Nao e opcao de conveniencia: sao os dois conjuntos de argumentos com que
+ * `wp_set_object_terms()` chama `wp_get_object_terms()`, e a diferenca entre eles
+ * e observavel na cadeia enviada.
+ *
+ * | valor | de onde vem | o que a cadeia ganha |
+ * |---|---|---|
+ * | `'nenhuma'` | `'orderby' => 'none'` na leitura do conjunto anterior (`wp-includes/taxonomy.php:2866`) | nada: `parse_orderby()` devolve cadeia vazia e o `ORDER BY` **nao e emitido** (`class-wp-term-query.php:936` e `:450`) |
+ * | `'nome'` | a leitura do conjunto final do ramo ordenado (`:2977`), que **nao** passa `orderby` e cai no default `'name'` (`class-wp-term-query.php:200`) | `ORDER BY t.name ASC` (`:925` e `:746`) |
+ */
+export type OrdemDaLeituraInversa = 'nenhuma' | 'nome';
+
 export interface RepositorioDeVinculos {
   /**
    * Se o par ja esta gravado:
@@ -171,6 +199,45 @@ export interface RepositorioDeVinculos {
    * e por isso que ela e metodo e nao detalhe de `inserir`.
    */
   existe(chave: ChaveDoVinculo): boolean;
+  /**
+   * Os **rotulos** que um objeto tem naquele contexto, pela cadeia que
+   * `WP_Term_Query` monta para os argumentos de `wp_set_object_terms()`:
+   *
+   * `SELECT t.term_id FROM {site}terms AS t INNER JOIN {site}term_taxonomy AS tt
+   * ON t.term_id = tt.term_id INNER JOIN {site}term_relationships AS tr ON
+   * tr.term_taxonomy_id = tt.term_taxonomy_id WHERE tt.taxonomy IN (?) AND
+   * tr.object_id IN (?)`
+   *
+   * Os fragmentos, um por um: o `SELECT t.term_id` do ramo `default` de
+   * `$selects` (`class-wp-term-query.php:671`), a juncao com `term_taxonomy`
+   * (`:698`), a juncao com `term_relationships` que **so** existe quando ha
+   * `object_ids` (`:701`), `tt.taxonomy IN (...)` (`:457`), `tr.object_id IN
+   * (...)` (`:602`) e o `ORDER BY` de {@link OrdemDaLeituraInversa} (`:746`).
+   *
+   * ⚠️ **Devolve `term_id`, nao `term_taxonomy_id`, e isso e do legado.** O campo
+   * pedido e `tt_ids`, mas a consulta **nao o seleciona**: ela traz `t.term_id`, o
+   * legado completa os termos (`_prime_term_caches()`, `taxonomy.php:4165`, e
+   * `populate_terms()`, `class-wp-term-query.php:1123`) e so entao
+   * `format_terms()` le `term_taxonomy_id` de cada termo completo (`:989`). A
+   * consequencia **nao** e cosmetica e cabe a quem chama reproduzi-la: um rotulo
+   * compartilhado entre dois contextos faz `get_term( $term_id )` devolver
+   * `ambiguous_term_id`, e `populate_terms()` **descarta** o que nao for termo
+   * (`:1141`) — logo ele desaparece do conjunto anterior. Selecionar
+   * `tt.term_taxonomy_id` aqui o manteria, e seria comportamento que o legado nao
+   * tem.
+   *
+   * ⚠️ **Duas diferencas de texto com o legado, as duas declaradas.** A lista `IN`
+   * e um marcador por item, e nao concatenacao, porque REQ-164 a proibe — o mesmo
+   * desvio, pela mesma razao, de {@link RepositorioDeVinculos.apagar}. E o legado
+   * emite `SELECT $distinct $fields` com `$distinct` vazio, e monta o comando com
+   * quebras de linha e tabulacao entre as clausulas (`:752`-`:757`): o conjunto de
+   * linhas e o mesmo, o espaco em branco nao.
+   */
+  listarRotulosDoObjeto(
+    objetoId: number,
+    contexto: string,
+    ordem?: OrdemDaLeituraInversa,
+  ): readonly number[];
   /**
    * Os objetos vinculados a um rotulo no contexto:
    * `SELECT object_id FROM {site}term_relationships WHERE term_taxonomy_id = ?`
@@ -249,6 +316,8 @@ export function criarRepositorioDeVinculos(
   dados: PortaDeDados,
 ): RepositorioDeVinculos {
   const tabela = tabelaDeVinculos(dados);
+  const tabelaDoRotulo = tabelaDeRotulos(dados);
+  const tabelaDoContexto = tabelaDeRotulosNoContexto(dados);
 
   return {
     existe(chave) {
@@ -263,6 +332,24 @@ export function criarRepositorioDeVinculos(
       // `if ( $wpdb->get_var( ... ) )`: o legado decide pela verdade do valor, e
       // `term_taxonomy_id` nunca e `0` numa linha gravada.
       return comoInteiro(valor) !== 0;
+    },
+
+    listarRotulosDoObjeto(objetoId, contexto, ordem = 'nenhuma') {
+      // `$this->sql_clauses['orderby'] = $orderby ? "$orderby $order" : ''`
+      // (`class-wp-term-query.php:746`): com `orderby => none` a clausula nao
+      // existe, e e por isso que a concatenacao e condicional e nao um default.
+      const ordenacao = ordem === 'nome' ? ' ORDER BY t.name ASC' : '';
+
+      return dados
+        .selecionar({
+          texto:
+            `SELECT t.term_id FROM ${tabelaDoRotulo} AS t ` +
+            `INNER JOIN ${tabelaDoContexto} AS tt ON t.term_id = tt.term_id ` +
+            `INNER JOIN ${tabela} AS tr ON tr.term_taxonomy_id = tt.term_taxonomy_id ` +
+            `WHERE tt.taxonomy IN (?) AND tr.object_id IN (?)${ordenacao}`,
+          parametros: [contexto, objetoId],
+        })
+        .map((linha) => comoInteiro(linha['term_id']));
     },
 
     listarObjetosDoRotuloNoContexto(rotuloNoContextoId) {

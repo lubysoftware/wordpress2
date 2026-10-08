@@ -73,7 +73,7 @@ test('o modulo carrega com os oito contextos do nucleo registrados', () => {
   assert.equal(modulo.contextos.listar().length, 8);
 });
 
-test('a superficie do modulo e so o que T001, T002 e T003 entregam', () => {
+test('a superficie do modulo e so o que T001, T002, T003 e T005 entregam', () => {
   const { portas } = portasDeTeste();
 
   const modulo = criarModuloDeClassificacao(portas);
@@ -95,8 +95,14 @@ test('a superficie do modulo e so o que T001, T002 e T003 entregam', () => {
   // (US-5) e sem a cascata (US-4), e publica-la como operacao criaria um caminho
   // de apagar dado que o legado nao expoe. Ela e exportada pelo modulo, por
   // `./rotulo-e-contexto/`, e a razao esta no bloco 🔴 do arquivo dela.
+  //
+  // As quatro de T005 sao as de US-2, e a assimetria de permissao entre elas e
+  // do legado: so `classificarConteudo` verifica capacidade, porque so o bloco
+  // de `wp_insert_post()` a verifica (`wp-includes/post.php:5105`); as outras
+  // tres correspondem a funcoes que o nucleo chama **sem ator**.
   assert.deepEqual(Object.keys(modulo).sort(), [
     'armazenamento',
+    'classificarConteudo',
     'contextoAceitaTipoDeObjeto',
     'contextos',
     'contextosDoTipoDeObjeto',
@@ -104,7 +110,10 @@ test('a superficie do modulo e so o que T001, T002 e T003 entregam', () => {
     'nomesDosContextosDoTipoDeObjeto',
     'obterTermo',
     'portas',
+    'recontarUsoDosRotulos',
+    'removerVinculosDoObjeto',
     'renomearRotulo',
+    'substituirVinculosDoObjeto',
   ]);
 });
 
