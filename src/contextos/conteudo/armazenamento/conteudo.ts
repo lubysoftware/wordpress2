@@ -273,6 +273,39 @@ const COLUNAS_GRAVAVEIS: readonly (readonly [keyof ConteudoGravavel, string])[] 
     ['guid', 'guid'],
   ];
 
+/**
+ * O nome de coluna do legado como campo gravavel, ou `null` quando a coluna nao
+ * e escrita pelo caminho de aplicacao.
+ *
+ * ⚠️ **Acrescentado por T021, e nao por gosto de simetria.** O ponto de extensao
+ * `_wp_post_revision_fields` (`wp-includes/revision.php:53`) e **filtro
+ * publico**: uma extensao declara ali, pelo **nome de coluna do legado**, qual
+ * campo do conteudo entra na versao, e `_wp_post_revision_data()` copia
+ * `array_intersect( array_keys( $post ), array_keys( $fields ) )` —
+ * isto e, qualquer coluna de `posts` que a lista nomeie, nao so as tres de
+ * fabrica. Sem esta traducao, o ponto de extensao existiria sem *"a capacidade
+ * de alterar o resultado que ele tem hoje"*, que e o que o **P2** poe na tabela
+ * *Nao negociavel*.
+ *
+ * Mora aqui, e nao em `../versoes/`, porque {@link COLUNAS_GRAVAVEIS} e o unico
+ * lugar deste modulo em que o par coluna-campo existe: uma segunda copia dele em
+ * outra pasta seria a duplicacao que o cabecalho de `versao.ts` recusa — *"daria
+ * dois lugares para a mesma cadeia"*.
+ *
+ * `ID` e `comment_count` devolvem `null` porque nao sao gravaveis (item 1 do
+ * cabecalho), e as duas estao entre os nove nomes que o legado remove da lista
+ * de campos versionaveis de qualquer forma (`COLUNAS_NAO_VERSIONAVEIS`, em
+ * `versao.ts`).
+ */
+export function campoDaColuna(coluna: string): keyof ConteudoGravavel | null {
+  for (const [campo, nome] of COLUNAS_GRAVAVEIS) {
+    if (nome === coluna) {
+      return campo;
+    }
+  }
+  return null;
+}
+
 export function criarRepositorioDeConteudo(
   dados: PortaDeDados,
 ): RepositorioDeConteudo {

@@ -1,14 +1,14 @@
 /**
  * Modulo de conteudo — BC-01 de `target_architecture.md`.
  *
- * Feature `002-autoria-e-publicacao`, tarefas T001, T002 e T003. O que existe
- * aqui e o que as tres entregam: o modulo carrega com as tres portas
+ * Feature `002-autoria-e-publicacao`, tarefas T001, T002, T003 e T021. O que existe
+ * aqui e o que as quatro entregam: o modulo carrega com as tres portas
  * declaradas, com o vocabulario de estado editorial do legado como enumeracao
  * fechada, com a forma de armazenamento de conteudo, metadado e versao anterior
- * e com **uma** regra de negocio — a publicacao por ato explicito de US-1.
- * Gravacao, agendamento, identificador na URL, submissao, revisao, versao
- * anterior e rascunho automatico entram nas tarefas delas (T005 em diante), e a
- * leitura obrigatoria de cada uma esta em `./README.md`.
+ * e com **duas** regras de negocio — a publicacao por ato explicito de US-1 e as
+ * versoes anteriores de US-10. Gravacao, agendamento, identificador na URL,
+ * submissao, revisao, notificacao e rascunho automatico entram nas tarefas delas
+ * (T005 em diante), e a leitura obrigatoria de cada uma esta em `./README.md`.
  *
  * Duas coisas que este arquivo faz de proposito:
  *
@@ -46,6 +46,17 @@ import {
   type PedidoDePublicacao,
   type ResultadoDaPublicacao,
 } from './publicacao/index.js';
+import {
+  guardarVersao,
+  listarVersoesDoConteudo,
+  restaurarVersao,
+  type ContextoDeVersao,
+  type PedidoDeListaDeVersoes,
+  type PedidoDeRestauracao,
+  type ResultadoDaListaDeVersoes,
+  type ResultadoDaRestauracao,
+  type ResultadoDeGuardarVersao,
+} from './versoes/index.js';
 
 export * from './portas/index.js';
 export * from './estado-editorial.js';
@@ -61,6 +72,17 @@ export * from './armazenamento/index.js';
   chamador no legado (a fila, em T013).
 */
 export * from './publicacao/index.js';
+/*
+  T021 (US-10) sai pelo barril E pela composicao, pela mesma razao de T003: a
+  tabela *Contratos* de `plan.md` lista *"listar versoes e restaurar"* como
+  operacao desta feature, com entrada, saida e erro proprios. O resto da pasta
+  sai pelo barril porque e o que quem monta o contexto da requisicao precisa
+  alcancar: as tres gravacoes de ligacao tardia, os dez pontos de extensao, os
+  cinco ouvintes de fabrica e as funcoes do legado sem portao — `wp_save_post_revision()`,
+  `_wp_put_post_revision()` (que T023 reusa) e `wp_restore_post_revision()`, que
+  tem dois chamadores com guardas diferentes no legado.
+*/
+export * from './versoes/index.js';
 
 /** As tres portas de que este modulo depende, na forma em que ele as recebe. */
 export interface PortasDeConteudo {
@@ -79,6 +101,9 @@ export interface PortasDeConteudo {
  * | operacao | historia | tarefa | permissao exigida |
  * |---|---|---|---|
  * | `publicar` | US-1 | T003 | **a capacidade de publicar daquele tipo** (`$post_type->cap->publish_posts`), CA-1.1 |
+ * | `guardarVersao` | US-10 | T021 | **nenhuma, e e assim no legado** — e ouvinte do caminho de gravacao, onde `edit_post` ja foi cobrada |
+ * | `listarVersoes` | US-10 | T021 | **`edit_post` do conteudo** (nao `read_post`) |
+ * | `restaurarVersao` | US-10 | T021 | **`edit_post` do conteudo pai** da versao |
  *
  * O armazenamento **nao e operacao**, e por isso nao declara permissao: ele nao
  * decide nada.
@@ -114,6 +139,65 @@ export interface ModuloDeConteudo {
     contexto: ContextoDePublicacao,
     pedido: PedidoDePublicacao,
   ): ResultadoDaPublicacao;
+
+  /**
+   * Guarda a versao anterior do conteudo editado (US-10, T021) —
+   * `wp_save_post_revision()`.
+   *
+   * **Permissao exigida: nenhuma, e e assim no legado.** Esta nao e uma
+   * superficie: e o **ouvinte** que o nucleo registra em
+   * `wp_after_insert_post` com prioridade 9 e em `post_updated` com prioridade
+   * 10 (`versoes/contexto-de-versao.ts`, `OUVINTES_DE_FABRICA_DA_VERSAO`), e a
+   * capacidade de quem gravou o conteudo ja foi cobrada pelo caminho de
+   * gravacao. O **P4** manda *"preservar o default de cada camada, inclusive
+   * quando o default e permissivo"*, e dar portao a esta operacao impediria o
+   * versionamento no unico lugar de onde ele e disparado.
+   *
+   * ⚠️ **A versao guardada carrega o texto como ele acabou de ser gravado, e
+   * nao o anterior** — a divergencia de redacao com CA-10.1 esta registrada no
+   * cabecalho de `versoes/contexto-de-versao.ts` e **nao foi resolvida aqui**.
+   */
+  guardarVersao(
+    contexto: ContextoDeVersao,
+    pedido: PedidoDeGuardarVersao,
+  ): ResultadoDeGuardarVersao;
+
+  /**
+   * Lista as versoes de um conteudo (US-10, T021).
+   *
+   * **Permissao exigida: `edit_post` do conteudo** — e nao `read_post`
+   * (`class-wp-rest-revisions-controller.php:185`). Ver o historico exige poder
+   * editar o conteudo.
+   */
+  listarVersoes(
+    contexto: ContextoDeVersao,
+    pedido: PedidoDeListaDeVersoes,
+  ): ResultadoDaListaDeVersoes;
+
+  /**
+   * Restaura uma versao sobre o conteudo (US-10, T021) —
+   * `wp_restore_post_revision()` com as guardas da tela do painel.
+   *
+   * **Permissao exigida: `edit_post` do conteudo PAI da versao**
+   * (`wp-admin/revision.php:42`). Nao e sobre a versao: a resolucao de uma
+   * versao em `edit_post` segue para o pai de qualquer forma
+   * (`capabilities.php:215`), e a superficie pergunta pelo pai diretamente.
+   */
+  restaurarVersao(
+    contexto: ContextoDeVersao,
+    pedido: PedidoDeRestauracao,
+  ): ResultadoDaRestauracao;
+}
+
+/**
+ * Quem se versiona.
+ *
+ * A entrada e **so o identificador**, como em `wp_save_post_revision( $post_id )`:
+ * o ouvinte do legado recebe o identificador e le a linha, e e essa releitura
+ * que faz a versao carregar o texto **ja gravado**.
+ */
+export interface PedidoDeGuardarVersao {
+  readonly conteudoId: number;
 }
 
 /**
@@ -141,5 +225,9 @@ export function criarModuloDeConteudo(
     // sai daqui, que e o que `EXT-ORDEM` cobra e o que `modulo.test.ts` afirma.
     armazenamento: criarArmazenamentoDeConteudo(portas.dados),
     publicar,
+    guardarVersao: (contexto, pedido) =>
+      guardarVersao(contexto, pedido.conteudoId),
+    listarVersoes: listarVersoesDoConteudo,
+    restaurarVersao,
   };
 }

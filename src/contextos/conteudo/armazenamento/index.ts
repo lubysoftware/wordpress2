@@ -83,6 +83,7 @@ export {
 } from './chaves-e-tabelas.js';
 
 export {
+  campoDaColuna,
   criarRepositorioDeConteudo,
   DATA_SENTINELA,
   lerConteudo,
@@ -122,6 +123,7 @@ export {
   type CamposDaVersao,
   type CamposVersionados,
   type NomeDeVersao,
+  type OrdemDasVersoes,
   type RepositorioDeVersoes,
 } from './versao.js';
 

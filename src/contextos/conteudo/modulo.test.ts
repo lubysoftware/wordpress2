@@ -94,23 +94,29 @@ test('o modulo carrega com as tres portas declaradas', () => {
   assert.equal(modulo.portas.relogio, portas.relogio);
 });
 
-test('a superficie do modulo e so o que T001, T002 e T003 entregam', () => {
+test('a superficie do modulo e so o que T001, T002, T003 e T021 entregam', () => {
   const { portas } = portasDeTeste();
 
   const modulo = criarModuloDeConteudo(portas);
 
-  // A lista cresceu em T002, que acrescentou `armazenamento`, e em T003, que
+  // A lista cresceu em T002, que acrescentou `armazenamento`; em T003, que
   // acrescentou `publicar` — a primeira operacao da tabela *Contratos* de
-  // `plan.md` a entrar aqui, e a primeira a declarar capacidade (CA-1.1). As
-  // outras cinco crescem NA TAREFA DELAS. Esta afirmacao esta aqui para que
-  // nenhuma operacao chegue antes da propria tarefa, que e o que o P4 da
-  // constituicao cobra: "toda operacao exposta nova nasce com declaracao
-  // explicita de permissao".
+  // `plan.md` a entrar aqui, e a primeira a declarar capacidade (CA-1.1); e em
+  // T021, que acrescentou as tres de US-10: `guardarVersao`, que no legado nao
+  // tem portao porque e OUVINTE do caminho de gravacao, e `listarVersoes` e
+  // `restaurarVersao`, que exigem `edit_post` — a primeira do conteudo, a
+  // segunda do conteudo PAI da versao. As demais crescem NA TAREFA DELAS. Esta
+  // afirmacao esta aqui para que nenhuma operacao chegue antes da propria
+  // tarefa, que e o que o P4 da constituicao cobra: "toda operacao exposta nova
+  // nasce com declaracao explicita de permissao".
   assert.deepEqual(Object.keys(modulo).sort(), [
     'armazenamento',
+    'guardarVersao',
+    'listarVersoes',
     'nome',
     'portas',
     'publicar',
+    'restaurarVersao',
   ]);
 });
 

@@ -51,7 +51,7 @@
  * | o rebaixamento para `pending` de quem nao pode publicar | **T015**, US-7 |
  * | a soma de capacidade sobre conteudo alheio | **T017**, US-8 |
  * | a notificacao ao autor — e a parada registrada sobre ela | **T019**, US-9 |
- * | a versao anterior | **T021**, US-10 |
+ * | a versao anterior | **T021**, US-10 — entregue, em `../versoes/` |
  * | o rascunho automatico | **T023**, US-11 |
  * | a sanitizacao do corpo (REQ-030), o formato do corpo (REQ-032) e a trilha editorial (REQ-028) | **ninguem deste pacote** — `do-not-rewrite.md` e as *Perguntas em aberto* de `spec.md` |
  * | o cache de objeto, o barramento de pontos de extensao e a fila agendada | REQ-165, REQ-162 e a feature 011 |

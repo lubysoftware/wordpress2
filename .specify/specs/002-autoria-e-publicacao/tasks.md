@@ -81,7 +81,7 @@
       *entrega:* 4 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-027-1, UT-027-2, UT-027-3, UT-027-4), com o mesmo dado de entrada, ação e resultado esperado.
       *satisfaz:* CA-9.1, CA-9.2, CA-9.3, CA-9.4
       *depende de:* T019
-- [ ] **T021** Guardar versões anteriores do conteúdo editado (US-10)
+- [x] **T021** Guardar versões anteriores do conteúdo editado (US-10)
       *entrega:* o comportamento de US-10 existe e os critérios CA-10.1, CA-10.2, CA-10.3, CA-10.4 passam contra o sistema novo
       *satisfaz:* CA-10.1, CA-10.2, CA-10.3, CA-10.4
       *depende de:* T001, T002, T003

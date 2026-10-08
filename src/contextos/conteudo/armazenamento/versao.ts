@@ -221,9 +221,27 @@ export function camposDaVersao(
   };
 }
 
+/**
+ * O sentido da ordem de {@link RepositorioDeVersoes.listar}.
+ *
+ * ⚠️ **Acrescentado por T021, e e o legado que pede os dois.**
+ * `wp_get_post_revisions()` tem `'order' => 'DESC'` como default
+ * (`wp-includes/revision.php:674`), e a poda de versoes passadas do limite
+ * chama a MESMA funcao com `array( 'order' => 'ASC' )`
+ * (`wp-includes/revision.php:229`) — porque e a ordem crescente que poe a versao
+ * **mais antiga** na frente da lista, e e dela que o `array_slice( $revisions,
+ * 0, $delete )` tira as que vao sair. Invertendo a lista em memoria, o comando
+ * que sai deixa de ser o do legado; e trocando o `ASC` por `DESC` na poda,
+ * apaga-se a versao mais nova.
+ *
+ * O `orderby` **nao** e parametro: ele e `'date ID'` nas duas chamadas.
+ */
+export type OrdemDasVersoes = 'desc' | 'asc';
+
 export interface RepositorioDeVersoes {
   /**
-   * As versoes de um conteudo, da mais recente para a mais antiga.
+   * As versoes de um conteudo, da mais recente para a mais antiga — ou o
+   * contrario, quando {@link OrdemDasVersoes} pede.
    *
    * Os tres criterios de busca e os dois de ordem sao os de
    * `wp_get_post_revisions()` (`wp-includes/revision.php:666` a `:700`):
@@ -237,7 +255,7 @@ export interface RepositorioDeVersoes {
    * `wp-includes/post.php:3912`). Portar `WP_Query` e da feature 004 e da 015;
    * o que esta leitura garante e o conjunto de linhas e a ordem delas.
    */
-  listar(conteudoId: number): readonly Conteudo[];
+  listar(conteudoId: number, ordem?: OrdemDasVersoes): readonly Conteudo[];
   /**
    * ⚠️ A lista **crua** de identificadores, que a exclusao do pai usa
    * (`wp-includes/post.php:3912` a `:3914`), nao esta aqui: ela e
@@ -257,19 +275,25 @@ export function criarRepositorioDeVersoes(
   dados: PortaDeDados,
 ): RepositorioDeVersoes {
   const tabela = tabelaDeConteudo(dados);
-  const condicao =
-    'WHERE post_parent = ? AND post_type = ? AND post_status = ? ' +
-    'ORDER BY post_date DESC, ID DESC';
+
+  /** Os dois criterios de ordem, no sentido pedido: `orderby => 'date ID'`. */
+  function condicao(ordem: OrdemDasVersoes): string {
+    const sentido = ordem === 'asc' ? 'ASC' : 'DESC';
+    return (
+      'WHERE post_parent = ? AND post_type = ? AND post_status = ? ' +
+      `ORDER BY post_date ${sentido}, ID ${sentido}`
+    );
+  }
 
   function parametros(conteudoId: number): readonly (string | number)[] {
     return [conteudoId, TIPO_DE_VERSAO, ESTADO_DE_VERSAO];
   }
 
   return {
-    listar(conteudoId) {
+    listar(conteudoId, ordem = 'desc') {
       return dados
         .selecionar({
-          texto: `SELECT * FROM ${tabela} ${condicao}`,
+          texto: `SELECT * FROM ${tabela} ${condicao(ordem)}`,
           parametros: parametros(conteudoId),
         })
         .map(lerConteudo);
@@ -278,7 +302,7 @@ export function criarRepositorioDeVersoes(
     maisRecente(conteudoId) {
       const linha = primeiraLinha(
         dados.selecionar({
-          texto: `SELECT * FROM ${tabela} ${condicao} LIMIT 1`,
+          texto: `SELECT * FROM ${tabela} ${condicao('desc')} LIMIT 1`,
           parametros: parametros(conteudoId),
         }),
       );
