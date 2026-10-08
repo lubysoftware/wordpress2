@@ -25,11 +25,11 @@
       *entrega:* 4 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-034-1, UT-034-2, UT-034-3, UT-034-4), com o mesmo dado de entrada, ação e resultado esperado.
       *satisfaz:* CA-2.1, CA-2.2, CA-2.3, CA-2.4
       *depende de:* T005
-- [ ] **T007** Aplicar o termo padrão do contexto quando nenhum termo é informado (US-3)
+- [x] **T007** Aplicar o termo padrão do contexto quando nenhum termo é informado (US-3)
       *entrega:* o comportamento de US-3 existe e os critérios CA-3.1, CA-3.2, CA-3.3, CA-3.4 passam contra o sistema novo
       *satisfaz:* CA-3.1, CA-3.2, CA-3.3, CA-3.4
       *depende de:* T001, T002, T005
-- [ ] **T008** [P] Testes de US-3
+- [x] **T008** [P] Testes de US-3
       *entrega:* 5 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-035-1, UT-035-2, UT-035-3, UT-035-4, UT-035-5), com o mesmo dado de entrada, ação e resultado esperado. O teste de regra de negócio (UT-035-5) entra na mesma suíte.
       *satisfaz:* CA-3.1, CA-3.2, CA-3.3, CA-3.4
       *depende de:* T007
