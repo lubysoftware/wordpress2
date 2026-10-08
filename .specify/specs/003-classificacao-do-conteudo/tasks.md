@@ -37,7 +37,7 @@
       *entrega:* o comportamento de US-4 existe e os critérios CA-4.1, CA-4.2, CA-4.3, CA-4.4, CA-4.5 passam contra o sistema novo
       *satisfaz:* CA-4.1, CA-4.2, CA-4.3, CA-4.4, CA-4.5
       *depende de:* T001, T002, T003, T007
-- [ ] **T010** [P] Testes de US-4
+- [x] **T010** [P] Testes de US-4
       *entrega:* 7 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-036-1, UT-036-2, UT-036-3, UT-036-4, UT-036-5, UT-036-6, UT-036-7), com o mesmo dado de entrada, ação e resultado esperado. Os 2 testes de regra de negócio (UT-036-6, UT-036-7) entram na mesma suíte.
       *satisfaz:* CA-4.1, CA-4.2, CA-4.3, CA-4.4, CA-4.5
       *depende de:* T009
