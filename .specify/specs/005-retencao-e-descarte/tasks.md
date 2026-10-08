@@ -2,7 +2,7 @@
 
 > Ordem de dependência. `[P]` marca tarefa que não disputa arquivo com nenhuma outra desta feature e portanto pode rodar em paralelo com as demais, uma vez satisfeita a dependência dela: toda tarefa de teste, que toca só a própria suíte, e a tarefa de implementação cuja história não compartilha módulo com nenhuma outra história daqui.
 
-- [ ] **T001** Preparar o esqueleto do módulo de retenção
+- [x] **T001** Preparar o esqueleto do módulo de retenção
       *entrega:* o módulo carrega com as portas de dados, de relógio e de fila agendada declaradas, e o prazo de retenção lido de um ponto de configuração nomeado com o valor de fábrica do legado
       *satisfaz:* — (infraestrutura)
 - [ ] **T002** Portar os marcadores de lixeira como metadado
