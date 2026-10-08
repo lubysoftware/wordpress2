@@ -2,7 +2,7 @@
 
 > Ordem de dependência. `[P]` marca tarefa que não disputa arquivo com nenhuma outra desta feature e portanto pode rodar em paralelo com as demais, uma vez satisfeita a dependência dela: toda tarefa de teste, que toca só a própria suíte, e a tarefa de implementação cuja história não compartilha módulo com nenhuma outra história daqui.
 
-- [ ] **T001** Preparar o esqueleto do módulo de leitura pública
+- [x] **T001** Preparar o esqueleto do módulo de leitura pública
       *entrega:* o módulo carrega com a porta de dados declarada, resolve o endereço pedido para um conjunto vazio de critérios e devolve a resposta de endereço inexistente
       *satisfaz:* — (infraestrutura)
 - [ ] **T002** Portar a tabela de regras de tradução de endereço em critérios de consulta
