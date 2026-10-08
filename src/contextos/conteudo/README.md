@@ -7,10 +7,10 @@ por **T005**, o identificador na URL único só a partir da publicação (US-3)
 entregue por **T007**, o conteúdo privado (US-4) entregue por **T009**, a
 republicação nula (US-5) verificada por **T011**, o agendamento com verificação
 dupla (US-6) entregue por **T013**, a submissão para revisão (US-7) entregue por
-**T015** e a revisão do conteúdo alheio com a autoria preservada (US-8) entregue
-por **T017**. Este arquivo é a leitura obrigatória de quem pegar T019 em
-diante: ele diz o que já está decidido, o que está decidido **em outro lugar**,
-e o que ninguém decidiu.
+**T015**, a revisão do conteúdo alheio com a autoria preservada (US-8) entregue
+por **T017** e as versões anteriores (US-10) entregues por **T021**. Este
+arquivo é a leitura obrigatória de quem pegar T023 em diante: ele diz o que já
+está decidido, o que está decidido **em outro lugar**, e o que ninguém decidiu.
 
 ## O que T001 entrega, e só isso
 
@@ -985,6 +985,153 @@ recusado.
 | fixar e desafixar o conteúdo (`sticky`), o único uso de `edit_others_posts` **fora** da autorização (`:483`-`:489`) | BC-07 |
 | `_edit_last`, a trava de edição e a correção de vínculo de anexo | BC-10 e BC-04 |
 | a sanitização do corpo que o editor ajustou (REQ-030) e o formato dele (REQ-032) | **ninguém** — e a operação não grava corpo que o pedido não traga |
+## O que T021 entrega, e só isso
+
+> *o comportamento de US-10 existe e os critérios CA-10.1, CA-10.2, CA-10.3,
+> CA-10.4 passam contra o sistema novo*
+> — `.specify/specs/002-autoria-e-publicacao/tasks.md`, T021
+
+Tudo em `versoes/`, e é a **segunda** regra de negócio deste módulo. Os casos de
+uso que a tabela de rastreabilidade de `spec.md` liga a US-10 são
+[UC-03](../../../.specify/use-cases/UC-03-publicar-conteudo.md) e
+[UC-07](../../../.specify/use-cases/UC-07-revisar-e-publicar-conteudo-de-outro-autor.md),
+e o arquivo do legado é `wp-includes/revision.php` (1.139 linhas).
+
+| arquivo | o que é |
+|---|---|
+| `versoes/contexto-de-versao.ts` | o contexto, as **três** gravações de ligação tardia, os **dez** pontos de extensão e os **cinco** ouvintes de fábrica |
+| `versoes/configuracao-de-versoes.ts` | **CA-10.2**: `WP_POST_REVISIONS`, o `true` que vira `-1`, e as três bordas |
+| `versoes/campos-da-versao.ts` | os três campos de fábrica, a ordem contra os nove protegidos, e a cópia |
+| `versoes/mudanca-de-versao.ts` | a normalização de espaço em branco que decide se vale gravar |
+| `versoes/metadado-versionado.ts` | os três ouvintes de fábrica do metadado versionado (6.4) |
+| `versoes/leitura-de-versoes.ts` | *"listar versões"*, e as três perguntas sobre uma linha de versão |
+| `versoes/guardar-versao.ts` | **CA-10.1** e a poda de **CA-10.2** |
+| `versoes/restaurar-versao.ts` | **CA-10.4** |
+| `versoes/permissao-de-versao.ts` | **CA-10.3**, e as duas metades que não são a mesma regra |
+| `versoes/us-10-versoes-anteriores.test.ts` | 55 testes dos quatro critérios, por efeito no banco e por sequência de pontos |
+
+T021 acrescenta **três** entradas a `ModuloDeConteudo` — `guardarVersao`,
+`listarVersoes` e `restaurarVersao` —, e cada uma declara a permissão que o
+**P4** exige, inclusive a primeira, cuja declaração é *"nenhuma, e é assim no
+legado"*.
+
+### As cinco coisas de T021 que um porte distraído faria diferente
+
+1. 🔴 **A versão que o legado grava carrega o texto NOVO, não o antigo.**
+   `wp_save_post_revision()` corre **depois** da escrita, lê `get_post(
+   $post_id )` — logo o registro já atualizado — e versiona esse registro
+   (`wp-includes/revision.php:140` e `:217`). O docblock da própria função diz a
+   consequência: *"as every update is a revision, and **the most recent revision
+   always matches the current post**"* (`:122`). Criar conteúdo com o corpo `A` e
+   depois gravar `B` deixa **uma** versão, com `B` — e o corpo `A` não fica em
+   versão nenhuma. Ver o item 6 de *O que ninguém decidiu*.
+2. **A instalação de fábrica versiona em `wp_after_insert_post`, não em
+   `post_updated`.** São **dois** ouvintes com guarda cruzada por `has_action()`
+   (`:112` e `:136`), e a mudança é de 6.4.0: *"Saves revisions for a post after
+   all changes have been made"* (`:99`). Quem versionar em `post_updated`
+   versiona **antes** dos termos e dos metadados do conteúdo, e a comparação de
+   metadado versionado passa a ler o estado errado.
+3. **`WP_POST_REVISIONS` é `true` de fábrica, e `true` quer dizer `-1`**, isto é
+   *"guardar todas"* (`wp-includes/default-constants.php:392`,
+   `revision.php:813`). A comparação é **idêntica**: a cadeia `'true'`, que uma
+   configuração mal escrita produz, cai no `(int)` e vira `0`, que **desliga** o
+   versionamento. E `wp_revisions_enabled()` compara com **zero**, não com
+   *"maior que zero"* — um porte que escrevesse `> 0` desligaria o versionamento
+   da instalação de fábrica.
+4. **Mexer só no espaço em branco não cria versão.** A comparação é
+   `normalize_whitespace( maybe_serialize( … ) )` nos dois lados (`:190`), e o
+   `trim()` do PHP apara `\0` e `\x0B` e **não** apara `\f` — o
+   `String.prototype.trim()` do JavaScript apararia. E o `maybe_serialize` no
+   meio não é inútil: para corpo que **parece** serializado, ele acrescenta o
+   comprimento em bytes, que sobrevive à normalização.
+5. **A poda guarda mais do que o limite quando há salvamento automático entre as
+   mais antigas.** O `count( $revisions )` conta a linha de salvamento
+   automático, e o `str_contains( …, 'autosave' )` a **pula** em vez de apagar
+   outra no lugar (`:245` e `:254`). E esse teste é a cadeia **nua**
+   `'autosave'`, não `"{$pai}-autosave"` como em `wp_is_post_autosave()`: são
+   dois testes diferentes no mesmo arquivo do legado.
+
+### 🔴 O que T021 encontrou aberto, e NÃO fechou
+
+**CA-10.3 diz "uma versão não é editável e não é apagável por permissão de
+conteúdo", e só a segunda metade é capacidade.** Lidos os três casos de objeto:
+
+| caso pedido | o que o legado faz com uma linha `revision` | linha |
+|---|---|---|
+| `delete_post` | **`do_not_allow`**, e para ali | `capabilities.php:108` |
+| `edit_post` | **segue para o conteúdo pai** e resolve nele | `capabilities.php:215` |
+| `read_post` | **segue para o conteúdo pai** e resolve nele | `capabilities.php:314` |
+
+Apagar é negado a todos, inclusive ao super administrador, porque `do_not_allow`
+é o único nome que o atalho de rede de `PERM-9` não vence. **Editar não é
+negado**: a pergunta é respondida como se fosse sobre o pai.
+`BR-MIGRAR-091` e a tabela de exceções de UC-07 registram **só** a metade de
+apagar; nada no pacote diz que editar é negado.
+
+E o endpoint de exclusão de versão faz **três** perguntas, não duas
+(`class-wp-rest-revisions-controller.php:460`-`:493`): `delete_post` do pai
+(`:466`), **`edit_post` do pai** (`:480`) — que o legado não escreve com
+`current_user_can`, porque reaproveita `get_items_permissions_check()` — e
+`delete_post` da versão (`:484`). A do meio decide **qual recusa o ator recebe**:
+quem pode apagar o conteúdo de outra pessoa e não pode editá-lo é barrado com
+`rest_cannot_read` e *"…view revisions of this post."*, e não com a mensagem de
+exclusão. É a pergunta que se perde ao ler a função procurando portões, e há
+teste de mutação por ela.
+
+*"Não é editável"* é verdade por outro caminho, e são três recusas
+independentes: a API REST de versões não registra rota de escrita
+(`class-wp-rest-revisions-controller.php:83`-`:140`);
+`_wp_put_post_revision()` recusa versionar uma versão, com texto
+(`revision.php:366`); e a restauração escreve no **pai**, nunca na versão
+(`:496`). T021 **não escolhe** entre as duas leituras, porque as duas levam ao
+mesmo lugar — a versão não é editada —, e o que ela faz é *perguntar*
+`delete_post` a `plataforma/autorizacao/` em vez de cravar a negação, **não**
+negar `edit_post` sobre a versão, e registrar a divergência de redação. A análise
+completa está no cabeçalho de `versoes/permissao-de-versao.ts`.
+
+### Uma divergência menor de T021, declarada e não corrigida
+
+A comparação de metadado versionado do legado é `get_post_meta( … ) !==
+get_post_meta( … )` sobre valores já desserializados; aqui ela é feita sobre o
+valor **reserializado** pelo codec de `plataforma/serializacao/`, que é canônico
+e conformado byte a byte. Os dois caminhos coincidem — inclusive no caso do
+valor que parece serializado e não se lê, que vira `false` nos dois lados —
+porque a reserialização é aplicada **depois** de `talvezDesserializar()`.
+Comparar os **bytes crus** da coluna é o que divergiria, e é a economia que um
+porte faria. A nota está no cabeçalho de `versoes/metadado-versionado.ts`.
+
+### Uma mudança de T021 em arquivo de T002, e por quê
+
+T021 acrescentou **duas** coisas ao armazenamento de T002, e nenhuma é regra de
+negócio:
+
+- **`campoDaColuna()`**, em `armazenamento/conteudo.ts`: a tradução de nome de
+  coluna do legado para campo gravável. Existe porque
+  `_wp_post_revision_fields` é **filtro público** e a extensão declara ali pelo
+  **nome de coluna**; sem a tradução, o ponto de extensão existiria sem *"a
+  capacidade de alterar o resultado que ele tem hoje"*, que o **P2** põe na
+  tabela *Não negociável*. Mora em T002 porque `COLUNAS_GRAVAVEIS` é o único
+  lugar deste módulo em que o par coluna-campo existe.
+- **o parâmetro de ordem em `RepositorioDeVersoes.listar()`**: a poda chama a
+  **mesma** função do legado com `array( 'order' => 'ASC' )` (`:229`), porque é a
+  ordem crescente que põe a versão mais antiga na frente da lista que vai ser
+  cortada. Inverter a lista em memória faria o comando que sai deixar de ser o do
+  legado.
+
+### O que T021 NÃO fez, e por quê
+
+| não fez | de quem é |
+|---|---|
+| os seis testes de `backlog/tests.md` (UT-029-1 a UT-029-6) | **T022**, a tarefa `[P]` que roda em paralelo com esta |
+| `wp_insert_post()` e `wp_update_post()`, que **criar e restaurar versão chamam** | **T005** (US-2) — chegam por `GravacaoNaVersao`, de ligação tardia |
+| `wp_delete_post()`, que **a poda chama** | **feature 005** (`PT-003`): `EXT-EXCLUSAO` põe as sete etapas no comportamento observável, e o P5 cobra o conjunto exato do que fica órfão |
+| o salvamento automático | **T023** (US-11), e ele reusa `gravarVersaoDoConteudo( …, autosave )` em vez de escrever outra função |
+| a trava de edição e o nonce da tela de restauração | BC-07 e `plataforma/` — declarados **na posição exata do fluxo** em `versoes/restaurar-versao.ts` |
+| o registro de tipos (`post_type_supports`) e o de metadados (`register_meta`) | `plataforma/` — chegam por ligação tardia, e o segundo com lista vazia por default, que é o que o legado faz para tipo sem metadado versionado declarado |
+| `wp_get_latest_revision_id_and_total_count()` | features 004 e 015: a contagem sai do `FOUND_ROWS()` de `WP_Query` |
+| o `$fields` opcional de `wp_restore_post_revision()` | ninguém: **nenhum** dos chamadores do legado o informa, e quem precisar dele passa a lista pelo ponto `_wp_post_revision_fields` |
+| emitir ponto de extensão por um barramento | ninguém deste pacote: REQ-162 está em `do-not-rewrite.md`. Os dez pontos estão **declarados** em `versoes/contexto-de-versao.ts`, com nome, argumentos, tipo e posição |
+| trilha de quem restaurou, além do `_edit_last` que o legado grava | **ninguém deste pacote**: REQ-028 está em `do-not-rewrite.md`, e UC-07 confirma que *"nenhum registro de quem aprovou foi gravado"* |
 
 ## O que "enumeração fechada" significa aqui — leia antes de usar o tipo
 
@@ -1097,7 +1244,8 @@ disto se decide no meio da implementação.
 
 ## O que ninguém decidiu, e que T001 não decidiu tampouco
 
-> T003 acrescentou o item 5 e T013 o item 6. Os quatro primeiros são de T001.
+> T003 acrescentou o item 5; T009, o 6; T013, o 7; T021, os itens 8 e 9. Os
+> quatro primeiros são de T001.
 
 1. 🔴 **US-9 pede notificação que o sistema analisado não tem.** CA-9.1 e CA-9.2
    exigem aviso ao autor quando o conteúdo é devolvido ou publicado por outra
@@ -1155,10 +1303,30 @@ disto se decide no meio da implementação.
    legado: a API recusa, o painel rebaixa. Continua sem decisão humana qual das
    duas leituras de CA-1.1 vale — e nenhuma das duas tarefas pode tomá-la.
 
+8. 🔴 **CA-10.1 e CA-10.4 descrevem "a versão anterior" e "guardar o corrente
+   como versão nova", e o legado guarda o texto COMO ELE ACABOU DE SER
+   GRAVADO.** A versão é criada depois da escrita, a partir da linha já
+   atualizada (`wp-includes/revision.php:140` e `:217`), e o docblock da função é
+   literal: *"the most recent revision always matches the current post"*. As duas
+   leituras coincidem no que os critérios cobram de verificável — uma linha de
+   versão por gravação de conteúdo que já existia, ligada ao conteúdo, e texto
+   anterior recuperável — e **divergem no conteúdo da linha que cada gravação
+   cria**. Na restauração, a versão nova carrega o texto **restaurado**, e o
+   sobrescrito já era a versão mais recente antes dela. **T021 reproduz o legado
+   e não escolhe**: `pending_decisions.md` não tem pergunta sobre versão, e
+   `target_business_rules.md` não tem regra de versão além da cascata de exclusão
+   (BR-MIGRAR-104) e da negação de capacidade (BR-MIGRAR-091). A análise está em
+   `versoes/contexto-de-versao.ts`.
+
+9. 🔴 **CA-10.3 dá como negada por permissão uma edição que o legado resolve pelo
+   pai.** Ver a seção de T021: `delete_post` sobre versão é `do_not_allow`,
+   `edit_post` **não** é. T021 não negou `edit_post`, porque negar fecharia o
+   sistema mais que o legado e contradiria `capabilities.php:215`.
+
 Os quatro primeiros estão em `spec.md`, seção *Perguntas em aberto* (o primeiro,
 como consequência de nada ali especificar o aviso). A tabela *Não negociável* da
-constituição põe cada um deles fora do alcance do agente de codificação. O quinto
-o sexto e o sétimo não estão em `spec.md`: são divergências entre o que o pacote
+constituição põe cada um deles fora do alcance do agente de codificação. Do
+quinto ao nono não estão em `spec.md`: são divergências entre o que o pacote
 escreve e o código lido, e o **P1** as põe na mesma mesa.
 
 ### Uma divergência menor, registrada e não corrigida aqui

@@ -97,7 +97,9 @@
  *   diz o contrario do criterio — a parada esta no cabecalho de
  *   `../portas/porta-de-email.ts` e no README deste modulo.
  * - **Nao guarda versao anterior.** `wp_save_post_revision()` e chamada de
- *   `wp_insert_post()`, nao daqui: **T021** (US-10).
+ *   `wp_insert_post()`, nao daqui — e `wp_publish_post()` nao passa por ali: **a
+ *   publicacao por esta porta nao versiona**. T021 (US-10) entregou o caminho em
+ *   `../versoes/`, pendurado nos dois ouvintes do caminho de **gravacao**.
  */
 
 import type { Conteudo } from '../armazenamento/index.js';

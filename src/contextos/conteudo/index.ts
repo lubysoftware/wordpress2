@@ -2,17 +2,18 @@
  * Modulo de conteudo — BC-01 de `target_architecture.md`.
  *
  * Feature `002-autoria-e-publicacao`, tarefas T001, T002, T003, T005, T007,
- * T009, T011, T013, T015 e T017. O que existe aqui e o que as dez entregam: o
- * modulo carrega com as tres portas declaradas, com o vocabulario de estado
- * editorial do legado como enumeracao fechada, com a forma de armazenamento de
- * conteudo, metadado e versao anterior e com **oito** regras de negocio — a
- * publicacao por ato explicito de US-1, a gravacao com estado resolvido de US-2,
- * o identificador na URL unico so a partir da publicacao de US-3, o conteudo
- * privado de US-4, a republicacao nula de US-5, o agendamento por comparacao de
- * data, com verificacao dupla, de US-6, a submissao para revisao de US-7 e a
- * revisao do conteudo alheio com a autoria preservada de US-8. Versao anterior e
- * rascunho automatico entram nas tarefas delas (T019 em diante), e a leitura
- * obrigatoria de cada uma esta em `./README.md`.
+ * T009, T011, T013, T015, T017 e T021. O que existe aqui e o que as onze
+ * entregam: o modulo carrega com as tres portas declaradas, com o vocabulario
+ * de estado editorial do legado como enumeracao fechada, com a forma de
+ * armazenamento de conteudo, metadado e versao anterior e com **nove** regras
+ * de negocio — a publicacao por ato explicito de US-1, a gravacao com estado
+ * resolvido de US-2, o identificador na URL unico so a partir da publicacao de
+ * US-3, o conteudo privado de US-4, a republicacao nula de US-5, o agendamento
+ * por comparacao de data, com verificacao dupla, de US-6, a submissao para
+ * revisao de US-7, a revisao do conteudo alheio com a autoria preservada de
+ * US-8 e as versoes anteriores de US-10. Rascunho automatico entra na tarefa
+ * dele (T023 em diante), e a leitura obrigatoria de cada uma esta em
+ * `./README.md`.
  *
  * Duas coisas que este arquivo faz de proposito:
  *
@@ -80,6 +81,17 @@ import {
   type PedidoDeRevisaoEditorial,
   type ResultadoDaRevisaoEditorial,
 } from './revisao-editorial/index.js';
+import {
+  guardarVersao,
+  listarVersoesDoConteudo,
+  restaurarVersao,
+  type ContextoDeVersao,
+  type PedidoDeListaDeVersoes,
+  type PedidoDeRestauracao,
+  type ResultadoDaListaDeVersoes,
+  type ResultadoDaRestauracao,
+  type ResultadoDeGuardarVersao,
+} from './versoes/index.js';
 
 export * from './portas/index.js';
 export * from './estado-editorial.js';
@@ -166,6 +178,17 @@ export * from './revisao/index.js';
   — e o gatilho de UC-07 e a fila que aquele contexto ja serve.
 */
 export * from './revisao-editorial/index.js';
+/*
+  T021 (US-10) sai pelo barril E pela composicao, pela mesma razao de T003: a
+  tabela *Contratos* de `plan.md` lista *"listar versoes e restaurar"* como
+  operacao desta feature, com entrada, saida e erro proprios. O resto da pasta
+  sai pelo barril porque e o que quem monta o contexto da requisicao precisa
+  alcancar: as tres gravacoes de ligacao tardia, os dez pontos de extensao, os
+  cinco ouvintes de fabrica e as funcoes do legado sem portao — `wp_save_post_revision()`,
+  `_wp_put_post_revision()` (que T023 reusa) e `wp_restore_post_revision()`, que
+  tem dois chamadores com guardas diferentes no legado.
+*/
+export * from './versoes/index.js';
 
 /** As tres portas de que este modulo depende, na forma em que ele as recebe. */
 export interface PortasDeConteudo {
@@ -190,6 +213,9 @@ export interface PortasDeConteudo {
  * | `publicarSeAindaAgendado` | US-6 | T013 | **nenhuma**, e e o legado: quem chama e a fila, e nao ha ator no disparo |
  * | `submeterParaRevisao` | US-7 | T015 | **a capacidade de editar AQUELE conteudo** (`edit_post`, com o objeto), somada a de mexer em conteudo alheio quando o autor do pedido nao e quem pede. A capacidade de **publicar** nao e exigida: ela e perguntada, e decide o estado gravado (CA-7.1) e o identificador esvaziado (CA-7.4) |
  * | `revisarEPublicar` e `devolverAoAutor` | US-8 | T017 | **a mesma** `edit_post` com o objeto, e para conteudo de outra pessoa ela resolve na **soma** de `edit_others_posts` daquele tipo com a que o estado exige — `edit_published_posts` em publicado e agendado, `edit_private_posts` em privado (CA-8.1). Trocar o autor exige, por cima, a primitiva do alheio. A de **publicar** continua apenas perguntada: sem ela, o estado e rebaixado para `pending`, nao recusado |
+ * | `guardarVersao` | US-10 | T021 | **nenhuma, e e assim no legado** — e ouvinte do caminho de gravacao, onde `edit_post` ja foi cobrada |
+ * | `listarVersoes` | US-10 | T021 | **`edit_post` do conteudo** (nao `read_post`) |
+ * | `restaurarVersao` | US-10 | T021 | **`edit_post` do conteudo pai** da versao |
  *
  * O armazenamento **nao e operacao**, e por isso nao declara permissao: ele nao
  * decide nada. E a comparacao de data de US-6 (`resolverEstadoPelaData`) tambem
@@ -403,6 +429,72 @@ export interface ModuloDeConteudo {
     contexto: ContextoDeRevisao,
     pedido: PedidoDeRevisaoEditorial,
   ): ResultadoDaRevisaoEditorial;
+  /**
+   * Guarda a versao anterior do conteudo editado (US-10, T021) —
+   * `wp_save_post_revision()`.
+   *
+   * **Permissao exigida: nenhuma, e e assim no legado.** Esta nao e uma
+   * superficie: e `wp_save_post_revision()`, o **ouvinte** que o nucleo registra
+   * em `post_updated` com prioridade 10 (`default-filters.php:446`), e a
+   * capacidade de quem gravou o conteudo ja foi cobrada pelo caminho de
+   * gravacao. O **P4** manda *"preservar o default de cada camada, inclusive
+   * quando o default e permissivo"*, e dar portao a esta operacao impediria o
+   * versionamento no unico lugar de onde ele e disparado.
+   *
+   * ⚠️ **O outro ouvinte do par NAO e esta funcao, e pendura-la no ponto dele
+   * versiona na insercao.** Quem a instalacao de fabrica dispara em
+   * `wp_after_insert_post`, prioridade 9, e `guardarVersaoNaInsercao()`, que sai
+   * pelo barril de `versoes/` e **nao** entra aqui: e ela que tem a guarda
+   * `! $update` (`wp-includes/revision.php:108`), e sem essa guarda a criacao de
+   * conteudo passaria a criar versao. As duas, com a guarda cruzada que as
+   * separa, estao em `OUVINTES_DE_FABRICA_DA_VERSAO`
+   * (`versoes/contexto-de-versao.ts`).
+   *
+   * ⚠️ **A versao guardada carrega o texto como ele acabou de ser gravado, e
+   * nao o anterior** — a divergencia de redacao com CA-10.1 esta registrada no
+   * cabecalho de `versoes/contexto-de-versao.ts` e **nao foi resolvida aqui**.
+   */
+  guardarVersao(
+    contexto: ContextoDeVersao,
+    pedido: PedidoDeGuardarVersao,
+  ): ResultadoDeGuardarVersao;
+
+  /**
+   * Lista as versoes de um conteudo (US-10, T021).
+   *
+   * **Permissao exigida: `edit_post` do conteudo** — e nao `read_post`
+   * (`class-wp-rest-revisions-controller.php:186`). Ver o historico exige poder
+   * editar o conteudo.
+   */
+  listarVersoes(
+    contexto: ContextoDeVersao,
+    pedido: PedidoDeListaDeVersoes,
+  ): ResultadoDaListaDeVersoes;
+
+  /**
+   * Restaura uma versao sobre o conteudo (US-10, T021) —
+   * `wp_restore_post_revision()` com as guardas da tela do painel.
+   *
+   * **Permissao exigida: `edit_post` do conteudo PAI da versao**
+   * (`wp-admin/revision.php:42`). Nao e sobre a versao: a resolucao de uma
+   * versao em `edit_post` segue para o pai de qualquer forma
+   * (`capabilities.php:215`), e a superficie pergunta pelo pai diretamente.
+   */
+  restaurarVersao(
+    contexto: ContextoDeVersao,
+    pedido: PedidoDeRestauracao,
+  ): ResultadoDaRestauracao;
+}
+
+/**
+ * Quem se versiona.
+ *
+ * A entrada e **so o identificador**, como em `wp_save_post_revision( $post_id )`:
+ * o ouvinte do legado recebe o identificador e le a linha, e e essa releitura
+ * que faz a versao carregar o texto **ja gravado**.
+ */
+export interface PedidoDeGuardarVersao {
+  readonly conteudoId: number;
 }
 
 /**
@@ -436,5 +528,9 @@ export function criarModuloDeConteudo(
     submeterParaRevisao,
     revisarEPublicar,
     devolverAoAutor,
+    guardarVersao: (contexto, pedido) =>
+      guardarVersao(contexto, pedido.conteudoId),
+    listarVersoes: listarVersoesDoConteudo,
+    restaurarVersao,
   };
 }

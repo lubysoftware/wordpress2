@@ -94,39 +94,46 @@ test('o modulo carrega com as tres portas declaradas', () => {
   assert.equal(modulo.portas.relogio, portas.relogio);
 });
 
-test('a superficie do modulo e so o que T001, T002, T003, T005, T007, T009, T013, T015 e T017 entregam', () => {
+test('a superficie do modulo e so o que T001, T002, T003, T005, T007, T009, T013, T015, T017 e T021 entregam', () => {
   const { portas } = portasDeTeste();
 
   const modulo = criarModuloDeConteudo(portas);
 
   // A lista cresceu em T002, que acrescentou `armazenamento`; em T003, que
   // acrescentou `publicar` — a primeira operacao da tabela *Contratos* de
-  // `plan.md` a entrar aqui, e a primeira a declarar capacidade (CA-1.1) —; em
-  // T005, que acrescentou `gravar`, a operacao que no legado **nao tem portao**
-  // (ver `gravacao/gravar.ts`); T009, que acrescentou `escolherVisibilidade`, a
+  // `plan.md` a entrar aqui, e a primeira a declarar capacidade (CA-1.1); T005,
+  // que acrescentou `gravar`, a operacao que no legado **nao tem portao** (ver
+  // `gravacao/gravar.ts`); T009, que acrescentou `escolherVisibilidade`, a
   // operacao de US-4, com a MESMA capacidade e exigida so quando a visibilidade
   // resolve em `private` (CA-4.1); T013, que acrescentou
   // `publicarSeAindaAgendado`, cuja permissao exigida e **nenhuma**, porque no
   // legado nao ha ator no disparo (`wp-includes/default-filters.php:357`);
   // T015, que acrescentou `submeterParaRevisao`, cuja permissao e `edit_post`
   // sobre o objeto e cuja falta de `publish_posts` **nao recusa nada** (ver
-  // `revisao/permissao-de-revisao.ts`); e T017, que acrescentou
+  // `revisao/permissao-de-revisao.ts`); T017, que acrescentou
   // `revisarEPublicar` e `devolverAoAutor` — as duas metades de UC-07, com a
   // **mesma** `edit_post` resolvendo na soma de `edit_others_posts` com a
-  // capacidade do estado (ver `revisao-editorial/`). As demais crescem NA
-  // TAREFA DELAS. Esta afirmacao esta aqui para que nenhuma operacao chegue
-  // antes da propria tarefa, que e o que o P4 da constituicao cobra: "toda
-  // operacao exposta nova nasce com declaracao explicita de permissao".
+  // capacidade do estado (ver `revisao-editorial/`); e T021, que acrescentou as
+  // tres de US-10: `guardarVersao`, que no legado nao tem portao porque e
+  // OUVINTE do caminho de gravacao, e `listarVersoes` e `restaurarVersao`, que
+  // exigem `edit_post` — a primeira do conteudo, a segunda do conteudo PAI da
+  // versao. As demais crescem NA TAREFA DELAS. Esta afirmacao esta aqui para
+  // que nenhuma operacao chegue antes da propria tarefa, que e o que o P4 da
+  // constituicao cobra: "toda operacao exposta nova nasce com declaracao
+  // explicita de permissao".
   assert.deepEqual(Object.keys(modulo).sort(), [
-    'armazenamento',
     // Ordem alfabetica porque a lista e comparada depois de `.sort()`.
+    'armazenamento',
     'devolverAoAutor',
     'escolherVisibilidade',
     'gravar',
+    'guardarVersao',
+    'listarVersoes',
     'nome',
     'portas',
     'publicar',
     'publicarSeAindaAgendado',
+    'restaurarVersao',
     'revisarEPublicar',
     'submeterParaRevisao',
   ]);
