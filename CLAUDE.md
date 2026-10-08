@@ -36,7 +36,7 @@ npm run build && node --test dist/contextos/conteudo/publicacao/us-1-publicar-co
 node --test --test-name-pattern 'CA-1.4' dist/contextos/conteudo/publicacao/us-1-publicar-conteudo.test.js
 ```
 
-Não há lint, formatter, CI nem hook: **o portão é `tsc` em modo estrito** (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `verbatimModuleSyntax`, `noUnusedLocals`) **mais `npm test` verde**. `squad.yaml` declara `verificar: npm test` porque um agente já saiu com código 0 deixando dezoito testes vermelhos na main.
+Não há lint, formatter nem hook: **o portão é `tsc` em modo estrito** (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `verbatimModuleSyntax`, `noUnusedLocals`) **mais `npm test` verde**. `squad.yaml` declara `verificar: npm test` porque um agente já saiu com código 0 deixando dezoito testes vermelhos na main. O CI (`.github/workflows/verificar.yml`) roda o mesmo portão em `push` e `pull_request`, num job só — `npm run typecheck` à parte repetiria o `tsc` que o build já faz.
 
 O **oráculo** é o legado legível em disco em `~/Downloads/wordpress` (WordPress 7.1.2, `db_version` 61833 — a mesma versão do pacote). Está **fora deste repositório e não é versionado**. Não há PHP nesta máquina: o legado se **lê**, não se executa; vetor de paridade se transcreve do formato (ver `src/plataforma/serializacao/conformidade.test.ts`). O oráculo executável é T001 da feature `015` e não existe.
 
@@ -81,11 +81,3 @@ Hoje a árvore respeita isso: o único import cruzando camada é `contextos/iden
 - **Conflito aberto não se resolve escolhendo um lado — para-se e escreve-se.** É o estado de **T019**: US-9 exige aviso ao autor que UC-07 nega palavra por palavra, e não há decisão humana registrada. O ledger ficou aberto de propósito; a parada está em `src/contextos/conteudo/portas/porta-de-email.ts` e em `src/contextos/conteudo/README.md` § *O que ninguém decidiu*.
 - **`_discovery/`** é gerado pelo agentic-squad (frontmatter com `hash`). Edição à mão não é sobrescrita, mas chega como diff para alguém decidir.
 - **`.specify/`, `backlog/`, `index.md`** são o pacote gerado: lê-se e marca-se checkbox, não se reescreve conteúdo. `dist/` e `node_modules/` são ignorados pelo git.
-
-## Perguntas para o Vitor (não achei no repositório, não inventei resposta)
-
-1. **Onde estão `soul.md`, `domain.md`, `permissions.md`, `questions.md` e `erd-complete.md`?** Tudo em `.specify/` e `memory/constitution.md` os cita por caminho relativo (`../../soul.md`, `../../../domain.md`), e nenhum está em disco. Hoje são citação, não evidência: trago a pasta `_reversa_sdd/` para cá, ou fica assim?
-2. **`~/Downloads/wordpress` é caminho estável?** A árvore inteira ancora nele por `arquivo:linha`, e ele está fora do repositório e não versionado. Se mudar de lugar, 60+ âncoras por arquivo deixam de ser conferíveis.
-3. **Qual comando dispara um nó do grafo?** Achei `squad.yaml` (`preparo`/`verificar`) e os worktrees que ele criou, mas nenhum CLI aqui. Como eu abro uma tarefa nova, e quem resolve as duas tentativas concorrentes?
-4. **O ledger de features em `index.md` é marcado à mão ou pelo Studio?** As tarefas eu sei marcar; o checkbox da feature não vi ninguém marcar em commit nenhum.
-5. **Quer lint/format/CI?** Hoje o portão é só `tsc` estrito + `npm test`, e a regra de dependência nº 3 está escrita na documentação mas **não é verificada por nada** — `target_architecture.md` manda gravá-la no build.
