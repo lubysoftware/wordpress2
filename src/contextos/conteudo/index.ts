@@ -1,14 +1,15 @@
 /**
  * Modulo de conteudo — BC-01 de `target_architecture.md`.
  *
- * Feature `002-autoria-e-publicacao`, tarefas T001, T002, T003, T005 e T007. O
- * que existe aqui e o que as cinco entregam: o modulo carrega com as tres portas
- * declaradas, com o vocabulario de estado editorial do legado como enumeracao
- * fechada, com a forma de armazenamento de conteudo, metadado e versao anterior
- * e com **tres** regras de negocio — a publicacao por ato explicito de US-1, a
- * gravacao com estado resolvido de US-2 e o identificador na URL unico so a
- * partir da publicacao de US-3. Agendamento, submissao, revisao, versao anterior
- * e rascunho automatico entram nas tarefas delas (T009 em diante), e a leitura
+ * Feature `002-autoria-e-publicacao`, tarefas T001, T002, T003, T005, T007,
+ * T009 e T011. O que existe aqui e o que as sete entregam: o modulo carrega com
+ * as tres portas declaradas, com o vocabulario de estado editorial do legado
+ * como enumeracao fechada, com a forma de armazenamento de conteudo, metadado e
+ * versao anterior e com **cinco** regras de negocio — a publicacao por ato
+ * explicito de US-1, a gravacao com estado resolvido de US-2, o identificador na
+ * URL unico so a partir da publicacao de US-3, o conteudo privado de US-4 e a
+ * republicacao nula de US-5. Agendamento, submissao, revisao, versao anterior e
+ * rascunho automatico entram nas tarefas delas (T013 em diante), e a leitura
  * obrigatoria de cada uma esta em `./README.md`.
  *
  * Duas coisas que este arquivo faz de proposito:
@@ -128,6 +129,7 @@ export interface PortasDeConteudo {
  * | `gravar` | US-2, US-3 | T005, T007 | **nenhuma para gravar, como no legado** — `wp_insert_post()` nao tem portao, e o achado de QA de REQ-020 registra que o card nao tem recusa propria. A **unica** decisao de capacidade do caminho nao recusa: ela esvazia o identificador na URL de quem nao pode publicar, em `pending` (CA-3.4) |
  * | `publicar` | US-1 | T003 | **a capacidade de publicar daquele tipo** (`$post_type->cap->publish_posts`), CA-1.1 |
  * | `escolherVisibilidade` | US-4 | T009 | **a mesma capacidade**, e **somente** quando a visibilidade resolve em `private`, CA-4.1 |
+ * | `publicar`, pedido sobre conteudo ja publicado | US-5 | T011 | a mesma, e e cobrada antes da guarda de estado — ver `publicacao/republicacao-nula.ts` |
  *
  * O armazenamento **nao e operacao**, e por isso nao declara permissao: ele nao
  * decide nada.
@@ -153,6 +155,13 @@ export interface ModuloDeConteudo {
    * codigo e o texto que a API do legado devolve — e a divergencia entre *"recusa
    * explicita na tela"* e o que o painel do legado faz esta registrada em
    * `publicacao/permissao-de-publicacao.ts`, sem ser resolvida aqui.
+   *
+   * **Pedir a publicacao de conteudo que ja esta publicado e operacao sem
+   * efeito** (US-5, T011): o registro nao muda, nenhum ponto de extensao
+   * dispara e nenhuma automacao, notificacao ou agendamento e acionado. E
+   * BR-MIGRAR-007 (`P7`), e o desfecho `ja-publicado` nao e falha — a analise
+   * completa, com o que cada criterio nega e por que a nulidade **nao** vale
+   * para o caminho de gravacao, esta em `publicacao/republicacao-nula.ts`.
    *
    * O contexto chega por argumento, e nao pela composicao, porque identidade,
    * matriz de papeis e estado de rede sao escopo de REQUISICAO (AD-02,

@@ -13,6 +13,13 @@
  * | `publicar.ts` | a operacao e `wp_publish_post()` — as duas, e a razao de serem duas |
  * | `us-1-publicar-conteudo.test.ts` | os cinco criterios, afirmados por efeito no banco e por sequencia de pontos |
  *
+ * E de **T011** (US-5), que e uma regra do mesmo `wp_publish_post()`:
+ *
+ * | arquivo | o que e |
+ * |---|---|
+ * | `republicacao-nula.ts` | **CA-5.1**, **CA-5.2** e **CA-5.3**: a guarda de estado de `:5413`, o que cada criterio nega, e por que a nulidade nao se estende ao caminho de gravacao |
+ * | `us-5-republicacao-nula.test.ts` | os tres criterios, afirmados pela **ausencia** de comando, de ponto e de efeito |
+ *
  * ---
  *
  * # Como se confere que esta pasta tem paridade
@@ -46,7 +53,6 @@
  * | o estado resolvido na gravacao (o `draft` que divide com o `publish` do DDL) | **T005**, US-2 |
  * | a unicidade do identificador na URL, que `wp_publish_post()` **nao** cobra | **T007** a portou em `../gravacao/identificador-na-url.ts`, e a ausencia **continua aqui**: por esta porta o identificador duplicado sobrevive a publicacao |
  * | o estado `private` como visibilidade | **T009**, US-4 |
- * | os criterios da republicacao nula — a guarda esta aqui, as afirmacoes nao | **T011**, US-5 |
  * | o agendamento, a comparacao de data e a verificacao dupla | **T013**, US-6 |
  * | o rebaixamento para `pending` de quem nao pode publicar | **T015**, US-7 |
  * | a soma de capacidade sobre conteudo alheio | **T017**, US-8 |
@@ -89,6 +95,8 @@ export {
   chaveDoTermoPadrao,
   type TermoPadraoAtribuido,
 } from './termo-padrao-na-publicacao.js';
+
+export { ehRepublicacaoNula } from './republicacao-nula.js';
 
 export {
   ESTADO_PUBLICADO,
