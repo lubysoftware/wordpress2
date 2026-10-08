@@ -94,20 +94,24 @@ test('o modulo carrega com as tres portas declaradas', () => {
   assert.equal(modulo.portas.relogio, portas.relogio);
 });
 
-test('a superficie do modulo e so o que T001, T002, T003 e T005 entregam', () => {
+test('a superficie do modulo e so o que T001, T002, T003, T005 e T023 entregam', () => {
   const { portas } = portasDeTeste();
 
   const modulo = criarModuloDeConteudo(portas);
 
   // A lista cresceu em T002, que acrescentou `armazenamento`; em T003, que
   // acrescentou `publicar` — a primeira operacao da tabela *Contratos* de
-  // `plan.md` a entrar aqui, e a primeira a declarar capacidade (CA-1.1) —; e em
+  // `plan.md` a entrar aqui, e a primeira a declarar capacidade (CA-1.1) —; em
   // T005, que acrescentou `gravar`, a operacao que no legado **nao tem portao**
-  // (ver `gravacao/gravar.ts`). As outras quatro crescem NA TAREFA DELAS. Esta
-  // afirmacao esta aqui para que nenhuma operacao chegue antes da propria
-  // tarefa, que e o que o P4 da constituicao cobra: "toda operacao exposta nova
-  // nasce com declaracao explicita de permissao".
+  // (ver `gravacao/gravar.ts`); e em T023, que acrescentou `abrirEditor`, a
+  // unica das cinco que **nao esta** naquela tabela — a lacuna de `plan.md` esta
+  // declarada em `rascunho-automatico/abrir-editor.ts` e nao foi resolvida ali.
+  // As outras quatro crescem NA TAREFA DELAS. Esta afirmacao esta aqui para que
+  // nenhuma operacao chegue antes da propria tarefa, que e o que o P4 da
+  // constituicao cobra: "toda operacao exposta nova nasce com declaracao
+  // explicita de permissao".
   assert.deepEqual(Object.keys(modulo).sort(), [
+    'abrirEditor',
     'armazenamento',
     'gravar',
     'nome',
