@@ -77,10 +77,12 @@
       *entrega:* o comportamento de US-9 existe e os critérios CA-9.1, CA-9.2, CA-9.3, CA-9.4 passam contra o sistema novo
       *satisfaz:* CA-9.1, CA-9.2, CA-9.3, CA-9.4
       *depende de:* T001, T002, T017
+      *bloqueio:* não é porte: o sistema legado não notifica. Varredura do caminho editorial não achou nenhum `wp_mail(` em devolver nem em publicar, e o UC-07 descreve a transição sem aviso. CA-9.1–9.4 afirmam o contrário, e uma das duas fontes está errada. Construir o aviso é acrescentar comportamento que o original não tem — decisão de produto, não de porte. Enquanto ela não for tomada, nenhum agente deve adivinhar.
 - [ ] **T020** [P] Testes de US-9
       *entrega:* 4 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-027-1, UT-027-2, UT-027-3, UT-027-4), com o mesmo dado de entrada, ação e resultado esperado.
       *satisfaz:* CA-9.1, CA-9.2, CA-9.3, CA-9.4
       *depende de:* T019
+      *bloqueio:* testa a US-9, que está bloqueada em T019. Escrever os quatro testes antes da decisão fixaria o comportamento que a decisão pode descartar.
 - [x] **T021** Guardar versões anteriores do conteúdo editado (US-10)
       *entrega:* o comportamento de US-10 existe e os critérios CA-10.1, CA-10.2, CA-10.3, CA-10.4 passam contra o sistema novo
       *satisfaz:* CA-10.1, CA-10.2, CA-10.3, CA-10.4
