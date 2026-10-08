@@ -1,8 +1,10 @@
 /**
- * O contexto de uma gravacao de conteudo: tudo que US-2 precisa e que **nao e**
- * porta deste modulo.
+ * O contexto de uma gravacao de conteudo: tudo que US-2 e US-3 precisam e que
+ * **nao e** porta deste modulo.
  *
- * Entrega de **T005** da feature `002-autoria-e-publicacao` (US-2). Mesma forma
+ * Entrega de **T005** da feature `002-autoria-e-publicacao` (US-2), com os
+ * **cinco** colaboradores que **T007** (US-3) acrescentou — ver a secao
+ * *"O que T007 acrescentou"* no fim deste cabecalho. Mesma forma
  * e mesmas razoes de `../publicacao/contexto-de-publicacao.ts`, e as duas valem
  * palavra por palavra aqui:
  *
@@ -45,7 +47,30 @@
  *
  * ---
  *
- * # Quatro coisas que NAO estao neste contexto, e cada uma tem motivo
+ * # O que T007 acrescentou, e por que cada um
+ *
+ * US-3 fez o caminho de gravacao atravessar tres donos que US-2 nao
+ * atravessava — a autorizacao, a formatacao de texto e a reescrita de endereco.
+ * Nenhum deles virou porta, pela mesma razao da tabela de cima (AD-08 fixa
+ * portas somente nas 5 bordas):
+ *
+ * | o que o legado chama | de quem e | como chega aqui |
+ * |---|---|---|
+ * | `current_user_can()` no passo do identificador (`:4734`, `:4736`) | `plataforma/autorizacao/` + BC-05 | {@link ContextoDeGravacao.base}, com o ator que ja estava aqui |
+ * | `get_post_type_object()` (`:4732`) | `plataforma/tipos-de-conteudo/`, que **nao existe nesta arvore** | {@link ContextoDeGravacao.tipoDeConteudo} |
+ * | `is_post_type_hierarchical()` (`:5623`) | idem | {@link ContextoDeGravacao.tipoEHierarquico} |
+ * | `sanitize_title()` e `utf8_uri_encode()` | `plataforma/formatacao/`, feature 015 | {@link ContextoDeGravacao.texto} |
+ * | `$wp_rewrite->feeds`, `->pagination_base` e `permalink_structure` | BC-07 / BC-08 | {@link ContextoDeGravacao.reescrita} |
+ *
+ * **`base` chega separado do `ator`**, como em
+ * `../publicacao/contexto-de-publicacao.ts`: a base e o que nao muda dentro da
+ * requisicao e o ator e quem grava. E e exatamente o que o cenario
+ * `@concorrencia` de `PT-002` cobra nesta tarefa — *"a decisao sobre o slug de
+ * cada um usa a capacidade de quem o gravou"*.
+ *
+ * ---
+ *
+ * # Tres coisas que NAO estao neste contexto, e cada uma tem motivo
  *
  * 1. **A porta de relogio.** Ela existe no modulo (T001) e esta tarefa **nao a
  *    usa**: as tres leituras de tempo do caminho de gravacao sao
@@ -58,25 +83,40 @@
  *    ligacao tardia, e nao como porta: quem as implementa resolve fuso e
  *    formato, que e trabalho de `plataforma/`. A porta de relogio continua sendo
  *    de **T013**, que compara segundo inteiro em UTC (`:4798`-`:4808`).
- * 2. **A base de autorizacao.** Esta gravacao **nao decide capacidade nenhuma**,
- *    e o legado tambem nao: `wp_insert_post()` nao tem portao — ver a secao
- *    *"O portao que esta funcao nao tem"* em `gravar.ts`. A unica decisao de
- *    capacidade do caminho de gravacao e a do identificador na URL de quem nao
- *    pode publicar (`:4731`-`:4739`), que e **T015** (US-7, CA-7.4), e e ela que
- *    vai acrescentar `base` a este contexto quando precisar.
+ * 2. **O portao de gravacao.** Esta gravacao continua **nao recusando por
+ *    capacidade**, e o legado tambem nao: `wp_insert_post()` nao tem portao —
+ *    ver a secao *"O portao que esta funcao nao tem"* em `gravar.ts`. A **unica**
+ *    decisao de capacidade do caminho e a do identificador na URL de quem nao
+ *    pode publicar (`:4731`-`:4739`), que T007 portou em
+ *    `permissao-do-identificador.ts`, e ela **nao recusa nada**: ela apaga um
+ *    campo. E por causa dela que {@link ContextoDeGravacao.base} existe.
  * 3. **A classificacao.** `wp_set_post_categories()` (`:5053`), `tax_input`
  *    (`:5089`) e o termo padrao do caminho de gravacao (`:5063`-`:5087`) sao
  *    BC-02, e a metade deles que esta feature cobra — CA-1.4 — foi entregue por
  *    T003 em `../publicacao/termo-padrao-na-publicacao.ts`. A tabela do fim de
  *    `index.ts` diz, linha por linha, o que fica para quem.
- * 4. **O cache de objeto.** `clean_post_cache()` roda duas vezes neste caminho
+ * 4. **O endereco de amostra inteiro.** `identificador-de-amostra.ts` porta a
+ *    metade de `get_sample_permalink()` que e **identificador**; o molde do
+ *    endereco e BC-07 / BC-08, e chega pelo mesmo
+ *    {@link ContextoDeGravacao.enderecoDoConteudo} que T003 declarou.
+ * 5. **O cache de objeto.** `clean_post_cache()` roda duas vezes neste caminho
  *    (`:5051` e `:5155`) e nao ha cache nesta arvore (REQ-165 ficou fora do
  *    pacote). Os pontos estao nomeados na posicao exata do fluxo em `gravar.ts`.
  */
 
-import type { AtorDeAutorizacao } from '../../../plataforma/autorizacao/index.js';
+import type {
+  AtorDeAutorizacao,
+  BaseDeAutorizacao,
+  RelatorDeUsoIndevido,
+  TipoDeConteudoNaAutorizacao,
+} from '../../../plataforma/autorizacao/index.js';
 import type { RepositorioDeConteudo } from '../armazenamento/index.js';
 import type { EnderecoDoConteudo } from '../publicacao/index.js';
+import type {
+  GanchosDoIdentificadorUnico,
+  ReescritaNaGravacao,
+  TextoDoIdentificador,
+} from './identificador-na-url.js';
 
 /**
  * O que a gravacao le e grava do armazenamento de T002.
@@ -240,10 +280,14 @@ export interface PedidoDeGravacao {
   /** `post_password` — texto claro (BR-MIGRAR-044), esvaziado em `private`. */
   readonly senha?: string;
   /**
-   * `post_name` — o identificador na URL.
+   * `post_name` — o identificador na URL, **o campo de US-3**.
    *
-   * ⚠️ Esta tarefa **nao** o sanitiza e **nao** cobra unicidade: as duas sao
-   * T007 (US-3). Ver a tabela do fim de `index.ts`.
+   * O que acontece com ele depende do estado resolvido, e e a regra de T007:
+   * em `draft`, `pending` e `auto-draft` o valor informado passa como esta e a
+   * omissao grava vazio (CA-3.1); em qualquer outro estado ele e sanitizado e
+   * **tornado unico** (CA-3.2), e a omissao deriva do titulo. Em `pending` de
+   * quem nao pode publicar ele e **esvaziado** (CA-3.4). A regra inteira esta em
+   * `identificador-na-url.ts` e em `permissao-do-identificador.ts`.
    */
   readonly identificadorNaUrl?: string;
   readonly aPingar?: string;
@@ -287,13 +331,21 @@ export interface PedidoDeGravacao {
  * | 5 | `pre_post_update` | acao | entre o filtro 4 e o `UPDATE` (`:4993`) |
  * | 6 | `pre_post_insert` | acao | entre o filtro 4 e o `INSERT` (`:5025`) |
  *
+ * **T007 acrescentou os cinco de `wp_unique_post_slug()`**, por heranca de
+ * {@link GanchosDoIdentificadorUnico} — e sao cinco **filtros**, logo cinco
+ * pontos que mudam o endereco do conteudo. A tabela deles, com nome, argumentos
+ * e linha, esta no cabecalho de `identificador-na-url.ts`. Eles entram nesta
+ * interface, e nao em outra, porque e deste caminho que o legado os dispara: as
+ * duas chamadas de `wp_unique_post_slug()` sao `:4906` e `:5048`, dentro de
+ * `wp_insert_post()`.
+ *
  * **O rabo de pontos do caminho de gravacao — a transicao de estado e a familia
  * `save_post` — NAO esta aqui, e nao e esquecimento.** Ele esta declarado, com
  * nome, argumentos e posicao, na tabela do fim de `index.ts`, junto do dono de
  * cada um. A razao de a fronteira desta tarefa cair antes dele esta em
  * `gravar.ts`, secao *"Onde esta tarefa para, e por que exatamente ali"*.
  */
-export interface GanchosDaGravacao {
+export interface GanchosDaGravacao extends GanchosDoIdentificadorUnico {
   /**
    * `wp_insert_post_empty_content` — **filtro**, dois argumentos (`:4695`).
    *
@@ -418,8 +470,74 @@ export interface ContextoDeGravacao {
    */
   readonly ator: AtorDeAutorizacao;
 
+  /**
+   * A base da decisao de capacidade: matriz gravada, rede, constantes, casos.
+   *
+   * **Acrescentada por T007**, e a razao esta em
+   * `permissao-do-identificador.ts`: a unica decisao de capacidade deste caminho
+   * e o identificador na URL de quem nao pode publicar (`:4731`-`:4739`,
+   * CA-3.4 e CA-7.4). Ela **nao recusa a gravacao** — apaga um campo.
+   *
+   * Chega separada do {@link ContextoDeGravacao.ator} porque e o que **nao**
+   * muda dentro da requisicao: a mesma base responde por atores diferentes, que
+   * e o que o cenario `@concorrencia` de `PT-002` exercita.
+   */
+  readonly base: BaseDeAutorizacao;
+
   readonly armazenamento: ArmazenamentoNaGravacao;
   readonly datas: DatasDoSite;
+
+  /**
+   * As duas funcoes de texto que o identificador na URL precisa —
+   * `sanitize_title()` e `utf8_uri_encode()`.
+   *
+   * **Acrescentada por T007.** A forma, o dono e o aviso de *"nao as implemente
+   * `o suficiente`"* estao em `identificador-na-url.ts`.
+   */
+  readonly texto: TextoDoIdentificador;
+
+  /**
+   * O que a unicidade le da reescrita de endereco: os nomes de feed, a base de
+   * paginacao e a estrutura de links.
+   *
+   * **Acrescentada por T007**, e as tres sao **leituras a cada chamada** — a
+   * razao esta no tipo.
+   */
+  readonly reescrita: ReescritaNaGravacao;
+
+  /**
+   * `get_post_type_object( $nome )`, ou `null` quando o tipo nao esta
+   * registrado.
+   *
+   * **Acrescentada por T007.** Duas decisoes a consultam, e as duas estao em
+   * `permissao-do-identificador.ts`: o slot `publish_posts` do tipo (`:4732`) e
+   * o `case 'publish_post'` de `map_meta_cap()`. `null` **nao** e caminho raro —
+   * no caminho de insercao ele faz a conjuncao do legado cair e o identificador
+   * **ficar como veio**, e no de atualizacao ele degrada para a capacidade mais
+   * alta.
+   */
+  readonly tipoDeConteudo: (nome: string) => TipoDeConteudoNaAutorizacao | null;
+
+  /**
+   * `is_post_type_hierarchical( $tipo )` — `wp-includes/post.php:2202`.
+   *
+   * **Acrescentada por T007**, e e ela que escolhe **o escopo da unicidade**:
+   * pagina e unica dentro da propria arvore, conteudo em linha do tempo dentro
+   * do proprio tipo. Tipo nao registrado devolve `false` e cai no ramo plano, em
+   * vez de recusar — ver `identificador-na-url.ts`.
+   */
+  readonly tipoEHierarquico: (tipo: string) => boolean;
+
+  /**
+   * O relator de uso indevido de `_doing_it_wrong()`, quando houver.
+   *
+   * **Acrescentada por T007**, e e **so escrita**: nenhuma ramificacao deste
+   * caminho consulta o resultado dela, que e o que o **P7** cobra —
+   * *"acrescentar registro e permitido e desejavel; fazer o fluxo depender dele
+   * troca o produto"*. Os dois avisos alcancaveis sao os do `case
+   * 'publish_post'` (`capabilities.php:386` e `:405`).
+   */
+  readonly avisarUsoIndevido?: RelatorDeUsoIndevido;
 
   /**
    * `post_type_supports( $tipo, $recurso )` — `wp-includes/post.php:2235`.

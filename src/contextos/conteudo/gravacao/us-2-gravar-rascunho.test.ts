@@ -22,11 +22,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { ATOR_ANONIMO, type AtorDeAutorizacao } from '../../../plataforma/autorizacao/index.js';
+import {
+  ATOR_ANONIMO,
+  REDE_INATIVA_NA_AUTORIZACAO,
+  type AtorDeAutorizacao,
+} from '../../../plataforma/autorizacao/index.js';
 import {
   criarRepositorioDeConteudo,
   DATA_SENTINELA,
   ddlDeConteudo,
+  type RepositorioDeConteudo,
 } from '../armazenamento/index.js';
 import {
   criarPortaDeDadosFalsa,
@@ -146,6 +151,70 @@ function ator(contaId: number, login = 'autora'): AtorDeAutorizacao {
   return { contaId, login, existe: true, concessoes: [] };
 }
 
+/*
+  ── OS COLABORADORES QUE T007 ACRESCENTOU A ESTE CONTEXTO ──────────────────
+
+  US-3 fez o caminho de gravacao atravessar a formatacao de texto, a reescrita de
+  endereco e a autorizacao, e por isso `ContextoDeGravacao` cresceu. Os dubles
+  abaixo existem para que os 34 testes desta suite continuem afirmando **o que
+  eles afirmam** — o estado resolvido na coluna, as quatro datas e a ordem dos
+  pontos de extensao —, e nao para afirmar nada sobre o identificador na URL:
+  **a regra dele tem suite propria**, `us-3-identificador-unico.test.ts`, que
+  usa a porta de dados crua e confere o texto de cada consulta.
+*/
+
+/**
+ * `sanitize_title()` reduzida ao que esta suite precisa: caixa baixa, espaco e
+ * sublinhado virando hifen, o resto do que nao e letra, digito ou hifen caindo
+ * fora, e a reserva quando sobra vazio.
+ *
+ * ⚠️ **Nao e a funcao do legado**, e nao tenta ser: a de verdade tem 80 linhas,
+ * preserva octeto escapado e apaga 30 sequencias percent-codificadas — ver o
+ * aviso em `identificador-na-url.ts`. Aqui ela so precisa ser **deterministica**
+ * e reconhecivel, porque nenhuma afirmacao desta suite e sobre o texto dela.
+ */
+const TEXTO_DO_IDENTIFICADOR = {
+  sanitizarTitulo(titulo: string, reserva: string): string {
+    const sanitizado = titulo
+      .toLowerCase()
+      .replace(/[\s_]+/g, '-')
+      .replace(/[^a-z0-9-]/g, '');
+    return sanitizado === '' ? reserva : sanitizado;
+  },
+  codificarEmUtf8NaUrl(texto: string, tamanho: number): string {
+    return texto.slice(0, tamanho);
+  },
+};
+
+/** `$wp_rewrite` e `permalink_structure` com os valores de fabrica do legado. */
+const REESCRITA_DE_FABRICA = {
+  feeds: () => ['feed', 'rdf', 'rss', 'rss2', 'atom'],
+  baseDePaginacao: () => 'page',
+  estruturaDeLinks: () => '',
+};
+
+/**
+ * O repositorio de T002, com as **tres** consultas de unicidade respondendo
+ * *"livre"*.
+ *
+ * A porta falsa responde por **fila**, na ordem em que as leituras chegam, e nao
+ * por consulta: deixar as consultas de unicidade na fila faria cada gravacao de
+ * estado publicado consumir as linhas programadas para as leituras de
+ * `get_post()` e produzir sufixo numerico onde esta suite nao afirma nenhum. O
+ * resto do repositorio e o de verdade, e toda escrita continua saindo pela porta
+ * falsa e sendo conferida la.
+ */
+function repositorioSemColisaoDeIdentificador(
+  dados: PortaDeDadosFalsa,
+): RepositorioDeConteudo {
+  return {
+    ...criarRepositorioDeConteudo(dados.porta),
+    identificadorDeAnexoEmUso: () => null,
+    identificadorHierarquicoEmUso: () => null,
+    identificadorPlanoEmUso: () => null,
+  };
+}
+
 function cenario(opcoes: OpcoesDoCenario = {}): Cenario {
   const dados = criarPortaDeDadosFalsa({
     resultadoDeEscrita: {
@@ -203,7 +272,21 @@ function cenario(opcoes: OpcoesDoCenario = {}): Cenario {
 
   const contexto: ContextoDeGravacao = {
     ator: opcoes.ator ?? ator(3),
-    armazenamento: { conteudo: criarRepositorioDeConteudo(dados.porta) },
+    base: { matriz: [], rede: REDE_INATIVA_NA_AUTORIZACAO },
+    armazenamento: { conteudo: repositorioSemColisaoDeIdentificador(dados) },
+    texto: TEXTO_DO_IDENTIFICADOR,
+    reescrita: REESCRITA_DE_FABRICA,
+    // `get_post_type_object()`: o tipo existe e declara o slot de publicar. Esta
+    // suite nao grava `pending`, logo o passo 10 nao pergunta nada — a decisao
+    // de capacidade do identificador tem suite propria (US-3).
+    tipoDeConteudo: (nome) => ({
+      nome,
+      traduzMetaCapacidade: true,
+      capacidades: { publish_posts: 'publish_posts' },
+    }),
+    // `is_post_type_hierarchical()`: nenhum tipo desta suite e hierarquico, logo
+    // a unicidade cai no ramo plano.
+    tipoEHierarquico: () => false,
     datas: {
       agoraNoFusoDoSite() {
         return AGORA_LOCAL;
@@ -872,13 +955,22 @@ test('a atualizacao sem identificador na URL informado conserva o da linha', () 
   assert.equal(valorGravado(dados, 0, 'post_name'), 'titulo-anterior');
 });
 
-test('a atualizacao faz as quatro leituras do legado, e a insercao uma', () => {
-  // A tabela de leituras do cabecalho de `gravar.ts`: com o cache do legado
-  // ligado seriam duas e uma; sem cache — que e o estado desta arvore e o que a
-  // borda 5 manda para a comparacao — sao quatro e uma.
+test('a atualizacao de rascunho faz cinco leituras do legado, e a insercao uma', () => {
+  // A tabela de leituras do cabecalho de `gravar.ts`, para **este** pedido: a
+  // linha existe, o identificador na URL nao e informado e o estado resolvido e
+  // `draft`.
+  //
+  // ⚠️ **Eram quatro em T005 e sao cinco desde T007**, e a quinta e do legado:
+  // o ramo de compatibilidade do passo 11 (`:4755`-`:4758`) le
+  // `get_post_field( 'post_name', $post_id )` quando o identificador conservado
+  // bate com a sanitizacao antiga — que e o caso desta linha
+  // (`titulo-anterior`). A **unicidade nao le nada aqui**, porque `draft`
+  // dispensa (CA-3.1): e o mesmo pedido em estado publicado que passa a emitir
+  // as consultas de `wp_unique_post_slug()`, e e isso que
+  // `us-3-identificador-unico.test.ts` afirma.
   const atualizacao = cenario();
   gravarConteudo(atualizacao.contexto, { id: ID_EXISTENTE, titulo: 't' });
-  assert.equal(atualizacao.dados.selecoes.length, 4);
+  assert.equal(atualizacao.dados.selecoes.length, 5);
   assert.equal(
     atualizacao.dados.selecoes[0]?.texto,
     'SELECT * FROM wp_posts WHERE ID = ? LIMIT 1',

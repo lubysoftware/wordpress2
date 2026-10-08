@@ -25,7 +25,7 @@
       *entrega:* 4 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-020-1, UT-020-2, UT-020-3, UT-020-4), com o mesmo dado de entrada, ação e resultado esperado. O teste de regra de negócio (UT-020-4) entra na mesma suíte.
       *satisfaz:* CA-2.1, CA-2.2, CA-2.3
       *depende de:* T005
-- [ ] **T007** Exigir identificador único na URL só a partir da publicação (US-3)
+- [x] **T007** Exigir identificador único na URL só a partir da publicação (US-3)
       *entrega:* o comportamento de US-3 existe e os critérios CA-3.1, CA-3.2, CA-3.3, CA-3.4 passam contra o sistema novo
       *satisfaz:* CA-3.1, CA-3.2, CA-3.3, CA-3.4
       *depende de:* T001, T002, T005

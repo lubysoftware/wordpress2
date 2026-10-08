@@ -44,7 +44,7 @@
  * | o que | de quem |
  * |---|---|
  * | o estado resolvido na gravacao (o `draft` que divide com o `publish` do DDL) | **T005**, US-2 |
- * | a unicidade do identificador na URL, que `wp_publish_post()` **nao** cobra | **T007**, US-3 |
+ * | a unicidade do identificador na URL, que `wp_publish_post()` **nao** cobra | **T007** a portou em `../gravacao/identificador-na-url.ts`, e a ausencia **continua aqui**: por esta porta o identificador duplicado sobrevive a publicacao |
  * | o estado `private` como visibilidade | **T009**, US-4 |
  * | os criterios da republicacao nula — a guarda esta aqui, as afirmacoes nao | **T011**, US-5 |
  * | o agendamento, a comparacao de data e a verificacao dupla | **T013**, US-6 |
