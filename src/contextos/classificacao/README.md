@@ -2,10 +2,18 @@
 
 Entregue por **T001** (o esqueleto), **T002** (a forma de armazenamento),
 **T003** (a separacao entre rotulo e contexto, US-1), **T005** (a classificacao
-do conteudo, US-2) e **T007** (o termo padrao do contexto, US-3) da feature
-`003-classificacao-do-conteudo`. Este arquivo e a leitura obrigatoria de quem
-pegar T009 em diante: ele diz o que ja esta decidido, o que esta decidido **em
-outro lugar**, e o que ninguem decidiu.
+do conteudo, US-2), **T007** (o termo padrao do contexto, US-3) e **T009** (a
+manutencao da lista, US-4) da feature `003-classificacao-do-conteudo`. Este
+arquivo e a leitura obrigatoria de quem pegar **T011** em diante: ele diz o que
+ja esta decidido, o que esta decidido **em outro lugar**, e o que ninguem
+decidiu.
+
+> ⚠️ **Se voce esta pegando T011, comece por dois lugares:** o bloco 🔴 de
+> `manutencao-da-lista/apagar-rotulo-do-contexto.ts`, que e a cascata inteira
+> **sem** o passo que T011 acrescenta e com a consequencia concreta dessa
+> ausencia; e a secao 🔴 de `manutencao-da-lista/permissao-na-gestao-de-rotulos.ts`,
+> que lista os **tres** portoes da tela que dependem do `case` de capacidade sobre
+> o termo — o `case` que carrega a regra de T011.
 
 ## O que T001 entrega, e so isso
 
@@ -313,6 +321,121 @@ Cinco coisas que T007 **nao** fez, e nao e esquecimento:
 5. **Nao escreveu os testes do catalogo.** `UT-035-1` a `UT-035-5` sao **T008**,
    que roda em paralelo com esta tarefa.
 
+## O que T009 entrega, e so isso
+
+> *o comportamento de US-4 existe e os criterios CA-4.1, CA-4.2, CA-4.3, CA-4.4,
+> CA-4.5 passam contra o sistema novo*
+> — `.specify/specs/003-classificacao-do-conteudo/tasks.md`, T009
+
+Tudo em `manutencao-da-lista/`, e o `index.ts` dessa pasta e a leitura de
+entrada. A historia e UC-08 inteiro menos a protecao do termo padrao, e esta em
+quatro verbos — *"criar, renomear, reorganizar e apagar"* —, dos quais o segundo
+ja era de T003:
+
+| arquivo | o que e |
+|---|---|
+| `manutencao-da-lista/escopo-de-manutencao-da-lista.ts` | as duas colaboracoes, e por que esta historia **nao** tem escopo proprio |
+| `manutencao-da-lista/caso-de-gestao-de-rotulo.ts` | **CA-4.1**: os **cinco** nomes de capacidade que resolvem para `manage_categories` (`PERM-6`, `capabilities.php:751`) |
+| `manutencao-da-lista/permissao-na-gestao-de-rotulos.ts` | **CA-4.1**: os portoes da tela, com os cinco `msgid` do legado byte a byte — e os **tres** portoes de item que sao de T011 |
+| `manutencao-da-lista/hierarquia-do-rotulo.ts` | **CA-4.2**: a regra de qual pai cada contexto aceita, o reposicionamento na arvore, e a 🔴 pergunta aberta do contexto plano |
+| `manutencao-da-lista/criar-rotulo-no-contexto.ts` | `wp_insert_term()`: a sequencia que **insere antes de perguntar**, e **CA-4.5** no instante zero |
+| `manutencao-da-lista/apagar-rotulo-do-contexto.ts` | **CA-4.3**, **CA-4.4** e **CA-4.5**: a cascata de `wp_delete_term()`, com `DB-TRG3` e `DB-TRG4` |
+| `manutencao-da-lista/us-4-manutencao-da-lista.test.ts` | 32 testes: os cinco criterios por efeito no banco, por sequencia de comandos e por **ausencia** de comando |
+
+**Quatro entradas novas na superficie do modulo, e duas delas verificam
+capacidade** — as **primeiras** deste modulo depois de `classificarConteudo`:
+
+| operacao | no legado | permissao |
+|---|---|---|
+| `permissaoDeGerenciarRotulos` | o portao de entrada da tela (`wp-admin/edit-tags.php:26`) | `manage_terms` do contexto, **verificada** |
+| `permissaoDeCriarRotulo` | o portao da acao de criar (`:86`) | `edit_terms` do contexto, **verificada** |
+| `criarRotuloNoContexto` | `wp_insert_term()` (`taxonomy.php:2458`) | `edit_terms`, **nao** verificada: a funcao do legado nao a verifica e o nucleo a chama sem ator |
+| `reposicionarRotuloNaHierarquia` | `wp_update_term()` pelo caminho do `parent` | `edit_terms`, **nao** verificada, identica a `renomearRotulo` de T003 |
+
+⚠️ **`apagarRotuloDoContexto` NAO entrou na superficie**, e e a unica peca de
+US-4 que fica de fora. T003 nao publicou `removerRotuloDoContexto` por **duas**
+razoes — *"sem a protecao do termo padrao (US-5, T011) e sem a cascata (US-4,
+T009)"* —, e **T009 fechou a segunda e nao a primeira**: a protecao do termo
+padrao e `CA-5.1` e `CA-5.2`, criterios de **T011**. Publicar agora exporia um
+caminho que destroi a categoria padrao, e *"apagar dado"* esta na tabela *Nao
+negociavel*. A consequencia concreta da ausencia do passo 2, que T011 fecha com
+um `if`, esta no bloco 🔴 de `manutencao-da-lista/apagar-rotulo-do-contexto.ts`.
+
+**T009 nao acrescentou porta**, e precisou de tres coisas que nao estao no banco
+deste contexto: a decisao de capacidade, a opcao do termo padrao e as duas
+contagens que atravessam `posts`. A primeira e `plataforma/autorizacao/` (regra de
+dependencia 1 permite o `import`); as outras duas chegam por ligacao tardia
+(AD-10), em `OpcoesNaClassificacao` e em `ConteudoNaClassificacao`, que T007 e
+T005 ja haviam declarado. **E nao acrescentou escopo proprio**: as tres operacoes
+de escrita reusam o escopo de US-2, pela mesma razao que T007 escreveu.
+
+**T009 acrescentou UMA leitura ao armazenamento**, e o arquivo da estrutura ja a
+tinha declarada: `termos.confirmarDuplicata()` (`armazenamento/termo.ts`), a
+cadeia de `taxonomy.php:2664` que `wp_insert_term()` envia **depois** de inserir.
+O cabecalho de `termo.ts` a havia transcrito byte a byte em T002, atribuido a
+T003/T009, e separado a cadeia da regra — e e essa divisao que T009 manteve: a
+**regra** (inserir, perguntar, desfazer) mora em `manutencao-da-lista/`.
+
+**Nenhum numero novo entrou com T009**, e isso e leitura e nao sorte: os cinco
+criterios de US-4 nao tem prazo, contagem nem limite. Os dois valores que a
+historia escreve sao sentinelas que T002 ja havia nomeado com teste de borda —
+`SEM_ROTULO_PAI` (`0`) e `CONTAGEM_INICIAL_DE_USO` (`0`) —, mais
+`SEM_GRUPO_DE_SINONIMOS`. O **P6** manda que onde o legado nao tem numero o
+sistema novo tambem nao tenha.
+
+Oito coisas que T009 **nao** fez, e nao e esquecimento:
+
+1. 🔴 **Nao entregou a consulta de termos por filtro**, que e a quinta linha da
+   tabela *Contratos* de `plan.md` (*"listar rotulos | contexto, filtros | lista
+   com hierarquia e contagem"*). A razao esta escrita desde T002, nesta pagina:
+   ela e `WP_Term_Query`, montada *"por fragmento com ponto de extensao entre os
+   fragmentos"*, e *"uma versao simplificada dela aqui seria uma segunda consulta
+   de termos **sem** os pontos de extensao, que o P2 poe no contrato publico"*. A
+   camada de dados por fragmento e **T007 da feature `015`** e nao existe nesta
+   arvore, logo as duas saidas possiveis eram transcrever uma consulta sem os
+   pontos de extensao (o **P2** trata isso como remover ponto de extensao, e a
+   tabela *Nao negociavel* poe fora do alcance do agente) ou construir a camada de
+   dados de outra feature dentro desta tarefa. **Nenhuma das duas e esta tarefa**,
+   e a ausencia nao impede criterio nenhum: a *hierarquia* e a *contagem* que o
+   titulo da historia cita sao as colunas `parent` e `count`, as duas escritas por
+   esta pasta. O raciocinio inteiro esta no bloco 🔴 de
+   `manutencao-da-lista/index.ts`.
+2. **Nao portou `wp_unique_term_slug()` nem a derivacao do apelido a partir do
+   nome.** A primeira depende de um laco cujo corpo **nao e legivel nesta arvore**
+   (T002 portou as duas leituras dele, `:3188` e `:3190`, e chamou o laco de
+   regra); a segunda depende de `sanitize_title()`, que nao existe nesta arvore e
+   cuja ausencia T003 ja havia declarado no ramo gemeo. ⚠️ Consequencia: o apelido
+   e gravado como veio, e com apelido vazio a linha fica com `''`. O caso de
+   colisao **nao** fica sem rede — a confirmacao de duplicata o apanha depois do
+   `INSERT` e desfaz as duas insercoes.
+3. **Nao portou a recusa de nome duplicado no mesmo nivel nem `missing_parent`.**
+   As duas passam por `WP_Term_Query` e os `msgid` delas nao sao reconferiveis
+   aqui; `plan.md` **nao** as lista entre os erros do contrato. Consequencia
+   declarada em cada arquivo: dois rotulos de mesmo nome e apelidos diferentes sao
+   aceitos, e um pai que nao existe e gravado — o orfao que o **P5** chama de
+   estado normal e que `target_data_model.md` registra como *"integridade
+   **nenhuma**"*.
+4. **Nao portou a verificacao de laco na arvore** (`wp_check_term_hierarchy_for_loops()`,
+   `:5109`). O corpo dela nao e legivel aqui, ela delega a `wp_find_hierarchy_loop()`
+   — de `plataforma/` — e nenhum documento do pacote a descreve. Que o ciclo e
+   estado alcancavel no legado esta registrado no proprio pacote
+   (`BR-DESCARTAR-007` descreve o laco infinito da exportacao *"com um ciclo de
+   pais"*), e **esta tarefa nao estende aquele descarte**: ela so nao inventa a
+   deteccao.
+5. **Nao portou o agrupamento de sinonimos (`alias_of`).** T003 o atribuiu a T009,
+   mas **nenhum criterio de US-4 o menciona** e nenhum caso de `UT-036-*` o
+   exercita; o corpo dele nao e legivel aqui. O grupo nasce `0`, que e o valor do
+   legado quando ninguem informa `alias_of` (`:2525`).
+6. **Nao implementou a protecao do termo padrao nem os tres portoes de item da
+   tela.** Os tres (`:117`, `:137`, `:173`) passam pelo `case` de capacidade
+   **sobre o termo**, que carrega *"o termo padrao da taxonomia e indestrutivel"*
+   (`BR-MIGRAR-091`, `capabilities.php:738`) e e **T011**.
+7. **Nao reconta por conta propria.** CA-4.5 e CA-2.3 sao a mesma coluna e o mesmo
+   calculo, e `wp_update_term_count()` ja era de T005: a recontagem sai **de
+   dentro** da substituicao e da remocao, como no legado.
+8. **Nao escreveu os testes do catalogo.** `UT-036-1` a `UT-036-7` sao **T010**,
+   que roda em paralelo com esta tarefa.
+
 ## Por que uma porta so
 
 `plan.md` desta feature lista tres slots de tecnologia, e so um vira porta:
@@ -438,13 +561,13 @@ o barramento encaixe os cinco na posicao do legado. Isto e declaracao, nao
 decisao: **a tensao entre o P2 e o `wont` de `REQ-162` e anterior a esta tarefa e
 nao foi resolvida por ela.**
 
-## O que ninguem decidiu, e que T001, T002, T003, T005 e T007 nao decidiram tampouco
+## O que ninguem decidiu, e que T001, T002, T003, T005, T007 e T009 nao decidiram tampouco
 
 As duas primeiras estao em `spec.md`, secao *Perguntas em aberto*. **As duas
 batiam em T002, e T002 as deixou abertas** — o que ela fez foi reproduzir o
-legado, que e o unico caminho que nao antecipa a decisao. A terceira a quinta sao
+legado, que e o unico caminho que nao antecipa a decisao. A terceira a setima sao
 **novas**, e nenhum documento do pacote as menciona: a terceira e de T003, a
-quarta de T005 e a quinta de **T007**.
+quarta de T005, a quinta de T007, e a **sexta e a setima sao de T009**.
 
 1. **O discriminador do objeto classificado.** `term_relationships.object_id` e
    polimorfico por convencao e nada na linha diz se o objeto e conteudo ou link.
@@ -569,7 +692,61 @@ quarta de T005 e a quinta de **T007**.
    exige. A analise inteira esta no bloco 🔴 de
    `termo-padrao/termo-padrao-na-gravacao.ts`.
 
-E havia uma quarta — agora sexta — que o plano chama de risco 3 e a spec nao poe
+6. 🔴 **Onde o contexto plano recusa a hierarquia, e essa e de T009.**
+
+   **CA-4.2** diz *"contexto hierarquico aceita termo pai e mantem a arvore;
+   contexto plano **recusa** hierarquia"*, e `plan.md` poe *"hierarquia em
+   contexto plano"* na coluna de **erros** do contrato *criar ou renomear
+   rotulo*. UC-08 diz a mesma coisa pelo avesso (*"Tags nao tem hierarquia e nao
+   tem termo padrao"*), e T002 ja havia escrito, no arquivo da estrutura, que
+   *"contexto plano grava `0` em toda linha, porque a hierarquia e recusada antes
+   da gravacao (CA-4.2, regra de T009)"*.
+
+   **As quatro fontes concordam no efeito no banco** — toda linha de um contexto
+   plano tem `parent = 0` — **e nenhuma diz se o chamador recebe um erro ou se o
+   pai e simplesmente descartado**. As duas leituras escrevem a mesma linha; o
+   que muda e so o valor devolvido. E o ponto exato em que o legado recusa **nao
+   e reconferivel nesta arvore**: nao ha `wp-includes/taxonomy.php` para abrir.
+
+   **O que T009 fez:** descarta o pai e grava `0`, sem devolver erro. Tres
+   razoes — devolver erro exigiria **inventar um codigo de `WP_Error` que o
+   pacote nao nomeia** (e `resolucao-do-rotulo-no-contexto.ts` ja fixou que *"o
+   P8 proibe remover superficie; nao autoriza acrescentar"*); recusar e a direcao
+   que a resposta 2 proibe (*"recusar hoje o que o legado aceita"*); e nesta
+   mesma historia a recusa de **CA-4.1 tambem mora na superficie** e nao no
+   nucleo, o que da uma leitura que reconcilia as quatro fontes sem divergencia
+   nenhuma — a tela de um contexto plano nem oferece campo de pai. Ha **dois**
+   testes com 🔴 no nome, um por operacao que escreve a coluna.
+
+   **Para quem decidir:** se o legado devolver `WP_Error`, entra um codigo em
+   `rotulo-e-contexto/erro-de-termo.ts` **com o `msgid` do legado** e os dois
+   pontos de entrada de `manutencao-da-lista/hierarquia-do-rotulo.ts` passam a
+   devolve-lo; **o efeito no banco nao muda**. A analise inteira esta no bloco 🔴
+   daquele arquivo.
+
+7. 🔴 **O que a cascata faz com um termo padrao informado que nao existe, e essa
+   tambem e de T009.**
+
+   `wp_delete_term()` aceita `$args['default']`, e T003 descreveu o passo
+   (`:2089`-`:2098`) como *"`$args['default']` e `force_default`, e **a validacao
+   do padrao informado**"*. O que *"validacao"* faz com o padrao invalido — se o
+   descarta, se recusa a operacao, ou se o grava mesmo assim — **nao esta em
+   documento nenhum do pacote** e nao e reconferivel aqui.
+
+   **O que T009 fez:** descarta o informado e volta para o da opcao do contexto.
+   Aceitar um rotulo que nao existe faria a substituicao integral de US-2
+   resolve-lo como inexistente e **remover** o vinculo em vez de troca-lo — o
+   oposto de CA-4.4 —, e *"apagar dado"* esta na tabela *Nao negociavel*. Ha
+   teste com 🔴 no nome.
+
+   Junto com ela viaja uma terceira, menor e sem consequencia de resultado: o
+   `orderby` da leitura inversa do passo 7 da cascata, que esta tarefa emite sem
+   `ORDER BY`. O conjunto de linhas e o mesmo nas duas ordenacoes, porque o que a
+   regra faz com ele e `count()` e diferenca de conjunto; o que muda e o texto da
+   clausula. As duas estao na tabela 🔴 de
+   `manutencao-da-lista/apagar-rotulo-do-contexto.ts`.
+
+E havia uma quarta — agora oitava — que o plano chama de risco 3 e a spec nao poe
 entre as perguntas: **a fusao de `terms` com `term_taxonomy`**. Esta T002 resolveu, e
 resolveu por leitura e nao por escolha: a fusao e do *aggregate*, nao das tabelas
 (`target_domain_model.md` e literal — *"o esquema fica intacto (AD-11), e as duas
@@ -580,7 +757,7 @@ continua sendo o `term_taxonomy_id` do legado — que e o que o risco 3 temia ve
 mudar. **A fusao fisica nao foi feita, e ela e o item 3** daquela mesma secao de
 `target_data_model.md`.
 
-E uma setima, que nenhuma das duas listas traz e que **vale dizer para a proxima
+E uma nona, que nenhuma das duas listas traz e que **vale dizer para a proxima
 onda**: `plan.md` escreve, na linha de `term_taxonomy`, que *"a hierarquia do
 legado atravessa a tabela errada... Corrigir isso e interno e invisivel, e e a
 parte que mais simplifica"*. **T002 nao corrigiu**, pela mesma razao de zero
@@ -693,3 +870,34 @@ opcao que vale `0`, e capacidade ausente no mapa de contextos. E duas sao de
 `term_id` que `default_category` guarda —, porque essa e a troca que esta historia
 convida a fazer. Nenhuma diferenca de texto nova contra o legado: T007 nao
 acrescentou consulta alguma ao armazenamento.
+
+**E o que T009 entrega:** a `@cascata`, que `parity_specs.md` torna
+**obrigatoria** em *"exclusao de conteudo e de termo"* — e esta e a exclusao de
+termo, a unica desta feature. A suite de US-4 afirma a sequencia inteira da
+cascata, comando por comando na ordem do legado, e o conjunto exato do que sumiu
+e do que ficou que o **P5** cobra: o `DELETE` alcanca **so** a juncao, nenhum
+comando menciona `wp_posts`, e os tres `DELETE` da operacao sao exatamente o
+vinculo, a linha de contexto e a linha de rotulo — este ultimo **condicional**,
+como em CA-1.3. Mais a `@invariante`, porque `DB-TRG4` e a **terceira** das quatro
+invariantes de `AGG-Termo`, afirmada pelos dois lados: o objeto que tinha so
+aquele termo recebe o padrao, e o que tinha outro perde so o vinculo.
+
+Tres afirmacoes de T009 sao de **ordem** e nao de conteudo, porque no legado a
+ordem e a regra: a criacao **insere antes de perguntar**, e os dois `DELETE` do
+desfazimento saem na ordem `terms` e depois `term_taxonomy` (`:2685` e `:2686`) —
+o **inverso** da ordem da exclusao de verdade; o reposicionamento dos filhos sai
+**antes** do laco dos objetos e depois da resolucao do par, porque e dela que vem
+o avo; e a recontagem sai **de dentro** da substituicao e da remocao, nunca de
+fora. Seis afirmacoes sao de que **nenhum comando sai**: os tres portoes de
+CA-4.1 (que nao tocam o banco), contexto nao registrado e rotulo inexistente na
+exclusao, nome vazio e contexto nao registrado na criacao, contexto plano na
+leitura de filhos, e o `UPDATE` corretivo de apelido que esta tarefa nao emite.
+
+A diferenca de texto declarada contra o legado, nesta tarefa, e **uma**, e ela e
+de parentese: a confirmacao de duplicata emite `ON ( tt.term_id = t.term_id )`,
+com os parenteses do legado, enquanto as outras duas cadeias fundidas deste
+contexto nao os tem — esta registrada no metodo, em `armazenamento/termo.ts`. E
+**uma diferenca de sequencia**, tambem declarada no metodo que a produz: no
+caminho da exclusao o legado emite a leitura do termo **tres** vezes (`:2062`,
+`:2115` e `:2149`) e este porte a emite **duas**, nas duas posicoes em que ha
+consumidor.

@@ -36,6 +36,16 @@
  * (`rotulo-no-contexto.ts`). Nenhuma das duas e a consulta de termos por filtro,
  * que continua sendo de T009 e da feature 015.
  *
+ * **E uma terceira entrou com T009 (US-4)**, pela mesma razao de sempre — nenhuma
+ * consulta e montada fora desta pasta:
+ * {@link LeituraDeTermos.confirmarDuplicata} (`termo.ts`), a cadeia de
+ * `taxonomy.php:2664` que `wp_insert_term()` envia **depois** de inserir, e que o
+ * cabecalho de `termo.ts` ja havia transcrito byte a byte e atribuido a T003/T009.
+ * A **regra** que a usa — inserir, perguntar, desfazer — mora em
+ * `../manutencao-da-lista/criar-rotulo-no-contexto.ts`. ⚠️ **A consulta de termos
+ * por filtro continua fora**: ela e `WP_Term_Query`, montada por fragmento com
+ * ponto de extensao entre os fragmentos, e e da feature 015 (T007).
+ *
  * **Nada aqui resolve no carregamento** (`EXT-ORDEM`, BR-MIGRAR-106): criar o
  * armazenamento monta nome de tabela e nada mais — nenhuma consulta sai, nenhuma
  * opcao e lida, nenhum DDL e emitido. **E nada aqui guarda estado de modulo**
@@ -145,6 +155,8 @@ export {
 export {
   criarLeituraDeTermos,
   lerTermo,
+  type DuplicataDeRotulo,
   type LeituraDeTermos,
+  type PerguntaDeDuplicata,
   type Termo,
 } from './termo.js';

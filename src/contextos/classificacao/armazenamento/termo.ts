@@ -49,6 +49,15 @@
  *   o filtro `wp_insert_term_duplicate_term_check` (`:2682`), que o P2 poe no
  *   contrato publico e permite **desligar a verificacao**. A regra e de T003/T009,
  *   com o filtro declarado na tarefa que a implementar.
+ *
+ *   ⚠️ **T009 chegou, e a cadeia entrou** — em
+ *   {@link LeituraDeTermos.confirmarDuplicata}, com o texto acima byte a byte. O
+ *   que **nao** mudou e a divisao que este paragrafo declarou: a **regra** (o
+ *   `INSERT`, depois a pergunta, depois o desfazimento) mora em
+ *   `../manutencao-da-lista/criar-rotulo-no-contexto.ts`, e so a **cadeia** mora
+ *   aqui — como todas as outras deste contexto, porque nenhuma consulta e montada
+ *   fora de `armazenamento/`. O filtro `wp_insert_term_duplicate_term_check` esta
+ *   declarado no arquivo da regra, que e quem o emitiria.
  */
 
 import type { LinhaDeResultado, PortaDeDados } from '../portas/index.js';
@@ -56,7 +65,7 @@ import {
   tabelaDeRotulos,
   tabelaDeRotulosNoContexto,
 } from './chaves-e-tabelas.js';
-import { comoInteiro, comoTexto } from './leitura-de-linha.js';
+import { comoInteiro, comoTexto, primeiraLinha } from './leitura-de-linha.js';
 
 /**
  * Um rotulo **dentro de um contexto**, como a leitura fundida o devolve.
@@ -88,6 +97,42 @@ export interface Termo {
   readonly grupoDeSinonimos: number;
 }
 
+/**
+ * O que se pergunta na confirmacao de duplicata de `wp_insert_term()`: os cinco
+ * valores que a cadeia de `taxonomy.php:2664` compara, na ordem em que ela os
+ * compara.
+ *
+ * Os dois ultimos sao o par que **acabou de ser gravado**, e eles entram como
+ * exclusao (`t.term_id < %d` e `tt.term_taxonomy_id != %d`): a pergunta e *"havia
+ * ja um rotulo com este apelido, neste pai, neste contexto, **antes** deste"*.
+ */
+export interface PerguntaDeDuplicata {
+  /** `t.slug = %s` — o apelido que acabou de ser gravado. */
+  readonly slug: string;
+  /** `tt.parent = %d` — o mesmo nivel da arvore, e so ele. */
+  readonly rotuloPaiId: number;
+  /** `tt.taxonomy = %s` — o contexto, por nome. */
+  readonly contexto: string;
+  /** `t.term_id < %d` — **menor** que o recem-criado: so rotulo anterior conta. */
+  readonly rotuloId: number;
+  /** `tt.term_taxonomy_id != %d` — e nao a propria linha de contexto nova. */
+  readonly rotuloNoContextoId: number;
+}
+
+/**
+ * A linha que a confirmacao de duplicata devolve: as **quatro** colunas que a
+ * cadeia seleciona, e nao as nove do termo fundido.
+ *
+ * A lista de colunas e a do legado (`SELECT t.term_id, t.slug,
+ * tt.term_taxonomy_id, tt.taxonomy`), e e ela que a area 3 da Decisao 2 compara.
+ */
+export interface DuplicataDeRotulo {
+  readonly rotuloId: number;
+  readonly slug: string;
+  readonly rotuloNoContextoId: number;
+  readonly contexto: string;
+}
+
 export interface LeituraDeTermos {
   /**
    * **Todas** as linhas de um rotulo, uma por contexto em que ele serve.
@@ -109,6 +154,33 @@ export interface LeituraDeTermos {
    * `rotuloId` e lido da coluna `term_id` e nao de duas.
    */
   obterPorRotulo(rotuloId: number): readonly Termo[];
+  /**
+   * O rotulo **anterior** que ja usava aquele apelido, no mesmo pai e no mesmo
+   * contexto — a confirmacao de duplicata de `wp_insert_term()`.
+   *
+   * `SELECT t.term_id, t.slug, tt.term_taxonomy_id, tt.taxonomy FROM {site}terms
+   * AS t INNER JOIN {site}term_taxonomy AS tt ON ( tt.term_id = t.term_id ) WHERE
+   * t.slug = ? AND tt.parent = ? AND tt.taxonomy = ? AND t.term_id < ? AND
+   * tt.term_taxonomy_id != ?` (`wp-includes/taxonomy.php:2664`).
+   *
+   * Acrescentada por **T009**, e o paragrafo do cabecalho que a declarava
+   * explica a divisao: a **cadeia** e daqui, a **regra** que a usa — inserir,
+   * perguntar, e desfazer as duas insercoes se a resposta vier — e de
+   * `../manutencao-da-lista/criar-rotulo-no-contexto.ts`.
+   *
+   * ⚠️ **O parentese em `ON ( tt.term_id = t.term_id )` e do legado**, e as outras
+   * duas cadeias fundidas deste contexto nao o tem
+   * ({@link LeituraDeTermos.obterPorRotulo}, de `class-wp-term.php:132`, e
+   * `idDoRotuloNoContexto`, de `:2643`). A diferenca e de texto e nao de conjunto,
+   * e esta portada porque o slot `persistencia` de `plan.md` pede que a consulta
+   * possa ser *"a MESMA string que o legado envia"*.
+   *
+   * ⚠️ **Nenhuma linha devolvida nao significa "pode gravar"**: significa que
+   * nenhum rotulo **anterior** colide. `DB-UNIQ` (`BR-MIGRAR-076`) poe o apelido
+   * de termo entre as unicidades *"sujeitas a corrida"*, e o banco **aceita** as
+   * duas linhas — ver {@link RepositorioDeRotulos.slugJaUsado}.
+   */
+  confirmarDuplicata(pergunta: PerguntaDeDuplicata): DuplicataDeRotulo | null;
 }
 
 export function criarLeituraDeTermos(dados: PortaDeDados): LeituraDeTermos {
@@ -126,6 +198,35 @@ export function criarLeituraDeTermos(dados: PortaDeDados): LeituraDeTermos {
           parametros: [rotuloId],
         })
         .map(lerTermo);
+    },
+
+    confirmarDuplicata(pergunta) {
+      const linha = primeiraLinha(
+        dados.selecionar({
+          texto:
+            `SELECT t.term_id, t.slug, tt.term_taxonomy_id, tt.taxonomy ` +
+            `FROM ${tabelaDoRotulo} AS t ` +
+            `INNER JOIN ${tabelaDoContexto} AS tt ON ( tt.term_id = t.term_id ) ` +
+            `WHERE t.slug = ? AND tt.parent = ? AND tt.taxonomy = ? ` +
+            `AND t.term_id < ? AND tt.term_taxonomy_id != ?`,
+          parametros: [
+            pergunta.slug,
+            pergunta.rotuloPaiId,
+            pergunta.contexto,
+            pergunta.rotuloId,
+            pergunta.rotuloNoContextoId,
+          ],
+        }),
+      );
+
+      return linha === null
+        ? null
+        : {
+            rotuloId: comoInteiro(linha['term_id']),
+            slug: comoTexto(linha['slug']),
+            rotuloNoContextoId: comoInteiro(linha['term_taxonomy_id']),
+            contexto: comoTexto(linha['taxonomy']),
+          };
     },
   };
 }
