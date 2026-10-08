@@ -1,11 +1,12 @@
 /**
  * Modulo de conteudo — BC-01 de `target_architecture.md`.
  *
- * Feature `002-autoria-e-publicacao`, tarefas T001, T002 e T003. O que existe
- * aqui e o que as tres entregam: o modulo carrega com as tres portas
+ * Feature `002-autoria-e-publicacao`, tarefas T001, T002, T003 e T011. O que
+ * existe aqui e o que as quatro entregam: o modulo carrega com as tres portas
  * declaradas, com o vocabulario de estado editorial do legado como enumeracao
  * fechada, com a forma de armazenamento de conteudo, metadado e versao anterior
- * e com **uma** regra de negocio — a publicacao por ato explicito de US-1.
+ * e com **duas** regras de negocio da mesma operacao — a publicacao por ato
+ * explicito de US-1 e a republicacao nula de US-5.
  * Gravacao, agendamento, identificador na URL, submissao, revisao, versao
  * anterior e rascunho automatico entram nas tarefas delas (T005 em diante), e a
  * leitura obrigatoria de cada uma esta em `./README.md`.
@@ -79,6 +80,7 @@ export interface PortasDeConteudo {
  * | operacao | historia | tarefa | permissao exigida |
  * |---|---|---|---|
  * | `publicar` | US-1 | T003 | **a capacidade de publicar daquele tipo** (`$post_type->cap->publish_posts`), CA-1.1 |
+ * | `publicar`, pedido sobre conteudo ja publicado | US-5 | T011 | a mesma, e e cobrada antes da guarda de estado — ver `publicacao/republicacao-nula.ts` |
  *
  * O armazenamento **nao e operacao**, e por isso nao declara permissao: ele nao
  * decide nada.
@@ -104,6 +106,13 @@ export interface ModuloDeConteudo {
    * codigo e o texto que a API do legado devolve — e a divergencia entre *"recusa
    * explicita na tela"* e o que o painel do legado faz esta registrada em
    * `publicacao/permissao-de-publicacao.ts`, sem ser resolvida aqui.
+   *
+   * **Pedir a publicacao de conteudo que ja esta publicado e operacao sem
+   * efeito** (US-5, T011): o registro nao muda, nenhum ponto de extensao
+   * dispara e nenhuma automacao, notificacao ou agendamento e acionado. E
+   * BR-MIGRAR-007 (`P7`), e o desfecho `ja-publicado` nao e falha — a analise
+   * completa, com o que cada criterio nega e por que a nulidade **nao** vale
+   * para o caminho de gravacao, esta em `publicacao/republicacao-nula.ts`.
    *
    * O contexto chega por argumento, e nao pela composicao, porque identidade,
    * matriz de papeis e estado de rede sao escopo de REQUISICAO (AD-02,

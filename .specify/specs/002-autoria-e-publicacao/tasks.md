@@ -41,7 +41,7 @@
       *entrega:* 4 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-022-1, UT-022-2, UT-022-3, UT-022-4), com o mesmo dado de entrada, ação e resultado esperado.
       *satisfaz:* CA-4.1, CA-4.2, CA-4.3, CA-4.4
       *depende de:* T009
-- [ ] **T011** Tratar a republicação do que já está publicado como operação sem efeito (US-5)
+- [x] **T011** Tratar a republicação do que já está publicado como operação sem efeito (US-5)
       *entrega:* o comportamento de US-5 existe e os critérios CA-5.1, CA-5.2, CA-5.3 passam contra o sistema novo
       *satisfaz:* CA-5.1, CA-5.2, CA-5.3
       *depende de:* T001, T002, T003

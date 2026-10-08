@@ -57,12 +57,13 @@
  * ```php
  * $post = get_post( $post );
  * if ( ! $post )                              { return; }   // :5417
- * if ( 'publish' === $post->post_status )      { return; }   // :5412
+ * if ( 'publish' === $post->post_status )      { return; }   // :5413
  * ```
  *
  * O segundo e **P7 / BR-MIGRAR-007**, *"republicar e operacao nula: nenhum
  * gancho de transicao dispara"*, e e a historia **US-5** — cujos criterios
- * (CA-5.1 a CA-5.3) sao verificados por **T011**, nao por esta tarefa. A guarda
+ * (CA-5.1 a CA-5.3) sao verificados por **T011**, em `republicacao-nula.ts` e
+ * `us-5-republicacao-nula.test.ts`, e nao por esta tarefa. A guarda
  * esta aqui porque ela e **a terceira linha de `wp_publish_post()`**: extrai-la
  * para outra tarefa produziria, no meio do caminho, uma publicacao que dispara a
  * transicao duas vezes — exatamente o que CA-1.2 (*"uma unica vez"*) e UT-019-8
@@ -105,6 +106,7 @@ import {
   autorizarPublicacao,
   type RecusaDaPublicacao,
 } from './permissao-de-publicacao.js';
+import { ehRepublicacaoNula } from './republicacao-nula.js';
 import {
   aplicarTermoPadrao,
   type TermoPadraoAtribuido,
@@ -132,7 +134,10 @@ export type DesfechoDaPublicacao =
   | 'publicado'
   /** `get_post()` nao achou a linha: retorno silencioso do legado (`:5417`). */
   | 'inexistente'
-  /** Ja estava publicado: operacao nula, sem transicao (P7, `:5412`). */
+  /**
+   * Ja estava publicado: operacao nula, sem transicao (P7, `:5413`). Os tres
+   * criterios de US-5 estao em `republicacao-nula.ts`.
+   */
   | 'ja-publicado'
   /** Sem a capacidade de publicar aquele tipo (CA-1.1). */
   | 'recusado';
@@ -266,7 +271,7 @@ export function publicar(
  * | # | passo | linha |
  * |---|---|---|
  * | 1 | ler o conteudo; sem linha, retorno silencioso | `:5415`-`:5417` |
- * | 2 | ja publicado, retorno silencioso (P7) | `:5412` |
+ * | 2 | ja publicado, retorno silencioso (P7) | `:5413` |
  * | 3 | ler o conteudo **anterior**, para o ultimo ponto | `:5417` |
  * | 4 | o termo padrao de cada taxonomia (CA-1.4) | `:5419`-`:5439` |
  * | 5 | `UPDATE` de **uma** coluna (CA-1.2) | `:5448` |
@@ -287,10 +292,11 @@ export function transitarParaPublicado(
     return { desfecho: 'inexistente', ...SEM_PUBLICACAO };
   }
 
-  // Passo 2 (`:5412`): P7 / BR-MIGRAR-007. Nada e lido, nada e escrito e
-  // **nenhum ponto de extensao dispara** — e a ausencia do ponto que e
-  // observavel por quem escuta transicao. Criterios em T011 (US-5).
-  if (conteudo.estado === ESTADO_PUBLICADO) {
+  // Passo 2 (`:5413`): P7 / BR-MIGRAR-007, a regra de **US-5**. Nada e lido,
+  // nada e escrito e **nenhum ponto de extensao dispara** — e a ausencia do
+  // ponto que e observavel por quem escuta transicao. A guarda tem nome em
+  // `republicacao-nula.ts`, com os tres criterios e o que cada um nega (T011).
+  if (ehRepublicacaoNula(conteudo.estado)) {
     return { desfecho: 'ja-publicado', ...SEM_PUBLICACAO, conteudo };
   }
 

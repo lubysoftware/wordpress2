@@ -1,10 +1,11 @@
 # Módulo de conteúdo — BC-01
 
 Esqueleto entregue por **T001** da feature `002-autoria-e-publicacao`, com a
-forma de armazenamento entregue por **T002** e a publicação por ato explícito
-(US-1) entregue por **T003**. Este arquivo é a leitura obrigatória de quem pegar
-T005 em diante: ele diz o que já está decidido, o que está decidido **em outro
-lugar**, e o que ninguém decidiu.
+forma de armazenamento entregue por **T002**, a publicação por ato explícito
+(US-1) entregue por **T003** e a republicação nula (US-5) verificada por
+**T011**. Este arquivo é a leitura obrigatória de quem pegar T005 em diante: ele
+diz o que já está decidido, o que está decidido **em outro lugar**, e o que
+ninguém decidiu.
 
 ## O que T001 entrega, e só isso
 
@@ -223,6 +224,94 @@ de escrever a primeira linha.
 | gravar `_pingme` e `_encloseme`, e agendar `do_pings` | feature 007: é `_publish_post_hook()`, ouvinte do ponto `publish_post` com prioridade 5, declarado em `publicacao/transicao-de-estado.ts` |
 | recontar termo | BC-02: é `_update_term_count_on_transition_post_status()`, prioridade 10 no mesmo ponto, com os dois curto-circuitos declarados |
 | sanitizar o corpo | **ninguém**: REQ-030 está fora do pacote, e `wp_publish_post()` não toca `post_content` — esta tarefa não decide a sanitização de ninguém porque não grava corpo nenhum |
+
+## O que T011 entrega, e só isso
+
+> *o comportamento de US-5 existe e os critérios CA-5.1, CA-5.2, CA-5.3 passam
+> contra o sistema novo*
+> — `.specify/specs/002-autoria-e-publicacao/tasks.md`, T011
+
+US-5 é **uma regra da mesma função de T003**: `wp_publish_post()` desiste quando
+o estado já é `publish` (`wp-includes/post.php:5413`), e é a âncora que a tabela
+de rastreabilidade de `spec.md` dá a US-5, que BR-MIGRAR-007 (`P7`) repete e que
+o fluxo alternativo *"Conteúdo já estava publicado"* de UC-03 descreve.
+
+| arquivo | o que é |
+|---|---|
+| `publicacao/republicacao-nula.ts` | a guarda com nome: o que cada um dos três critérios nega, com a linha do legado, e **por que a nulidade não se estende ao caminho de gravação** |
+| `publicacao/us-5-republicacao-nula.test.ts` | 14 testes dos três critérios, afirmados pela **ausência** de comando, de ponto de extensão e de efeito |
+
+**A guarda já estava no código, e isso é o esperado:** ela é a terceira linha de
+`wp_publish_post()` e chegou com T003, porque sem ela a transição de US-1
+dispararia duas vezes e CA-1.2 (*"uma única vez"*) cairia — o próprio `index.ts`
+de `publicacao/` registrou a divisão. T011 faz o que faltava: dá nome à regra no
+arquivo que a emite e **afirma os três critérios**, que é o que a entrega pede.
+Nenhum comportamento muda nesta tarefa.
+
+### O que "sem efeito" nega, criterio por critério
+
+| critério | o que não acontece | linha do legado |
+|---|---|---|
+| CA-5.1 | nenhum `UPDATE` sai (nem do estado, nem do `guid`), e das três leituras do caminho completo só a primeira acontece | `:5446`, `:8160`, `:5417`, `:8159` |
+| CA-5.2 | nenhum dos três pontos de `wp_transition_post_status()` dispara, e o ouvinte do núcleo não roda | `:5452`, `:5922`, `:5940`, `:5980`, `:8154` |
+| CA-5.3 | o termo padrão não é consultado nem atribuído, a fila não é tocada, e `_publish_post_hook()` não roda — logo `_pingme` e `_encloseme` não são gravados e `do_pings` não é agendado | `:5420`-`:5443`, `:8189`, `:8220`-`:8249` |
+
+**CA-5.3 é consequência de CA-5.2, não uma lista de omissões.** Tudo o que a
+publicação automatiza no legado pende de um ponto da transição — inclusive o
+aviso ao autor de US-9 (T019). Sem transição, nada disso dispara: é literalmente
+o que a história pede, *"repetir a chamada sem disparar notificação ou automação
+duas vezes"*. E a suíte prova que o zero vem da **guarda**, não de um cenário
+vazio: o mesmo cenário em rascunho atribui o termo padrão e limpa o evento
+agendado.
+
+### ⚠️ A nulidade é desta porta, e NÃO do caminho de gravação
+
+`wp_insert_post()` chama `wp_transition_post_status()` **sem comparar os dois
+estados** (`:5176`), e o docblock do terceiro ponto avisa que ele dispara *"both
+when a post is first transitioned to that status from something else, as well as
+upon subsequent post updates (old and new status are both the same)"*
+(`:5965`-`:5968`). Isto é: **salvar de novo um conteúdo publicado dispara
+`publish_to_publish` e `publish_{tipo}` no legado.**
+
+A história US-5 é escrita na voz do integrador — *"para poder repetir a chamada
+sem disparar notificação ou automação duas vezes"* —, e quem ler só essa frase
+pode esperar que **qualquer** pedido repetido de publicação seja nulo, inclusive
+o `POST` da API que grava. Não é. Os três critérios falam de *"pedir a
+publicação"*, a rastreabilidade e BR-MIGRAR-007 apontam `:5413`, e o cenário
+`@idempotencia` de `PT-002` descreve esta porta. T011 implementa a regra na
+âncora que o pacote dá e **não estende a nulidade ao caminho de gravação** —
+estender seria divergir do legado sem decisão humana (**P1**), e sumiria com dois
+pontos de extensão que terceiro escuta (**P2**). Quem pegar T005, T007 ou T013
+precisa disso antes de escrever a primeira linha, e quem construir a superfície
+REST é quem vê a diferença.
+
+### E a fila nunca chega a esta guarda
+
+`wp_publish_post()` tem **um** chamador no núcleo,
+`check_and_publish_future_post()` (`:5503`), e ele desiste antes, no portão dele:
+`if ( 'future' !== $post->post_status ) { return; }` (`:5489`), que é a
+verificação dupla de BR-MIGRAR-006 (T013). Um conteúdo já publicado para no
+portão de `future` quando vem pela fila, e nesta guarda quando vem por esta
+porta. **Os dois silêncios existem, são de donos diferentes e nenhum registra
+erro** — o cenário de paridade do agendamento cobra exatamente isso.
+
+### O que T011 NÃO fez, e por quê
+
+| não fez | de quem é |
+|---|---|
+| os quatro testes de `backlog/tests.md` (UT-023-1 a UT-023-4) | **T012**, a tarefa `[P]` que roda em paralelo com esta |
+| estender a nulidade ao caminho de gravação | **ninguém**: no legado ele não é nulo, e torná-lo nulo é mudar regra documentada |
+| revisar as citações de linha de T003 em `publicacao/publicar.ts` | **ninguém ainda** — ver a nota abaixo |
+
+**Nota de conferência, para quem revisar a paridade.** Algumas citações do
+cabeçalho de `publicacao/publicar.ts` estão deslocadas em poucas linhas contra a
+árvore em disco: a primeira leitura é `:5407` (não `:5415`), o retorno silencioso
+de linha ausente é `:5409` (não `:5417`), o `UPDATE` do estado é `:5446` (não
+`:5448`) e os três pontos da transição são `:5922`, `:5940` e `:5980`. O código
+está certo e a sequência descrita também — o que está deslocado é o número ao
+lado. T011 corrigiu apenas as três citações da **própria** âncora, `:5413`, que é
+a regra desta tarefa; o resto é do arquivo de T003 e fica registrado aqui em vez
+de reescrito por conta própria.
 
 ## O que "enumeração fechada" significa aqui — leia antes de usar o tipo
 
