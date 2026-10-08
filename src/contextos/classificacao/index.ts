@@ -1,12 +1,14 @@
 /**
  * Modulo de classificacao — BC-02 de `target_architecture.md`.
  *
- * Esqueleto da feature `003-classificacao-do-conteudo`, tarefa T001. O que
- * existe aqui e o que T001 entrega: o modulo carrega com a porta de dados
- * declarada e os oito contextos de classificacao do nucleo registrados, e
- * **nenhuma regra de negocio implementada**. O rotulo, a juncao que classifica e
- * o contador entram em T002; a separacao entre rotulo e contexto (US-1) em T003;
- * e a leitura obrigatoria de cada uma esta em `./README.md`.
+ * Feature `003-classificacao-do-conteudo`, tarefas T001 e T002. O que existe
+ * aqui e o que as duas entregam: o modulo carrega com a porta de dados declarada,
+ * com os oito contextos de classificacao do nucleo registrados e com a forma de
+ * armazenamento de rotulo, contexto e juncao — e **nenhuma regra de negocio
+ * implementada**. A separacao entre rotulo e contexto (US-1) entra em T003, a
+ * classificacao (US-2) em T005, o termo padrao (US-3) em T007, a manutencao da
+ * lista (US-4) em T009 e a proibicao de apagar o padrao (US-5) em T011. A leitura
+ * obrigatoria de cada uma esta em `./README.md`.
  *
  * BC-02 e a fusao de `taxonomias-e-termos` com `links-e-bookmarks`, e
  * `target_architecture.md` chama a fusao de *"contraintuitiva e necessaria"*:
@@ -31,6 +33,10 @@
  *   feito na importacao e trabalho fora da ordem.
  */
 
+import {
+  criarArmazenamentoDeClassificacao,
+  type ArmazenamentoDeClassificacao,
+} from './armazenamento/index.js';
 import type { PortaDeDados } from './portas/index.js';
 import {
   criarRegistroComOsContextosDoNucleo,
@@ -39,13 +45,16 @@ import {
 
 export * from './portas/index.js';
 export * from './registro/index.js';
+export * from './armazenamento/index.js';
 
 /**
  * A porta de que este modulo depende, na forma em que ele a recebe.
  *
- * E uma so. A razao de nao haver porta de cache nem de serializacao esta em
- * `portas/index.ts`; a de nao haver porta de opcoes e que T001 nao le opcao
- * nenhuma — a opcao `default_category`, que US-3 consulta, chega com T007.
+ * E uma so, e continua sendo uma depois de T002: as tres estruturas de
+ * armazenamento leem e gravam **por ela**, e nenhuma outra borda entrou. A razao
+ * de nao haver porta de cache nem de serializacao esta em `portas/index.ts`; a de
+ * nao haver porta de opcoes e que nem T001 nem T002 leem opcao nenhuma — a opcao
+ * `default_category`, que US-3 consulta, chega com T007.
  */
 export interface PortasDeClassificacao {
   readonly dados: PortaDeDados;
@@ -54,10 +63,13 @@ export interface PortasDeClassificacao {
 /**
  * O modulo carregado.
  *
- * A superficie e deliberadamente so isto enquanto T001 e a tarefa fechada: cada
- * historia acrescenta aqui a sua operacao, com a declaracao explicita de
- * permissao que o **P4** da constituicao exige, e nenhuma antes da propria
- * tarefa.
+ * A superficie e deliberadamente so isto enquanto T002 e a tarefa fechada: cada
+ * historia acrescenta aqui a sua operacao — as cinco da tabela *Contratos* de
+ * `plan.md` —, com a declaracao explicita de permissao que o **P4** da
+ * constituicao exige, e nenhuma antes da propria tarefa.
+ *
+ * O armazenamento **nao e operacao**, e por isso nao declara permissao: ele nao
+ * decide nada. Quem decide e a historia que o chama.
  */
 export interface ModuloDeClassificacao {
   readonly nome: 'classificacao';
@@ -70,6 +82,11 @@ export interface ModuloDeClassificacao {
    * registro entre composicoes — ver o cabecalho.
    */
   readonly contextos: RegistroDeContextos;
+  /**
+   * A forma de armazenamento de rotulo, contexto e juncao (T002). Le e grava
+   * **somente** pela porta de dados.
+   */
+  readonly armazenamento: ArmazenamentoDeClassificacao;
 }
 
 /**
@@ -94,5 +111,8 @@ export function criarModuloDeClassificacao(
     nome: 'classificacao',
     portas,
     contextos: criarRegistroComOsContextosDoNucleo(),
+    // Compor o armazenamento monta nome de tabela e nada mais: nenhuma consulta
+    // sai daqui, que e o que `EXT-ORDEM` cobra e o que `modulo.test.ts` afirma.
+    armazenamento: criarArmazenamentoDeClassificacao(portas.dados),
   };
 }

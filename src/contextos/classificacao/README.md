@@ -1,8 +1,9 @@
 # Modulo de classificacao — BC-02
 
-Esqueleto entregue por **T001** da feature `003-classificacao-do-conteudo`. Este
-arquivo e a leitura obrigatoria de quem pegar T002 em diante: ele diz o que ja
-esta decidido, o que esta decidido **em outro lugar**, e o que ninguem decidiu.
+Entregue por **T001** (o esqueleto) e **T002** (a forma de armazenamento) da
+feature `003-classificacao-do-conteudo`. Este arquivo e a leitura obrigatoria de
+quem pegar T003 em diante: ele diz o que ja esta decidido, o que esta decidido
+**em outro lugar**, e o que ninguem decidiu.
 
 ## O que T001 entrega, e so isso
 
@@ -18,20 +19,61 @@ esta decidido, o que esta decidido **em outro lugar**, e o que ninguem decidiu.
 | `registro/contextos-do-nucleo.ts` | as **oito** declaracoes, na ordem de `create_initial_taxonomies()` |
 | `registro/registro-de-contextos.ts` | o `$wp_taxonomies`, por composicao e nao por modulo |
 | `registro/erro-de-registro.ts` | os dois codigos de `WP_Error`, com as mensagens do legado |
-| `modulo.test.ts` | afirma a entrega de T001 e as invariantes de arquitetura |
+| `modulo.test.ts` | afirma a entrega de T001 e T002 e as invariantes de arquitetura |
 | `registro/registro-de-contextos.test.ts` | afirma os oito, a ordem, os defaults e as duas recusas |
 
-**Nenhuma leitura nem escrita no banco acontece aqui.** A porta chega ao modulo
-e nenhum arquivo de `registro/` a toca — ha teste que afirma isso
-(`criar o modulo nao toca na porta`). As tres estruturas de armazenamento sao
-**T002**.
+## O que T002 entrega, e so isso
+
+> *as tres estruturas da secao Modelo de dados do plano existem, com a chave
+> composta da juncao e a unicidade de rotulo por contexto, e sao lidas e gravadas
+> pela porta de dados*
+> — `.specify/specs/003-classificacao-do-conteudo/tasks.md`, T002
+
+| arquivo | o que e |
+|---|---|
+| `armazenamento/chaves-e-tabelas.ts` | os nomes das **tres** tabelas, e por que `termmeta` e `links` nao estao |
+| `armazenamento/esquema.ts` | o DDL das tres, byte a byte, com as **duas** garantias de unicidade |
+| `armazenamento/rotulo.ts` | `terms` — o rotulo, ignorante do contexto |
+| `armazenamento/rotulo-no-contexto.ts` | `term_taxonomy` — o rotulo no contexto, a hierarquia e a contagem gravada |
+| `armazenamento/vinculo.ts` | `term_relationships` — a juncao, por **chave composta** |
+| `armazenamento/termo.ts` | a leitura **fundida** das duas primeiras: `AGG-Termo` sem fundir tabela |
+| `armazenamento/leitura-de-linha.ts` | a tolerancia da borda: texto, numero ou bytes |
+| `armazenamento/porta-falsa.ts` | porta de teste que **registra consulta**, para afirmar efeito no banco |
+| `armazenamento/esquema.test.ts` | afirma o DDL byte a byte, as duas garantias e os quatro "zeros" |
+| `armazenamento/armazenamento.test.ts` | afirma a cadeia que sai e a linha que entra, inclusive onde **nada sai** |
+
+Tres coisas que T002 **nao** fez, e nao e esquecimento:
+
+1. **Nao acrescentou coluna, tabela nem indice.** Nem discriminador na juncao,
+   nem indice isolado em `object_id` (risco 4 do plano), nem `UNIQUE` em
+   `terms.slug`. `target_data_model.md` fecha a secao de origem com *"zero
+   tabelas acrescentadas, zero colunas acrescentadas, zero indices
+   acrescentados"*, e a AD-11 nao permite mudanca de esquema nesta fase.
+2. **Nao implementou regra nenhuma.** Nao recusa contexto nao registrado, nao
+   cobra hierarquia em contexto plano, nao resolve colisao de identificador na
+   URL, nao recalcula contagem, nao aplica termo padrao e nao apaga em cascata.
+   Cada ausencia tem o motivo no arquivo da estrutura, com `arquivo:linha` do
+   legado.
+3. **Nao transcreveu a consulta de termos por filtro.** Ela e `WP_Term_Query`,
+   montada **por fragmento com ponto de extensao entre os fragmentos** — e e de
+   T009 e da camada de dados da feature 015. Uma versao simplificada dela aqui
+   seria uma segunda consulta de termos **sem** os pontos de extensao, que o P2
+   poe no contrato publico.
+
+**Nenhum arquivo de `registro/` toca a porta** — ha teste que afirma isso
+(`criar o modulo nao toca na porta`). A porta de dados e usada por `armazenamento/`,
+que e T002, e por ninguem mais.
 
 **Um numero so aparece neste modulo, e ele tem teste de borda nos dois lados:**
 os **32 bytes** do nome do contexto (`LIMITE_DE_BYTES_DO_NOME_DO_CONTEXTO`), com
-o valor de fabrica do legado, como o **P6** da constituicao exige. Os numeros
-desta feature que ainda nao chegaram — o `1` com que a categoria padrao e semeada
-e os dois criterios de contagem — entram nas tarefas que os implementam. Numero
-que aparece aqui antes da tarefa dele e numero sem teste de borda.
+o valor de fabrica do legado, como o **P6** da constituicao exige — e com T002
+ele ganhou um segundo teste, que afirma que a coluna `taxonomy` do DDL tem
+exatamente esses 32 bytes. Os numeros que T002 trouxe sao os do esquema, todos com
+teste: o **191** do teto de indice, e os sentinelas `0` de `term_group`, `parent`,
+`count` e `term_order`. Os que ainda nao chegaram — o `1` com que a categoria
+padrao e semeada e os dois criterios de contagem — entram nas tarefas que os
+implementam. Numero que aparece aqui antes da tarefa dele e numero sem teste de
+borda.
 
 ## Por que uma porta so
 
@@ -57,6 +99,12 @@ notifica ninguem. Compare com BC-05, que pediu as tres.
 > ser chamado, ou expoe fachada sincrona — nao torna a porta uma `Promise`,
 > porque isso desfaz AD-04 e AD-03 de uma vez. O mesmo aviso esta no README de
 > BC-05, e vale igual aqui.
+>
+> **T002 respondeu isso do lado dela:** os tres repositorios sao **sincronos**, a
+> porta nao devolve `Promise` nenhuma, e nenhum metodo e `async`. O que atravessa
+> a fronteira continua sendo `Consulta` e `LinhaDeResultado` — resolver a I/O
+> antes, ou por fachada sincrona, segue sendo trabalho de quem construir o
+> adaptador.
 
 ## Os oito contextos, e as tres leituras que eles cobram
 
@@ -148,29 +196,55 @@ o barramento encaixe os cinco na posicao do legado. Isto e declaracao, nao
 decisao: **a tensao entre o P2 e o `wont` de `REQ-162` e anterior a esta tarefa e
 nao foi resolvida por ela.**
 
-## O que ninguem decidiu, e que T001 nao decidiu tampouco
+## O que ninguem decidiu, e que T001 e T002 nao decidiram tampouco
 
-As duas estao em `spec.md`, secao *Perguntas em aberto*, e **as duas batem em
-T002 primeiro**:
+As duas estao em `spec.md`, secao *Perguntas em aberto*. **As duas batiam em
+T002, e T002 as deixou abertas** — o que ela fez foi reproduzir o legado, que e o
+unico caminho que nao antecipa a decisao:
 
 1. **O discriminador do objeto classificado.** `term_relationships.object_id` e
    polimorfico por convencao e nada na linha diz se o objeto e conteudo ou link.
    O `plan.md` escreve *"o modelo novo precisa de discriminador"* na tabela de
    Modelo de dados; a `spec.md` registra a mesma questao como **nao decidida**, e
    o risco 1 do plano repete. A resposta 2 proibe que a escolha recuse hoje o que
-   o legado aceita. **T001 nao a tocou** — nao ha estrutura de armazenamento neste
-   modulo —, e quem abrir T002 esbarra nela na primeira linha.
+   o legado aceita.
+   **O que T002 fez:** a coluna ficou como esta — sem discriminador, aceitando
+   conteudo e marcador —, o campo se chama `objetoId` e nao `conteudoId`, e nenhum
+   metodo pergunta o tipo do objeto. O item 2 de *O que seria modelado diferente, e
+   nao e* (`target_data_model.md`) chama o discriminador de *"o conserto certo e a
+   mudanca de esquema errada **nesta fase**"*, e a AD-11 nao permite mudanca de
+   esquema. O raciocinio inteiro, com a tabela de quem diz o que, esta no cabecalho
+   de `armazenamento/vinculo.ts`. **A pergunta continua aberta.**
 2. **A contagem gravada contra a recalculada na leitura.** Recalcular e mais
    correto e muda o que a interface devolve quando alguem escreve na juncao por
    fora. Manter o valor gravado, com a possibilidade de divergir, e o
    comportamento identico. Ninguem decidiu.
+   **O que T002 fez:** le e grava o valor gravado, e **nao ha nenhuma leitura que
+   recalcule** — a ausencia e a resposta de nao decidir. `target_data_model.md` poe
+   a divergencia como estado normal: *"um sistema que os mantivesse sempre corretos
+   teria comportamento **diferente** do legado"*. E a escolha entre os **dois
+   criterios** de calculo (`DB-TRG2`) tambem nao foi feita: T002 entrega a coluna, a
+   escrita dela e o criterio generico (`COUNT(*)` da juncao, uma tabela so); o
+   criterio de conteudo atravessa `posts`, que e BC-01, e e da tarefa da contagem.
 
-E ha uma terceira, que o plano chama de risco 3 e a spec nao poe entre as
-perguntas: **a fusao de `terms` com `term_taxonomy`** e do *aggregate*, nao das
-tabelas (`target_domain_model.md` e literal: *"o esquema fica intacto (AD-11), e
-as duas tabelas continuam existindo"*), mas ela *"muda o identificador que a
-juncao referencia"*, e a decisao fundadora de retrocompatibilidade sugere que o
-ecossistema usa esse identificador. **Isto tambem e de T002.**
+E havia uma terceira, que o plano chama de risco 3 e a spec nao poe entre as
+perguntas: **a fusao de `terms` com `term_taxonomy`**. Esta T002 resolveu, e
+resolveu por leitura e nao por escolha: a fusao e do *aggregate*, nao das tabelas
+(`target_domain_model.md` e literal — *"o esquema fica intacto (AD-11), e as duas
+tabelas continuam existindo"*; `target_data_model.md` repete na coluna de
+transformacao de `term_taxonomy`). Logo existem **duas tabelas e uma consulta que
+as junta** (`armazenamento/termo.ts`), e o identificador que a juncao referencia
+continua sendo o `term_taxonomy_id` do legado — que e o que o risco 3 temia ver
+mudar. **A fusao fisica nao foi feita, e ela e o item 3** daquela mesma secao de
+`target_data_model.md`.
+
+E uma quarta, que nenhuma das duas listas traz e que **vale dizer para a proxima
+onda**: `plan.md` escreve, na linha de `term_taxonomy`, que *"a hierarquia do
+legado atravessa a tabela errada... Corrigir isso e interno e invisivel, e e a
+parte que mais simplifica"*. **T002 nao corrigiu**, pela mesma razao de zero
+colunas e AD-11: a coluna `parent` continua guardando um `term_id`, e o campo se
+chama `rotuloPaiId` para que o erro fique visivel em vez de escondido num nome
+curto. Ver o cabecalho de `armazenamento/rotulo-no-contexto.ts`.
 
 ## O que esta feature nao descarta
 
@@ -203,3 +277,13 @@ legado, com `arquivo:linha` no comentario de cada afirmacao, e nao a execucao do
 original. A arvore 7.1.2 analisada esta no disco; o que a leitura estatica nao
 resolve — valor de opcao em execucao, efeito de cache, HTML emitido — fica
 marcado como "fecha contra o oraculo".
+
+**O que T002 entrega para esse criterio, concretamente:** a area 3 da Decisao 2 e
+*"esquema e efeito de escrita no banco"*, e compara *"snapshot + sequencia de
+comandos"*. E por isso que `armazenamento/porta-falsa.ts` **registra consulta** em
+vez de simular banco, e que os testes afirmam a cadeia e os parametros de cada
+comando — inclusive os tres casos em que o legado **nao emite comando nenhum**
+(lista de vinculos vazia na escrita ordenada e na remocao, e `atualizar` sem campo
+informado). A unica diferenca de texto declarada contra o legado e a lista `IN` da
+remocao de vinculo, que o legado monta por concatenacao e REQ-164 proibe; esta
+registrada em `armazenamento/vinculo.ts`, no metodo.

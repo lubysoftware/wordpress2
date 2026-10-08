@@ -1,7 +1,10 @@
 /**
- * Testes da entrega de T001: *"o modulo carrega com a porta de dados declarada
+ * Testes da entrega de T001 — *"o modulo carrega com a porta de dados declarada
  * e os oito contextos de classificacao do nucleo registrados, sem regra
- * implementada"*.
+ * implementada"* — e da **composicao** de T002, que acrescenta o armazenamento a
+ * superficie do modulo sem acrescentar nenhuma consulta ao carregamento. As tres
+ * estruturas em si sao afirmadas em `armazenamento/armazenamento.test.ts` e
+ * `armazenamento/esquema.test.ts`.
  *
  * Nao sao os testes de nenhuma historia — esses sao T004, T006, T008, T010 e
  * T012 de `tasks.md`, um por caso de `backlog/tests.md`. Aqui se afirma so o que
@@ -68,18 +71,32 @@ test('o modulo carrega com os oito contextos do nucleo registrados', () => {
   assert.equal(modulo.contextos.listar().length, 8);
 });
 
-test('nenhuma regra de negocio implementada: a superficie do modulo e so o que T001 entrega', () => {
+test('nenhuma regra de negocio implementada: a superficie do modulo e so o que T001 e T002 entregam', () => {
   const { portas } = portasDeTeste();
 
   const modulo = criarModuloDeClassificacao(portas);
 
-  // Quando T002 e as historias entrarem, esta lista cresce NA TAREFA DELAS.
-  // Ela esta aqui para que nenhuma operacao chegue antes da propria tarefa, que
-  // e o que o P4 da constituicao cobra: "toda operacao exposta nova nasce com
-  // declaracao explicita de permissao".
+  // Quando as historias entrarem, esta lista cresce NA TAREFA DELAS. Ela esta
+  // aqui para que nenhuma operacao chegue antes da propria tarefa, que e o que o
+  // P4 da constituicao cobra: "toda operacao exposta nova nasce com declaracao
+  // explicita de permissao". `armazenamento` entrou com T002 e nao e operacao:
+  // nao decide nada e nao declara permissao.
   assert.deepEqual(
     Object.keys(modulo).sort(),
-    ['contextos', 'nome', 'portas'],
+    ['armazenamento', 'contextos', 'nome', 'portas'],
+  );
+});
+
+test('o armazenamento de T002 chega pela composicao, com as tres estruturas', () => {
+  const { portas } = portasDeTeste();
+
+  const modulo = criarModuloDeClassificacao(portas);
+
+  // As tres estruturas da secao *Modelo de dados* do plano, mais a leitura
+  // fundida que `AGG-Termo` exige. Nenhuma quarta tabela.
+  assert.deepEqual(
+    Object.keys(modulo.armazenamento).sort(),
+    ['rotulos', 'rotulosNoContexto', 'termos', 'vinculos'],
   );
 });
 
@@ -89,10 +106,30 @@ test('criar o modulo nao toca na porta (EXT-ORDEM: nada se resolve no carregamen
   criarModuloDeClassificacao(portas);
 
   // Registrar os oito contextos e trabalho em memoria sobre declaracao em
-  // codigo. Se um dia uma declaracao precisar de dado gravado, este teste
-  // falha — e e exatamente o aviso que se quer.
+  // codigo, e compor o armazenamento de T002 monta nome de tabela e nada mais.
+  // Se um dia uma declaracao precisar de dado gravado, este teste falha — e e
+  // exatamente o aviso que se quer.
   assert.deepEqual(toques.selecionar, []);
   assert.deepEqual(toques.escrever, []);
+});
+
+test('duas composicoes nao compartilham o armazenamento (EXT-CONTEXTO, e o prefixo e dado)', () => {
+  const primeira = portasDeTeste('wp_');
+  const segunda = portasDeTeste('wp_2_');
+
+  const moduloA = criarModuloDeClassificacao(primeira.portas);
+  const moduloB = criarModuloDeClassificacao(segunda.portas);
+
+  moduloA.armazenamento.rotulos.obterPorId(1);
+  moduloB.armazenamento.rotulos.obterPorId(1);
+
+  // O prefixo do site entra no nome da tabela, e a nota 3 de
+  // `target_data_model.md` diz por que isso nao e detalhe de conexao: "o
+  // prefixo de tabela nao e so configuracao de conexao: ele e dado".
+  assert.match(String(primeira.toques.selecionar[0]?.texto), /FROM wp_terms /);
+  assert.match(String(segunda.toques.selecionar[0]?.texto), /FROM wp_2_terms /);
+  assert.equal(primeira.toques.selecionar.length, 1);
+  assert.equal(segunda.toques.selecionar.length, 1);
 });
 
 test('duas composicoes nao compartilham a porta (EXT-CONTEXTO, BR-MIGRAR-105)', () => {

@@ -5,7 +5,7 @@
 - [x] **T001** Preparar o esqueleto do módulo de classificação
       *entrega:* o módulo carrega com a porta de dados declarada e os oito contextos de classificação do núcleo registrados, sem regra implementada
       *satisfaz:* — (infraestrutura)
-- [ ] **T002** Portar a forma de armazenamento de rótulo, contexto e junção
+- [x] **T002** Portar a forma de armazenamento de rótulo, contexto e junção
       *entrega:* as três estruturas da seção Modelo de dados do plano existem, com a chave composta da junção e a unicidade de rótulo por contexto, e são lidas e gravadas pela porta de dados
       *satisfaz:* — (infraestrutura)
       *depende de:* T001
