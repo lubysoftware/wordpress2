@@ -1,8 +1,8 @@
 /**
  * Testes da entrega de T001 — *"o modulo carrega com a porta de dados declarada
  * e os oito contextos de classificacao do nucleo registrados, sem regra
- * implementada"* — e da **composicao** de T002, T003, T005 e T007, que
- * acrescentam o armazenamento e as operacoes das tres primeiras historias a
+ * implementada"* — e da **composicao** de T002, T003, T005, T007 e T009, que
+ * acrescentam o armazenamento e as operacoes das quatro primeiras historias a
  * superficie do modulo sem acrescentar nenhuma consulta ao carregamento. As tres
  * estruturas em si sao afirmadas em `armazenamento/armazenamento.test.ts` e
  * `armazenamento/esquema.test.ts`.
@@ -12,10 +12,11 @@
  * cada tarefa de implementacao entrega esta na suite `us-N-*` da pasta dela
  * (`rotulo-e-contexto/us-1-rotulo-e-contexto.test.ts`,
  * `vinculo-de-objeto/us-2-classificar-conteudo.test.ts`,
- * `termo-padrao/us-3-termo-padrao.test.ts`). Aqui se afirma so o que o esqueleto
- * entrega, mais as duas invariantes de arquitetura que ele pode quebrar em
- * silencio: estado de modulo (`EXT-CONTEXTO`, a dimensao **D-A**) e trabalho no
- * carregamento (`EXT-ORDEM`).
+ * `termo-padrao/us-3-termo-padrao.test.ts`,
+ * `manutencao-da-lista/us-4-manutencao-da-lista.test.ts`). Aqui se afirma so o
+ * que o esqueleto entrega, mais as duas invariantes de arquitetura que ele pode
+ * quebrar em silencio: estado de modulo (`EXT-CONTEXTO`, a dimensao **D-A**) e
+ * trabalho no carregamento (`EXT-ORDEM`).
  *
  * O registro em si — os oito, a ordem, os defaults e as duas recusas — esta em
  * `registro/registro-de-contextos.test.ts`.
@@ -76,7 +77,7 @@ test('o modulo carrega com os oito contextos do nucleo registrados', () => {
   assert.equal(modulo.contextos.listar().length, 8);
 });
 
-test('a superficie do modulo e so o que T001, T002, T003, T005 e T007 entregam', () => {
+test('a superficie do modulo e so o que T001, T002, T003, T005, T007 e T009 entregam', () => {
   const { portas } = portasDeTeste();
 
   const modulo = criarModuloDeClassificacao(portas);
@@ -110,6 +111,24 @@ test('a superficie do modulo e so o que T001, T002, T003, T005 e T007 entregam',
   // `assign_terms` no mapa de contextos); `classificacaoNaPublicacao` e **fabrica
   // de colaboracao**, nao operacao — ela nao decide nada, e quem decide e o laco
   // de BC-01, que roda sem ator. Ver `termo-padrao/`.
+  //
+  // T009 entrou com **quatro** de US-4, e a assimetria de permissao entre elas
+  // tambem e do legado:
+  //
+  // | operacao | verifica? | onde o legado verifica |
+  // |---|---|---|
+  // | `permissaoDeGerenciarRotulos` | **sim**, `manage_terms` | `wp-admin/edit-tags.php:26` (CA-4.1) |
+  // | `permissaoDeCriarRotulo` | **sim**, `edit_terms` | `wp-admin/edit-tags.php:86` (CA-4.1) |
+  // | `criarRotuloNoContexto` | nao | `wp_insert_term()` nao tem `current_user_can` e o nucleo a chama sem ator |
+  // | `reposicionarRotuloNaHierarquia` | nao | `wp_update_term()` tampouco, como `renomearRotulo` de T003 |
+  //
+  // ⚠️ `apagarRotuloDoContexto` (CA-4.3, CA-4.4) **nao** esta nesta lista, pela
+  // mesma razao que `removerRotuloDoContexto` nao esta: T009 fechou a cascata e
+  // **nao** a protecao do termo padrao, que e CA-5.1 e CA-5.2, de T011. Publicar
+  // agora exporia um caminho que destroi a categoria padrao, e "apagar dado" esta
+  // na tabela *Nao negociavel*. A razao inteira, com a consequencia concreta que
+  // T011 fecha, esta no bloco 🔴 de
+  // `manutencao-da-lista/apagar-rotulo-do-contexto.ts`.
   assert.deepEqual(Object.keys(modulo).sort(), [
     'aplicarTermoPadraoNaGravacao',
     'armazenamento',
@@ -118,13 +137,17 @@ test('a superficie do modulo e so o que T001, T002, T003, T005 e T007 entregam',
     'contextoAceitaTipoDeObjeto',
     'contextos',
     'contextosDoTipoDeObjeto',
+    'criarRotuloNoContexto',
     'nome',
     'nomesDosContextosDoTipoDeObjeto',
     'obterTermo',
+    'permissaoDeCriarRotulo',
+    'permissaoDeGerenciarRotulos',
     'portas',
     'recontarUsoDosRotulos',
     'removerVinculosDoObjeto',
     'renomearRotulo',
+    'reposicionarRotuloNaHierarquia',
     'substituirVinculosDoObjeto',
   ]);
 });

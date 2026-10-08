@@ -1,15 +1,16 @@
 /**
  * Modulo de classificacao — BC-02 de `target_architecture.md`.
  *
- * Feature `003-classificacao-do-conteudo`, tarefas T001, T002, T003, T005 e
- * T007. O que existe aqui e o que as cinco entregam: o modulo carrega com a porta
+ * Feature `003-classificacao-do-conteudo`, tarefas T001, T002, T003, T005, T007 e
+ * T009. O que existe aqui e o que as seis entregam: o modulo carrega com a porta
  * de dados declarada, com os oito contextos de classificacao do nucleo
  * registrados, com a forma de armazenamento de rotulo, contexto e juncao, com **a
  * separacao entre rotulo e contexto** (US-1, em `./rotulo-e-contexto/`), com **a
  * classificacao do conteudo** (US-2, em `./vinculo-de-objeto/`), que e a
- * primeira historia desta feature a escrever na juncao, e com **o termo padrao do
- * contexto** (US-3, em `./termo-padrao/`), que e a regra `P3`. A manutencao da
- * lista (US-4) entra em T009 e a proibicao de apagar o padrao (US-5) em T011. A
+ * primeira historia desta feature a escrever na juncao, com **o termo padrao do
+ * contexto** (US-3, em `./termo-padrao/`), que e a regra `P3`, e com **a
+ * manutencao da lista** (US-4, em `./manutencao-da-lista/`), que fecha os sete
+ * comandos de `AGG-Termo`. A proibicao de apagar o padrao (US-5) entra em T011. A
  * leitura obrigatoria de cada uma esta em `./README.md`.
  *
  * BC-02 e a fusao de `taxonomias-e-termos` com `links-e-bookmarks`, e
@@ -80,6 +81,18 @@ import {
   type ResultadoDaRemocaoDeVinculo,
   type ResultadoDoVinculo,
 } from './vinculo-de-objeto/index.js';
+import {
+  criarRotuloNoContexto,
+  permissaoDeCriarRotulo,
+  permissaoDeGerenciarRotulos,
+  reposicionarRotuloNaHierarquia,
+  type ColaboracaoDaGestaoDaLista,
+  type PedidoDeCriacaoDeRotulo,
+  type PedidoDeReposicionamento,
+  type ResultadoDaCriacaoDeRotulo,
+  type ResultadoDaGestaoDaLista,
+  type ResultadoDoReposicionamento,
+} from './manutencao-da-lista/index.js';
 
 export * from './portas/index.js';
 export * from './registro/index.js';
@@ -87,6 +100,7 @@ export * from './armazenamento/index.js';
 export * from './rotulo-e-contexto/index.js';
 export * from './vinculo-de-objeto/index.js';
 export * from './termo-padrao/index.js';
+export * from './manutencao-da-lista/index.js';
 
 /**
  * A porta de que este modulo depende, na forma em que ele a recebe.
@@ -112,6 +126,17 @@ export interface PortasDeClassificacao {
 }
 
 /*
+ * ⚠️ **T009 tampouco acrescentou porta, e a conta segue uma.** A manutencao da
+ * lista precisa de tres coisas que nao estao no banco deste contexto — a decisao
+ * de capacidade, a opcao do termo padrao do contexto e as duas contagens que
+ * atravessam `posts` — e nenhuma delas virou porta. A primeira e
+ * `plataforma/autorizacao/`, e a regra de dependencia 1 permite o `import`; as
+ * outras duas chegam por ligacao tardia (AD-10), em `OpcoesNaClassificacao` e em
+ * `ConteudoNaClassificacao`, que T007 e T005 ja declararam. Ver
+ * `manutencao-da-lista/escopo-de-manutencao-da-lista.ts`.
+ */
+
+/*
  * ⚠️ **T005 nao acrescentou porta, e isso merece uma linha.** US-2 precisa de
  * tres coisas que nao estao no banco deste contexto — `post_type_exists()` e as
  * duas contagens que atravessam `posts` — e nenhuma delas virou porta: AD-08 poe
@@ -133,19 +158,34 @@ export interface PortasDeClassificacao {
  * **quatro** de US-2 — e so uma delas verifica capacidade, porque so uma delas
  * corresponde a um ponto em que o legado verifica; com **T007**, **uma** de US-3
  * ({@link ModuloDeClassificacao.aplicarTermoPadraoNaGravacao}) mais a fabrica da
- * colaboracao que BC-01 consome, que **nao** e operacao.
+ * colaboracao que BC-01 consome, que **nao** e operacao; e com **T009**,
+ * **quatro** de US-4 — duas de permissao, que **verificam**, e duas de escrita,
+ * que declaram sem verificar.
  *
  * O armazenamento **nao e operacao**, e por isso nao declara permissao: ele nao
  * decide nada. Quem decide e a historia que o chama.
  *
- * ⚠️ **Uma peca de US-1 fica de fora desta superficie de proposito:**
- * `removerRotuloDoContexto()`, que e o trecho final de `wp_delete_term()`
- * (`wp-includes/taxonomy.php:2200`-`:2216`) e e onde **CA-1.3** se decide. Ela e
- * exportada pelo modulo (por `./rotulo-e-contexto/`) e **nao** e operacao: sem a
- * protecao do termo padrao (US-5, T011) e sem a cascata (US-4, T009), publica-la
- * criaria um caminho de apagar dado que o legado **nao expoe** — e a tabela *Nao
- * negociavel* da constituicao poe "apagar dado" fora do alcance do agente. A
- * razao inteira esta no bloco 🔴 de `rotulo-e-contexto/remover-rotulo-do-contexto.ts`.
+ * ⚠️ **DUAS pecas da cascata de exclusao ficam de fora desta superficie de
+ * proposito**, e as duas pelo mesmo motivo:
+ *
+ * - `removerRotuloDoContexto()` (T003), que e o **trecho final** de
+ *   `wp_delete_term()` (`wp-includes/taxonomy.php:2200`-`:2216`) e e onde
+ *   **CA-1.3** se decide;
+ * - `apagarRotuloDoContexto()` (**T009**), que e a **cascata inteira** —
+ *   `DB-TRG3`, `DB-TRG4` e as contagens, onde **CA-4.3**, **CA-4.4** e metade de
+ *   **CA-4.5** se decidem.
+ *
+ * As duas sao exportadas pelo modulo e **nenhuma e operacao**. T003 escreveu a
+ * razao em duas partes — *"sem a protecao do termo padrao (US-5, T011) e sem a
+ * cascata (US-4, T009), publica-la criaria um caminho de apagar dado que o legado
+ * **nao expoe**"* —, e **T009 fechou a segunda parte e nao a primeira**: a
+ * protecao do termo padrao e `CA-5.1` e `CA-5.2`, criterios de **T011**, cuja
+ * linha em `tasks.md` depende desta. Publicar agora exporia um caminho que destroi
+ * a categoria padrao, e a tabela *Nao negociavel* da constituicao poe *"apagar
+ * dado"* fora do alcance do agente. As razoes inteiras estao nos blocos 🔴 de
+ * `rotulo-e-contexto/remover-rotulo-do-contexto.ts` e de
+ * `manutencao-da-lista/apagar-rotulo-do-contexto.ts` — o segundo com a
+ * consequencia concreta que T011 fecha com um `if`.
  */
 export interface ModuloDeClassificacao {
   readonly nome: 'classificacao';
@@ -350,6 +390,96 @@ export interface ModuloDeClassificacao {
   classificacaoNaPublicacao(
     colaboracao: ColaboracaoDoTermoPadraoSemAtor,
   ): ClassificacaoNaPublicacao;
+
+  /**
+   * O portao de entrada da tela de termos — `wp-admin/edit-tags.php:26` (US-4,
+   * T009, **CA-4.1**).
+   *
+   * **Permissao exigida: `$tax->cap->manage_terms`, o
+   * `capacidades.gerenciarRotulos` do contexto, e ela E verificada** — e esta e a
+   * **segunda** operacao deste modulo que verifica capacidade, ao lado de
+   * {@link ModuloDeClassificacao.classificarConteudo}, e pela mesma razao: e aqui
+   * que o legado a verifica. Para `post_tag` o nome e `manage_post_tags`, que
+   * **resolve** para `manage_categories` pelo caso deste modulo
+   * (`manutencao-da-lista/caso-de-gestao-de-rotulo.ts`, `PERM-6`) — sem ele
+   * ninguem gerenciaria etiquetas, nem o administrador.
+   *
+   * ⚠️ **Nao toca o banco**: os tres portoes leem o registro desta requisicao e a
+   * matriz que chegou por argumento. UC-08 e literal — a recusa e *"antes de
+   * tocar qualquer registro"*.
+   *
+   * As tres recusas e os `msgid` de cada uma estao em
+   * `manutencao-da-lista/permissao-na-gestao-de-rotulos.ts`, transcritos de
+   * `target_screens.md` (`SCR-044`) com a linha. Quem renderiza a recusa e a
+   * resposta HTTP e **BC-10**, e nao este modulo.
+   */
+  permissaoDeGerenciarRotulos(
+    colaboracao: ColaboracaoDaGestaoDaLista,
+    contexto: string,
+  ): ResultadoDaGestaoDaLista;
+
+  /**
+   * O portao da acao de **criar** rotulo pela tela —
+   * `wp-admin/edit-tags.php:86` (US-4, T009, **CA-4.1**).
+   *
+   * **Permissao exigida: `$tax->cap->edit_terms`, o `capacidades.editarRotulos`
+   * do contexto, e ela E verificada.** Para `category` e `edit_categories` e para
+   * `post_tag` e `edit_post_tags`, e as duas resolvem para `manage_categories`:
+   * em papeis de fabrica isso significa que **autor nao cria categoria**, a
+   * consequencia que o bloco 🔴 de
+   * `vinculo-de-objeto/rotulos-informados.ts` descreve.
+   *
+   * ⚠️ E o portao **da tela**, e nao do caminho de atribuir rotulo: T005 deixou
+   * registrado que `wp_set_object_terms()` chama `wp_insert_term()` **sem**
+   * `current_user_can`, e esta tarefa nao acrescentou portao nenhum la.
+   */
+  permissaoDeCriarRotulo(
+    colaboracao: ColaboracaoDaGestaoDaLista,
+    contexto: string,
+  ): ResultadoDaGestaoDaLista;
+
+  /**
+   * Cria um rotulo num contexto — `wp_insert_term()`
+   * (`wp-includes/taxonomy.php:2458`) (US-4, T009, **CA-4.2** e **CA-4.5** no
+   * instante zero).
+   *
+   * **Permissao declarada: `$tax->cap->edit_terms`
+   * (`capacidades.editarRotulos`), e ela NAO e verificada aqui** — porque
+   * `wp_insert_term()` tambem nao a verifica, e o nucleo a chama **sem ator** de
+   * dentro de `wp_set_object_terms()` (`:2896`) e de `register_taxonomy()`
+   * (`:539`-`:558`). Verificar aqui recusaria a etiqueta que o legado cria para o
+   * autor (P1). Quem cobra e {@link ModuloDeClassificacao.permissaoDeCriarRotulo}.
+   *
+   * ⚠️ **A sequencia insere antes de perguntar**, e o par devolvido pode ser o de
+   * **outro** rotulo: quando a confirmacao de duplicata acusa colisao, o legado
+   * apaga as duas linhas que acabou de gravar e devolve o par antigo. As seis
+   * etapas, com as tres que um porte faria diferente sem perceber, estao em
+   * `manutencao-da-lista/criar-rotulo-no-contexto.ts`.
+   */
+  criarRotuloNoContexto(
+    pedido: PedidoDeCriacaoDeRotulo,
+  ): ResultadoDaCriacaoDeRotulo;
+
+  /**
+   * Move um rotulo de pai naquele contexto — `wp_update_term()` pelo caminho do
+   * `parent`, e o comando `reposicionarNaHierarquia` de `AGG-Termo` (US-4, T009,
+   * **CA-4.2**).
+   *
+   * **Permissao declarada: `$tax->cap->edit_terms`, e ela NAO e verificada
+   * aqui** — identica a {@link ModuloDeClassificacao.renomearRotulo}, porque e a
+   * **mesma funcao do legado** vista pelo outro argumento. O portao da tela e
+   * `wp-admin/edit-tags.php:173`, e ele passa pelo `case` de capacidade sobre o
+   * termo, que e **T011** (ver
+   * `manutencao-da-lista/permissao-na-gestao-de-rotulos.ts`).
+   *
+   * ⚠️ Em contexto **plano** o pai informado e **descartado** e a linha fica com
+   * `0`. O bloco 🔴 de `manutencao-da-lista/hierarquia-do-rotulo.ts` registra as
+   * quatro fontes do pacote que convergem no efeito no banco e divergem sobre o
+   * valor devolvido, e por que descartar e o lado que nao decide nada.
+   */
+  reposicionarRotuloNaHierarquia(
+    pedido: PedidoDeReposicionamento,
+  ): ResultadoDoReposicionamento;
 }
 
 /**
@@ -439,5 +569,25 @@ export function criarModuloDeClassificacao(
       aplicarTermoPadraoNaGravacao(escopoDoVinculo, colaboracao, pedido),
     classificacaoNaPublicacao: (colaboracao) =>
       criarClassificacaoNaPublicacao(escopoDoVinculo, colaboracao),
+    /*
+     * US-4 (T009) reusa o escopo de US-2, e a ausencia de um escopo proprio e
+     * afirmacao: as tres operacoes de manutencao da lista leem o mesmo registro
+     * e o mesmo armazenamento, e a cascata de exclusao **escreve pelas operacoes
+     * de US-2** — como no legado, em que `wp_delete_term()` chama
+     * `wp_set_object_terms()` para cada objeto alcancado
+     * (`wp-includes/taxonomy.php:2152`-`:2183`). O que US-4 acrescenta — a
+     * decisao de capacidade e a leitura da opcao do termo padrao — **nao** e
+     * desta composicao: chega por argumento em cada chamada, que e o que AD-10
+     * pede para toda travessia que sai deste contexto. Ver
+     * `manutencao-da-lista/escopo-de-manutencao-da-lista.ts`.
+     */
+    permissaoDeGerenciarRotulos: (colaboracao, contexto) =>
+      permissaoDeGerenciarRotulos(escopoDoVinculo, colaboracao, contexto),
+    permissaoDeCriarRotulo: (colaboracao, contexto) =>
+      permissaoDeCriarRotulo(escopoDoVinculo, colaboracao, contexto),
+    criarRotuloNoContexto: (pedido) =>
+      criarRotuloNoContexto(escopoDoVinculo, pedido),
+    reposicionarRotuloNaHierarquia: (pedido) =>
+      reposicionarRotuloNaHierarquia(escopoDoVinculo, pedido),
   };
 }
