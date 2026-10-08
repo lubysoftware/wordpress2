@@ -1,16 +1,18 @@
 /**
  * Testes da entrega de T001 — *"o modulo carrega com a porta de dados declarada
  * e os oito contextos de classificacao do nucleo registrados, sem regra
- * implementada"* — e da **composicao** de T002, que acrescenta o armazenamento a
- * superficie do modulo sem acrescentar nenhuma consulta ao carregamento. As tres
- * estruturas em si sao afirmadas em `armazenamento/armazenamento.test.ts` e
- * `armazenamento/esquema.test.ts`.
+ * implementada"* — e da **composicao** de T002 e de T003, que acrescentam o
+ * armazenamento e as operacoes de US-1 a superficie do modulo sem acrescentar
+ * nenhuma consulta ao carregamento. As tres estruturas em si sao afirmadas em
+ * `armazenamento/armazenamento.test.ts` e `armazenamento/esquema.test.ts`.
  *
  * Nao sao os testes de nenhuma historia — esses sao T004, T006, T008, T010 e
- * T012 de `tasks.md`, um por caso de `backlog/tests.md`. Aqui se afirma so o que
- * T001 entrega, mais as duas invariantes de arquitetura que um esqueleto pode
- * quebrar em silencio: estado de modulo (`EXT-CONTEXTO`, a dimensao **D-A**) e
- * trabalho no carregamento (`EXT-ORDEM`).
+ * T012 de `tasks.md`, um por caso de `backlog/tests.md`, e o comportamento que
+ * T003 entrega esta em `rotulo-e-contexto/us-1-rotulo-e-contexto.test.ts`. Aqui
+ * se afirma so o que o esqueleto entrega, mais as duas invariantes de
+ * arquitetura que ele pode quebrar em silencio: estado de modulo
+ * (`EXT-CONTEXTO`, a dimensao **D-A**) e trabalho no carregamento
+ * (`EXT-ORDEM`).
  *
  * O registro em si — os oito, a ordem, os defaults e as duas recusas — esta em
  * `registro/registro-de-contextos.test.ts`.
@@ -71,20 +73,39 @@ test('o modulo carrega com os oito contextos do nucleo registrados', () => {
   assert.equal(modulo.contextos.listar().length, 8);
 });
 
-test('nenhuma regra de negocio implementada: a superficie do modulo e so o que T001 e T002 entregam', () => {
+test('a superficie do modulo e so o que T001, T002 e T003 entregam', () => {
   const { portas } = portasDeTeste();
 
   const modulo = criarModuloDeClassificacao(portas);
 
-  // Quando as historias entrarem, esta lista cresce NA TAREFA DELAS. Ela esta
-  // aqui para que nenhuma operacao chegue antes da propria tarefa, que e o que o
-  // P4 da constituicao cobra: "toda operacao exposta nova nasce com declaracao
-  // explicita de permissao". `armazenamento` entrou com T002 e nao e operacao:
-  // nao decide nada e nao declara permissao.
-  assert.deepEqual(
-    Object.keys(modulo).sort(),
-    ['armazenamento', 'contextos', 'nome', 'portas'],
-  );
+  // Esta lista cresce NA TAREFA DE CADA HISTORIA. Ela esta aqui para que nenhuma
+  // operacao chegue antes da propria tarefa, que e o que o P4 da constituicao
+  // cobra: "toda operacao exposta nova nasce com declaracao explicita de
+  // permissao". `armazenamento` entrou com T002 e nao e operacao: nao decide
+  // nada e nao declara permissao.
+  //
+  // As cinco de T003 sao as de US-1, e cada uma declara a permissao dela em
+  // `index.ts` — as quatro de leitura declaram **nenhuma**, porque o legado nao
+  // cobra capacidade em `get_term()` nem em `get_object_taxonomies()`, e
+  // `renomearRotulo` declara `edit_terms` **sem verificar**, porque
+  // `wp_update_term()` tambem nao verifica (a cobranca e da tela, CA-4.1, T009).
+  //
+  // ⚠️ `removerRotuloDoContexto` (CA-1.3) **nao** esta nesta lista de proposito:
+  // e o trecho final de `wp_delete_term()`, sem a protecao do termo padrao
+  // (US-5) e sem a cascata (US-4), e publica-la como operacao criaria um caminho
+  // de apagar dado que o legado nao expoe. Ela e exportada pelo modulo, por
+  // `./rotulo-e-contexto/`, e a razao esta no bloco 🔴 do arquivo dela.
+  assert.deepEqual(Object.keys(modulo).sort(), [
+    'armazenamento',
+    'contextoAceitaTipoDeObjeto',
+    'contextos',
+    'contextosDoTipoDeObjeto',
+    'nome',
+    'nomesDosContextosDoTipoDeObjeto',
+    'obterTermo',
+    'portas',
+    'renomearRotulo',
+  ]);
 });
 
 test('o armazenamento de T002 chega pela composicao, com as tres estruturas', () => {

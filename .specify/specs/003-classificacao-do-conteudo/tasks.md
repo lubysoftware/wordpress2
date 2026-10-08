@@ -9,7 +9,7 @@
       *entrega:* as três estruturas da seção Modelo de dados do plano existem, com a chave composta da junção e a unicidade de rótulo por contexto, e são lidas e gravadas pela porta de dados
       *satisfaz:* — (infraestrutura)
       *depende de:* T001
-- [ ] **T003** Separar o rótulo de classificação do contexto em que ele classifica (US-1)
+- [x] **T003** Separar o rótulo de classificação do contexto em que ele classifica (US-1)
       *entrega:* o comportamento de US-1 existe e os critérios CA-1.1, CA-1.2, CA-1.3, CA-1.4 passam contra o sistema novo
       *satisfaz:* CA-1.1, CA-1.2, CA-1.3, CA-1.4
       *depende de:* T001, T002
