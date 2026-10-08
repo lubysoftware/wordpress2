@@ -1,4 +1,4 @@
-# wordpress-nucleo
+# Wordpress2
 
 Porte do núcleo do WordPress 7.1.2 para TypeScript. O produto é o mesmo: um CMS que se
 instala no servidor do próprio dono — não SaaS, não biblioteca, não serviço gerenciado — e
