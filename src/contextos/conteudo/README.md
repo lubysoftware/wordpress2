@@ -6,8 +6,9 @@ forma de armazenamento entregue por **T002**, a publicação por ato explícito
 por **T005**, o identificador na URL único só a partir da publicação (US-3)
 entregue por **T007**, o conteúdo privado (US-4) entregue por **T009**, a
 republicação nula (US-5) verificada por **T011**, o agendamento com verificação
-dupla (US-6) entregue por **T013** e a submissão para revisão (US-7) entregue
-por **T015**. Este arquivo é a leitura obrigatória de quem pegar T017 em
+dupla (US-6) entregue por **T013**, a submissão para revisão (US-7) entregue por
+**T015** e a revisão do conteúdo alheio com a autoria preservada (US-8) entregue
+por **T017**. Este arquivo é a leitura obrigatória de quem pegar T019 em
 diante: ele diz o que já está decidido, o que está decidido **em outro lugar**,
 e o que ninguém decidiu.
 
@@ -873,6 +874,117 @@ e nenhuma existe.
 | a segunda tentativa de gravação com `strip_invalid_text_for_column()` (`:466`-`:476`) | a camada de dados, feature 015: a porta de T002 não reporta a falha que a dispara |
 | registrar quem decidiu a transição | **ninguém**: REQ-028 está em `do-not-rewrite.md` |
 | emitir ponto de extensão por um barramento | ninguém deste pacote (REQ-162). Os dois desta pasta chegam como interceptador opcional, e ponto sem interceptador é, no legado, um no-op |
+
+## O que T017 entrega, e só isso
+
+**US-8**: *"revisar e publicar conteúdo de outro autor preservando a autoria
+original"* — os seis critérios CA-8.1 a CA-8.6, em `revisao-editorial/`.
+
+| arquivo | o que é |
+|---|---|
+| `revisao-editorial/permissao-da-revisao-editorial.ts` | **CA-8.1**, **CA-8.5** e **CA-8.6**: a soma que a tradução devolve, lida como **valor**, e o portão que a compara |
+| `revisao-editorial/autoria-na-revisao.ts` | **CA-8.2**: os dois mecanismos que preservam o autor, e o ramo que o legado resolve pela linha |
+| `revisao-editorial/revisar-e-publicar.ts` | as duas operações — publicar o alheio e devolver ao autor — e o achado de que as duas são o **mesmo** campo do formulário |
+| `revisao-editorial/us-8-revisar-e-publicar.test.ts` | 31 testes dos seis critérios, por efeito no banco e por lista de capacidades |
+
+**As três âncoras que `spec.md` dá para US-8 são `wp-admin/post.php:236`,
+`wp-includes/capabilities.php:149` e `:113`** — e as duas de `capabilities.php`
+**já estavam na árvore** quando esta tarefa começou: são de T017 da feature 001,
+em `plataforma/autorizacao/traducao-de-conteudo.ts`. O que faltava era
+`wp-admin/post.php:236`, o `case 'editpost'`, que é `edit_post()` — e **ela
+também já estava**, portada por T015. Esta tarefa, portanto, **não portou função
+nova do legado**: ela declarou as duas operações que `plan.md` pede, com o que
+falta para que as duas histórias se distingam.
+
+### 🟢 O achado que decidiu o trabalho de T017
+
+**O botão primário do editor é o mesmo campo para publicar e para submeter**
+(`wp-admin/includes/meta-boxes.php:376`-`:398`): com `$can_publish` o rótulo é
+*"Publish"*, sem ela é *"Submit for Review"*, e o `name` é `publish` nos **dois**
+ramos. Muda o rótulo, não a requisição — e é o que o comentário de
+`_wp_translate_postdata()` diz do outro lado: *"Posts 'submitted for approval'
+are submitted to `$_POST` the same as if they were being published"* (`:148`).
+
+Logo **US-7 e US-8 não são duas funções do legado, são uma**, e T017 chama a
+porta de T015 em vez de escrever um segundo `edit_post()`. Nenhum arquivo de
+`revisao/` foi alterado por esta tarefa.
+
+### As quatro coisas de T017 que um porte distraído faria diferente
+
+1. **A soma não é feita pela operação: ela é o que a tradução devolve.** CA-8.1
+   diz *"a autorização soma a capacidade de mexer em conteúdo alheio à capacidade
+   exigida pelo estado"*, e a pergunta que a operação faz é **uma**: `edit_post`
+   com o objeto. Quem perguntasse `edit_others_posts` direto responderia "sim" a
+   quem não pode mexer no conteúdo **daquele estado**. E `PERM-1` fecha o sentido
+   do verbo: é preciso ter **todas**, não qualquer uma.
+2. **A autoria não é preservada por um `if`.** São dois mecanismos somados — a
+   superfície devolve o autor da linha antes de traduzir
+   (`wp-admin/includes/post.php:691`-`:695`, literal em `bulk_edit_posts()`) e a
+   mistura de `wp_update_post()` faz chave ausente conservar o valor gravado
+   (`wp-includes/post.php:5367`). O terceiro ramo de `_wp_translate_postdata()` é
+   `get_current_user_id()` (`:85`): um pedido que chegasse lá **sem** o campo
+   sairia com o autor trocado por quem revisou, e a mistura gravaria a troca.
+3. **Devolver ao autor é privilégio de quem podia publicar, e não é um botão.**
+   Para um `pending` o botão de ação menor é *"Save as Pending"*, não *"Save
+   Draft"* (`meta-boxes.php:58`-`:59`), e ele é `name="save"` — que não é um dos
+   cinco campos que `_wp_translate_postdata()` lê. Quem volta um pendente para
+   rascunho é o **seletor de estado** (`<select name="post_status">`, `:160`), e
+   ele só é renderizado para quem pode publicar (`:129`).
+4. **Publicar por aqui fixa o identificador; publicar pela transição não.** É o
+   achado de T003 em ação: `wp_publish_post()` não toca `post_name`, logo *"o
+   slug muda sozinho ao publicar"* (BR-MIGRAR-005) só acontece quando se publica
+   **salvando** — que é este caminho, e é o que torna CA-8.3 verdadeiro sem uma
+   linha de código nova.
+
+### 🔴 O que T017 encontrou aberto, e NÃO fechou
+
+**UC-07 atribui à edição uma proteção que, no legado, só existe na exclusão.**
+
+- UC-07, tabela de exceções: *"O conteúdo é a página inicial ou a página de posts
+  | exige `manage_options`, que o editor não tem"*, repetido em *O que um porte
+  precisa saber* como *"🟢 O editor não edita a página inicial"*.
+- `wp-includes/capabilities.php`: o ramo que troca a família por `manage_options`
+  para `page_for_posts` e `page_on_front` está **somente** no
+  `case 'delete_post'` (`:113`-`:118`). O `case 'edit_post'` (`:188`-`:285`) vai
+  do objeto inexistente direto para a revisão, o tipo, a dispensa de tradução, a
+  autoria e o estado, e termina na página de política de privacidade (`:282`) —
+  **sem esse ramo**. BR-MIGRAR-091 diz *"página inicial e página de posts exigem
+  `manage_options`"* sem nomear o verbo, e ancora justamente `:113`.
+- `plataforma/autorizacao/traducao-de-conteudo.ts` (T017 da feature 001) aplica o
+  ramo aos **dois** verbos, porque ele está em `resolverPorAutoriaEEstado()`.
+  Nesta árvore, portanto, editar a página inicial exige `manage_options`, e no
+  sistema analisado não exige.
+
+**T017 não resolveu isso e não podia:** mexer naquele arquivo é mexer em regra de
+negócio documentada e em entrega de outra tarefa, e a tabela *Não negociável* da
+constituição põe isso entre o que o agente **não decide sozinho**. O que esta
+tarefa fez é o que o **P1** manda fazer com divergência sem decisão humana:
+registrá-la onde quem decide a encontre, e **não apoiar nenhum critério nela** —
+por isso **CA-8.6 é cumprido pela página de política de privacidade**, que é a
+função especial que o `case 'edit_post'` do legado tem.
+
+**E as duas divergências que já estavam abertas continuam abertas:** US-9 pede
+aviso ao autor onde UC-07 diz que *"o sistema não avisa"* (a PARADA de
+`portas/porta-de-email.ts`, intocada: esta tarefa constrói o caminho de volta e
+**não envia nada**), e o item 5 de *O que ninguém decidiu* segue de pé — quem tem
+`edit_others_posts` e não tem `publish_posts` é **rebaixado** para `pending`, não
+recusado.
+
+### O que T017 NÃO fez, e por quê
+
+| não fez | de quem é |
+|---|---|
+| os oito testes de `backlog/tests.md` (UT-026-1 a UT-026-8) | **T018**, a tarefa `[P]` que roda em paralelo com esta |
+| avisar o autor de que o texto foi devolvido ou publicado | **T019** (US-9) — ver acima |
+| registrar quem revisou e quando | **ninguém**: REQ-028 está em `do-not-rewrite.md`, e UC-07 confirma na pós-condição — *"nenhum registro de quem aprovou foi gravado"* |
+| a fila de onde o editor abre o pendente, que é o **gatilho** de UC-07 | **T015**, em `revisao/fila-de-revisao.ts` (CA-7.2) |
+| a versão anterior do texto ajustado | **T021** (US-10) |
+| a visibilidade privada, o outro destino do seletor de estado | **T009** (US-4) |
+| o agendamento, que é o **mesmo** campo `publish` com outro rótulo (`meta-boxes.php:384`) | **T013** (US-6) |
+| alterar o ramo de página especial da plataforma | **ninguém**: é decisão humana — ver 🔴 acima |
+| fixar e desafixar o conteúdo (`sticky`), o único uso de `edit_others_posts` **fora** da autorização (`:483`-`:489`) | BC-07 |
+| `_edit_last`, a trava de edição e a correção de vínculo de anexo | BC-10 e BC-04 |
+| a sanitização do corpo que o editor ajustou (REQ-030) e o formato dele (REQ-032) | **ninguém** — e a operação não grava corpo que o pedido não traga |
 
 ## O que "enumeração fechada" significa aqui — leia antes de usar o tipo
 

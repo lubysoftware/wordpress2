@@ -94,7 +94,7 @@ test('o modulo carrega com as tres portas declaradas', () => {
   assert.equal(modulo.portas.relogio, portas.relogio);
 });
 
-test('a superficie do modulo e so o que T001, T002, T003, T005, T007, T009, T013 e T015 entregam', () => {
+test('a superficie do modulo e so o que T001, T002, T003, T005, T007, T009, T013, T015 e T017 entregam', () => {
   const { portas } = portasDeTeste();
 
   const modulo = criarModuloDeConteudo(portas);
@@ -106,24 +106,28 @@ test('a superficie do modulo e so o que T001, T002, T003, T005, T007, T009, T013
   // (ver `gravacao/gravar.ts`); T009, que acrescentou `escolherVisibilidade`, a
   // operacao de US-4, com a MESMA capacidade e exigida so quando a visibilidade
   // resolve em `private` (CA-4.1); T013, que acrescentou
-  // `publicarSeAindaAgendado`, a operacao que a fila aciona e cuja permissao
-  // exigida e **nenhuma**, porque no legado nao ha ator no disparo
-  // (`wp-includes/default-filters.php:357`) — e declarar "nenhuma", com a
-  // ancora, e declaracao; e T015, que acrescentou `submeterParaRevisao`, cuja
-  // permissao e `edit_post` sobre o objeto e cuja falta de `publish_posts`
-  // **nao recusa nada** (ver `revisao/permissao-de-revisao.ts`). As demais
-  // crescem NA TAREFA DELAS. Esta afirmacao esta aqui para que nenhuma operacao
-  // chegue antes da propria tarefa, que e o que o P4 da constituicao cobra:
-  // "toda operacao exposta nova nasce com declaracao explicita de permissao".
+  // `publicarSeAindaAgendado`, cuja permissao exigida e **nenhuma**, porque no
+  // legado nao ha ator no disparo (`wp-includes/default-filters.php:357`);
+  // T015, que acrescentou `submeterParaRevisao`, cuja permissao e `edit_post`
+  // sobre o objeto e cuja falta de `publish_posts` **nao recusa nada** (ver
+  // `revisao/permissao-de-revisao.ts`); e T017, que acrescentou
+  // `revisarEPublicar` e `devolverAoAutor` — as duas metades de UC-07, com a
+  // **mesma** `edit_post` resolvendo na soma de `edit_others_posts` com a
+  // capacidade do estado (ver `revisao-editorial/`). As demais crescem NA
+  // TAREFA DELAS. Esta afirmacao esta aqui para que nenhuma operacao chegue
+  // antes da propria tarefa, que e o que o P4 da constituicao cobra: "toda
+  // operacao exposta nova nasce com declaracao explicita de permissao".
   assert.deepEqual(Object.keys(modulo).sort(), [
     'armazenamento',
     // Ordem alfabetica porque a lista e comparada depois de `.sort()`.
+    'devolverAoAutor',
     'escolherVisibilidade',
     'gravar',
     'nome',
     'portas',
     'publicar',
     'publicarSeAindaAgendado',
+    'revisarEPublicar',
     'submeterParaRevisao',
   ]);
 });
