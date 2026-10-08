@@ -93,7 +93,7 @@
       *entrega:* o comportamento de US-11 existe e os critérios CA-11.1, CA-11.2, CA-11.3, CA-11.4, CA-11.5, CA-11.6, CA-11.7 passam contra o sistema novo
       *satisfaz:* CA-11.1, CA-11.2, CA-11.3, CA-11.4, CA-11.5, CA-11.6, CA-11.7
       *depende de:* T001, T002, T015, T019
-- [ ] **T024** [P] Testes de US-11
+- [x] **T024** [P] Testes de US-11
       *entrega:* 8 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-013-1, UT-013-2, UT-013-3, UT-013-4, UT-013-5, UT-013-6, UT-013-7, UT-013-8), com o mesmo dado de entrada, ação e resultado esperado. O teste de regra de negócio (UT-013-8) entra na mesma suíte.
       *satisfaz:* CA-11.1, CA-11.2, CA-11.3, CA-11.4, CA-11.5, CA-11.6, CA-11.7
       *depende de:* T023
