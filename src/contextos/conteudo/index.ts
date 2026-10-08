@@ -2,17 +2,17 @@
  * Modulo de conteudo — BC-01 de `target_architecture.md`.
  *
  * Feature `002-autoria-e-publicacao`, tarefas T001, T002, T003, T005, T007,
- * T009, T011, T013, T015, T017 e T021. O que existe aqui e o que as onze
+ * T009, T011, T013, T015, T017, T021 e T023. O que existe aqui e o que as doze
  * entregam: o modulo carrega com as tres portas declaradas, com o vocabulario
  * de estado editorial do legado como enumeracao fechada, com a forma de
- * armazenamento de conteudo, metadado e versao anterior e com **nove** regras
- * de negocio — a publicacao por ato explicito de US-1, a gravacao com estado
+ * armazenamento de conteudo, metadado e versao anterior e com **dez** regras de
+ * negocio — a publicacao por ato explicito de US-1, a gravacao com estado
  * resolvido de US-2, o identificador na URL unico so a partir da publicacao de
  * US-3, o conteudo privado de US-4, a republicacao nula de US-5, o agendamento
  * por comparacao de data, com verificacao dupla, de US-6, a submissao para
  * revisao de US-7, a revisao do conteudo alheio com a autoria preservada de
- * US-8 e as versoes anteriores de US-10. Rascunho automatico entra na tarefa
- * dele (T023 em diante), e a leitura obrigatoria de cada uma esta em
+ * US-8, as versoes anteriores de US-10 e o rascunho automatico reservado ao
+ * abrir o editor de US-11. A leitura obrigatoria de cada uma esta em
  * `./README.md`.
  *
  * Duas coisas que este arquivo faz de proposito:
@@ -92,6 +92,12 @@ import {
   type ResultadoDaRestauracao,
   type ResultadoDeGuardarVersao,
 } from './versoes/index.js';
+import {
+  abrirEditor,
+  type ContextoDoEditor,
+  type PedidoDeAberturaDoEditor,
+  type ResultadoDaAberturaDoEditor,
+} from './rascunho-automatico/index.js';
 
 export * from './portas/index.js';
 export * from './estado-editorial.js';
@@ -189,6 +195,28 @@ export * from './revisao-editorial/index.js';
   tem dois chamadores com guardas diferentes no legado.
 */
 export * from './versoes/index.js';
+/*
+  T023 (US-11) sai pelo barril E pela composicao, pela mesma razao de T003 e
+  T005 — com uma ressalva que **nao se resolve aqui**: a tabela *Contratos* de
+  `plan.md` tem seis operacoes e esta **nao e nenhuma delas**, enquanto a entrega
+  de T023 em `tasks.md` exige que *"o comportamento de US-11 exista"*. A lacuna
+  esta registrada no cabecalho de `rascunho-automatico/abrir-editor.ts` e no
+  `README.md`, e a operacao entra como as outras: com declaracao explicita de
+  permissao, que e o que o P4 cobra. O resto da pasta sai pelo barril porque e o
+  que quem monta o contexto da requisicao precisa alcancar: a fila de ligacao
+  tardia, os quatro pontos de extensao, a enumeracao de estado que a API publica
+  e o intervalo de salvamento automatico que duas superficies entregam ao
+  cliente.
+*/
+export * from './rascunho-automatico/index.js';
+
+/*
+  `ESTADO_DE_RASCUNHO_AUTOMATICO` está DEFINIDO DUAS VEZES — o mesmo caso de
+  `ESTADO_PRIVADO`, logo acima. T015 o declarou em `revisao/` e T023 em
+  `rascunho-automatico/`, cada um na sua árvore. Isto só resolve a ambiguidade
+  do barril; de quem é o conceito é decisão de quem trabalha.
+*/
+export { ESTADO_DE_RASCUNHO_AUTOMATICO } from './rascunho-automatico/index.js';
 
 /** As tres portas de que este modulo depende, na forma em que ele as recebe. */
 export interface PortasDeConteudo {
@@ -216,6 +244,7 @@ export interface PortasDeConteudo {
  * | `guardarVersao` | US-10 | T021 | **nenhuma, e e assim no legado** — e ouvinte do caminho de gravacao, onde `edit_post` ja foi cobrada |
  * | `listarVersoes` | US-10 | T021 | **`edit_post` do conteudo** (nao `read_post`) |
  * | `restaurarVersao` | US-10 | T021 | **`edit_post` do conteudo pai** da versao |
+ * | `abrirEditor` | US-11 | T023 | **duas**: o slot de editar **e** o slot de criar daquele tipo (`$post_type->cap->edit_posts` e `->create_posts`), CA-11.1 |
  *
  * O armazenamento **nao e operacao**, e por isso nao declara permissao: ele nao
  * decide nada. E a comparacao de data de US-6 (`resolverEstadoPelaData`) tambem
@@ -484,6 +513,37 @@ export interface ModuloDeConteudo {
     contexto: ContextoDeVersao,
     pedido: PedidoDeRestauracao,
   ): ResultadoDaRestauracao;
+
+  /**
+   * Reserva um registro em rascunho automatico pelo ato de abrir o editor de um
+   * conteudo novo, antes de qualquer digitacao (US-11, T023). E
+   * `get_default_post_to_edit( $tipo, true )`
+   * (`wp-admin/includes/post.php:758`).
+   *
+   * **Permissao exigida: duas capacidades do tipo, e e preciso ter as duas.** O
+   * slot de editar e o slot de criar (`$post_type->cap->edit_posts` e
+   * `->create_posts`, `wp-admin/post-new.php:58`), CA-11.1. De fabrica as duas
+   * resolvem para a mesma cadeia — `get_post_type_capabilities()` faz
+   * `create_posts` cair em `edit_posts` quando o registro nao o declara
+   * (`wp-includes/post.php:2070`) —, e perguntar uma so quebraria o tipo de
+   * terceiro que as separa. A analise esta em
+   * `rascunho-automatico/permissao-do-editor.ts`.
+   *
+   * 🔴 **Esta operacao nao esta na tabela *Contratos* de `plan.md`**, que lista
+   * seis e nenhuma e esta; a entrega de T023 em `tasks.md` a exige de qualquer
+   * forma. A lacuna esta declarada e **nao resolvida** no cabecalho de
+   * `rascunho-automatico/abrir-editor.ts`.
+   *
+   * O contexto chega por argumento pela mesma razao de `publicar` e `gravar`, e
+   * carrega o contexto de gravacao inteiro: no legado esta funcao **chama**
+   * `wp_insert_post()` (`:775`), e rederivar os colaboradores dela daria dois
+   * donos para a mesma coluna.
+   */
+  abrirEditor(
+    contexto: ContextoDoEditor,
+    tipoDoConteudo: string,
+    pedido?: PedidoDeAberturaDoEditor,
+  ): ResultadoDaAberturaDoEditor;
 }
 
 /**
@@ -495,6 +555,7 @@ export interface ModuloDeConteudo {
  */
 export interface PedidoDeGuardarVersao {
   readonly conteudoId: number;
+
 }
 
 /**
@@ -532,5 +593,6 @@ export function criarModuloDeConteudo(
       guardarVersao(contexto, pedido.conteudoId),
     listarVersoes: listarVersoesDoConteudo,
     restaurarVersao,
+    abrirEditor,
   };
 }

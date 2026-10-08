@@ -3,14 +3,16 @@
 Esqueleto entregue por **T001** da feature `002-autoria-e-publicacao`, com a
 forma de armazenamento entregue por **T002**, a publicação por ato explícito
 (US-1) entregue por **T003**, a gravação com estado resolvido (US-2) entregue
+(US-1) entregue por **T003**, a gravação com estado resolvido (US-2) entregue
 por **T005**, o identificador na URL único só a partir da publicação (US-3)
 entregue por **T007**, o conteúdo privado (US-4) entregue por **T009**, a
 republicação nula (US-5) verificada por **T011**, o agendamento com verificação
 dupla (US-6) entregue por **T013**, a submissão para revisão (US-7) entregue por
 **T015**, a revisão do conteúdo alheio com a autoria preservada (US-8) entregue
-por **T017** e as versões anteriores (US-10) entregues por **T021**. Este
-arquivo é a leitura obrigatória de quem pegar T023 em diante: ele diz o que já
-está decidido, o que está decidido **em outro lugar**, e o que ninguém decidiu.
+por **T017**, as versões anteriores (US-10) entregues por **T021** e o rascunho
+automático reservado ao abrir o editor (US-11) entregue por **T023**. Este
+arquivo é a leitura obrigatória de quem pegar T019 e T020: ele diz o que já está
+decidido, o que está decidido **em outro lugar**, e o que ninguém decidiu.
 
 ## O que T001 entrega, e só isso
 
@@ -1132,6 +1134,135 @@ negócio:
 | o `$fields` opcional de `wp_restore_post_revision()` | ninguém: **nenhum** dos chamadores do legado o informa, e quem precisar dele passa a lista pelo ponto `_wp_post_revision_fields` |
 | emitir ponto de extensão por um barramento | ninguém deste pacote: REQ-162 está em `do-not-rewrite.md`. Os dez pontos estão **declarados** em `versoes/contexto-de-versao.ts`, com nome, argumentos, tipo e posição |
 | trilha de quem restaurou, além do `_edit_last` que o legado grava | **ninguém deste pacote**: REQ-028 está em `do-not-rewrite.md`, e UC-07 confirma que *"nenhum registro de quem aprovou foi gravado"* |
+## O que T023 entrega, e só isso
+
+> *o comportamento de US-11 existe e os critérios CA-11.1, CA-11.2, CA-11.3,
+> CA-11.4 passam contra o sistema novo*
+> — `.specify/specs/002-autoria-e-publicacao/tasks.md`, T023
+
+Tudo em `rascunho-automatico/`, e é `get_default_post_to_edit( $tipo, true )`
+(`wp-admin/includes/post.php:758`) mais as três regras que mantêm o estado
+`auto-draft` do jeito que ele é. O caso de uso é o único que a tabela de
+rastreabilidade de `spec.md` liga a US-11:
+[UC-03](../../../.specify/use-cases/UC-03-publicar-conteudo.md), cuja primeira
+pré-condição é literal — *"o registro existe, ainda que como `auto-draft` criado
+pelo ato de abrir o editor"*.
+
+| arquivo | o que é |
+|---|---|
+| `rascunho-automatico/contexto-de-rascunho-automatico.ts` | o contexto, o gancho e a recorrência da coleta, a fila, os **quatro** pontos de extensão e o ramo da função que **não** grava |
+| `rascunho-automatico/permissao-do-editor.ts` | **CA-11.1**: as **duas** capacidades do tipo, e as três superfícies que recusam diferente |
+| `rascunho-automatico/visibilidade-do-rascunho-automatico.ts` | **CA-11.2**: as três barreiras da invisibilidade, as seis exclusões literais e as 🔴 duas exceções |
+| `rascunho-automatico/estado-pedido-pela-api.ts` | **CA-11.3**: a enumeração derivada do registro, o atalho de atualização e a 🔴 superfície que aceita |
+| `rascunho-automatico/salvamento-automatico.ts` | **CA-11.4**: `AUTOSAVE_INTERVAL`, a borda do intervalo e para onde a escrita vai |
+| `rascunho-automatico/abrir-editor.ts` | a operação, os **nove passos com o dono de cada um**, e os erros como valor |
+| `rascunho-automatico/us-11-rascunho-automatico.test.ts` | 42 testes dos quatro critérios, por efeito no banco e por sequência de pontos |
+
+`abrirEditor` é a terceira entrada de `ModuloDeConteudo`, e é a primeira a
+declarar **duas** capacidades — ver o item 1 abaixo.
+
+### As cinco coisas de T023 que um porte distraído faria diferente
+
+1. **Abrir o editor exige DUAS capacidades, e de fábrica elas são a mesma.**
+   `wp-admin/post-new.php:58` pergunta o slot de editar **e** o slot de criar do
+   tipo, com `||` sobre as negações. E `get_post_type_capabilities()` faz
+   `create_posts` cair em `edit_posts` quando o registro não o declara
+   (`wp-includes/post.php:2070`), logo para `post` e `page` é a mesma cadeia
+   perguntada duas vezes — um porte que cravasse uma passaria em todo teste feito
+   com os tipos do núcleo e **quebraria o tipo de terceiro que as separa**.
+2. **O título `Auto Draft` é o que faz a linha existir.** `wp_insert_post()`
+   recusa a gravação quando título, corpo **e** resumo estão vazios e o tipo
+   suporta os três (`wp-includes/post.php:4673`). Com `Auto Draft` no título a
+   condição falha e a linha entra; sem ele, abrir o editor de um tipo completo
+   **não reservaria nada**. O tipo que não suporta título passa pelo outro lado da
+   mesma condição, e os dois caminhos estão testados.
+3. **As três entradas de `$_REQUEST` NÃO vão para o banco.** `post_title`,
+   `content` e `excerpt` (`:759`-`:771`) são argumento dos três filtros do fim da
+   função, aplicados **depois** de a linha estar gravada. Levá-las ao
+   `wp_insert_post()` gravaria corpo onde o legado grava vazio — e faria
+   `UT-031-5` (*"cria o registro ... com corpo vazio"*) passar por acidente. É por
+   isso que o resultado separa `gravado` de `paraOFormulario`.
+4. **`wp_after_insert_post` é disparado À MÃO, e depois do formato de conteúdo.**
+   A chamada a `wp_insert_post()` passa `$fire_after_hooks = false` (`:782`) **para
+   desligar** o disparo automático, e o ponto sai 13 linhas depois (`:795`), já
+   com `set_post_format()` aplicado. Quem deixasse o `true` do default veria o
+   interceptador rodar antes do formato — e extensão que leia o formato ali leria
+   vazio.
+5. **O intervalo é publicado ao cliente em SEGUNDOS, e o cliente multiplica.**
+   `autosaveL10n.autosaveInterval` (`wp-includes/script-loader.php:1962`) e
+   `editor_settings.autosaveInterval` (`wp-admin/edit-form-blocks.php:283`)
+   entregam o valor cru. Converter na saída quebraria os dois clientes — e um
+   deles é dependência externa de versão cravada que este porte **não pode mudar**
+   (BR-MIGRAR-117, `ESC-CLIENTE`). A terceira publicação do legado,
+   `changesetAutoSave`, **já** multiplica, e é de BC-07.
+
+### 🔴 O que T023 encontrou aberto, e NÃO fechou
+
+Três divergências entre o texto dos critérios e o código do legado, as três
+declaradas no código com âncora e nenhuma resolvida — o **P1** exige decisão
+humana registrada para divergir, e nenhuma existe. Mesmo precedente de T003 com
+CA-1.1 e de T017 com CA-8.4.
+
+1. **CA-11.2 diz *"listagem alguma"*, e o legado tem duas exceções.** O
+   personalizador faz `$wp_post_statuses['auto-draft']->protected = true` em
+   execução, *"so that it can be queried"*
+   (`wp-includes/class-wp-customize-nav-menus.php:1359`); e o parâmetro de
+   **consulta** `status` da API REST tem `enum` com **todos** os estados
+   registrados e aceita qualquer um de quem tem `edit_posts` do tipo
+   (`class-wp-rest-posts-controller.php:3131` e `:3193`) — o oposto do parâmetro
+   de **escrita**. As duas são superfícies que T023 não constrói. Em
+   `visibilidade-do-rascunho-automatico.ts`.
+2. **CA-11.3 diz que o estado *"não pode ser pedido"*, e o XML-RPC `wp_newPost`
+   o aceita.** A guarda dele é `if ( ! get_post_status_object( $status ) )
+   $status = 'draft'` (`class-wp-xmlrpc-server.php:1526`), e `auto-draft` **está**
+   no registro: o valor atravessa. A API REST só não tem o mesmo buraco porque a
+   validação de enumeração do esquema roda antes; o XML-RPC não tem esquema.
+   Fechá-lo aqui tornaria o sistema novo mais fechado que o legado numa
+   superfície que a resposta 14 manda portar inteira (`ESC-SUPERFICIES`). Em
+   `estado-pedido-pela-api.ts`.
+3. **`abrirEditor` não está na tabela *Contratos* de `plan.md`.** A tabela lista
+   seis operações e nenhuma é esta, enquanto a entrega de T023 em `tasks.md` exige
+   que *"o comportamento de US-11 exista"* e CA-11.1 descreve um ato que grava
+   linha. É lacuna de `plan.md`, não permissão para não entregar: quem revisar a
+   tabela acrescenta a sétima linha, com a entrada e a saída que a operação já
+   tem. Em `abrir-editor.ts`.
+
+### 🔴 Um conflito que não é de T023 e passa por ela
+
+**BR-MIGRAR-034** (`R5`, ADR-0006, resposta 10) descreve o legado:
+`wp_scheduled_auto_draft_delete` *"é registrado ao abrir a tela de edição"*, e
+*"um site que ninguém administra nunca agenda sua própria limpeza"*. **CA-6.4 da
+feature 005** pede o contrário: *"o agendamento não depende de alguém ter aberto
+a tela de edição"*. São duas decisões humanas em sentidos opostos, o pacote
+declara que não escolhe, e a constituição põe esse tipo de conflito na tabela do
+que não se decide sozinho.
+
+T023 reproduz o registro que o legado faz **aqui**, que é o único ponto que ela
+porta — e isso **não** toma partido: se a decisão humana mandar registrar também
+fora da tela de edição, aquele segundo ponto se **soma** a este sem contradizê-lo.
+Quem pegar T011 ou T013 da feature 005 esbarra no conflito e deve parar.
+
+### O que T023 NÃO fez, e por quê
+
+A tabela de nove passos no cabeçalho de `rascunho-automatico/abrir-editor.ts` tem
+a lista completa, com a linha do legado de cada passo e um "sim" ou "não" por
+linha. Em resumo:
+
+| não fez | de quem é |
+|---|---|
+| os seis testes de `backlog/tests.md` (UT-031-1 a UT-031-6) | **T024**, a tarefa `[P]` que roda em paralelo com esta |
+| as quatro envolturas que chamam a operação: a tela de conteúdo novo, o rascunho rápido do painel e os dois métodos de XML-RPC | BC-09 (`ESC-SUPERFICIES`). As quatro estão nomeadas, com o que cada uma acrescenta — e a do rascunho rápido **reaproveita** o rascunho automático anterior em vez de criar outro, o que é a razão de *"abrir o editor"* não ser sinônimo de *"criar registro"* em toda tela |
+| o formato de conteúdo aplicado ao registro novo | BC-02 (`set_post_format()`), BC-07 (suporte do tema) e `plataforma/tipos-de-conteudo/` (suporte do tipo). Em instalação de fábrica a condição é **falsa**, porque `default_post_format` nasce vazia |
+| as seis consultas que excluem `auto-draft` por nome | BC-09 (duas telas), REQ-120 (três de exportação, em `do-not-rewrite.md`) e BC-07 (reescrita de endereço) |
+| o portão de `post_status` da consulta pública | T009 da feature 004 (`contextos/leitura-publica/`) — mesma forma pela qual T005 afirmou CA-2.3 e T003 afirmou CA-1.3 |
+| a expiração em 7 dias, e a execução da coleta | feature 005, T013 (`R4` / BR-MIGRAR-033). T023 **agenda** o evento e não o executa |
+| a versão de salvamento automático por conta | **T021** (US-10). `salvamento-automatico.ts` nomeia o destino e não o constrói, e a forma do identificador (`{id}-autosave-v1`) já existe em `armazenamento/versao.ts`, de T002 |
+| a leitura da trava de edição | BC-09 (`wp_check_post_lock()`, `wp-admin/includes/post.php:1729`), com a janela de 150 s que é número de outra tarefa |
+| o laço do salvamento automático no cliente (cronômetro de 15 s, batimento, comparação de texto, suspensão por foco) | `ESC-CLIENTE` (BR-MIGRAR-117) — adotado como está, não reescrito. T023 porta a **decisão de intervalo**, não o agendador dela |
+| emitir `wp_after_insert_post` e os três filtros do formulário | ninguém deste pacote emite ponto: REQ-162 está em `do-not-rewrite.md`. Os quatro estão declarados com nome, argumentos e posição |
+| o escape de `esc_html()` nas três entradas de requisição | `plataforma/formatacao/`, feature 015 — os valores chegam já escapados, e é isso que o nome do campo diz |
+| `wp_sprintf_l()` inteira, com o filtro dela | `plataforma/formatacao/`, feature 015. O recorte que a mensagem desta recusa usa está em `estado-pedido-pela-api.ts`, anotado para não ser confundido com a função |
+| o cache de objeto | REQ-165, fora do pacote |
 
 ## O que "enumeração fechada" significa aqui — leia antes de usar o tipo
 
@@ -1244,8 +1375,8 @@ disto se decide no meio da implementação.
 
 ## O que ninguém decidiu, e que T001 não decidiu tampouco
 
-> T003 acrescentou o item 5; T009, o 6; T013, o 7; T021, os itens 8 e 9. Os
-> quatro primeiros são de T001.
+> T003 acrescentou o item 5; T009, o 6; T013, o 7; T021, os itens 8 e 9; T023,
+> os itens 10, 11 e 12. Os quatro primeiros são de T001.
 
 1. 🔴 **US-9 pede notificação que o sistema analisado não tem.** CA-9.1 e CA-9.2
    exigem aviso ao autor quando o conteúdo é devolvido ou publicado por outra
@@ -1323,11 +1454,30 @@ disto se decide no meio da implementação.
    `edit_post` **não** é. T021 não negou `edit_post`, porque negar fecharia o
    sistema mais que o legado e contradiria `capabilities.php:215`.
 
+10. 🔴 **CA-11.2 diz *"listagem alguma"*, e o legado tem duas exceções.** O
+   personalizador torna `auto-draft` consultável em execução
+   (`wp-includes/class-wp-customize-nav-menus.php:1359`), e o parâmetro de
+   **consulta** da API REST o aceita de quem tem `edit_posts` do tipo
+   (`class-wp-rest-posts-controller.php:3193`). **T023 não escolheu**: as duas são
+   superfícies que ela não constrói, e o registro do estado as declara fora de
+   toda listagem de fábrica. Em
+   `rascunho-automatico/visibilidade-do-rascunho-automatico.ts`.
+11. 🔴 **CA-11.3 diz que `auto-draft` *"não pode ser pedido"* pela API, e o
+   XML-RPC `wp_newPost` o aceita.** A guarda dele pergunta se o estado **existe no
+   registro**, e ele existe (`class-wp-xmlrpc-server.php:1526`). **T023 não
+   fechou**: fechar tornaria o sistema novo mais fechado que o legado numa
+   superfície que a resposta 14 manda portar inteira. Em
+   `rascunho-automatico/estado-pedido-pela-api.ts`.
+12. 🔴 **`abrirEditor` não está na tabela *Contratos* de `plan.md`.** São seis
+   operações ali e nenhuma é esta, e a entrega de T023 exige o comportamento. É
+   lacuna de `plan.md`, não permissão para não entregar. Em
+   `rascunho-automatico/abrir-editor.ts`.
+
 Os quatro primeiros estão em `spec.md`, seção *Perguntas em aberto* (o primeiro,
 como consequência de nada ali especificar o aviso). A tabela *Não negociável* da
 constituição põe cada um deles fora do alcance do agente de codificação. Do
-quinto ao nono não estão em `spec.md`: são divergências entre o que o pacote
-escreve e o código lido, e o **P1** as põe na mesma mesa.
+quinto ao décimo segundo não estão em `spec.md`: são divergências entre o que o
+pacote escreve e o código lido, e o **P1** as põe na mesma mesa.
 
 ### Uma divergência menor, registrada e não corrigida aqui
 
@@ -1378,6 +1528,13 @@ ele **submete um conteúdo para revisão** informando um slug"*, e até então a
 árvore tinha o efeito sem a operação que chega nele. `revisao/us-7-submeter-para-revisao.test.ts`
 afirma o cenário inteiro pela porta da submissão — o campo de slug vazio, e
 nenhuma consulta de unicidade saindo.
+⚠️ **US-11 não tem cenário de paridade próprio**, e isso está declarado em vez
+de descoberto: `PT-002` cobre UC-03 pelo lado da publicação, e `PT-004` toca o
+rascunho automático só pelo lado da **expiração** (*"Rascunho automático expira
+pelo prazo próprio, por comparação de data"*, que é da feature 005). Quem revisar
+a cobertura de `parity_specs.md` encontra aí a abertura do editor sem cenário —
+e o que T023 pôs no lugar é arquivo e linha do legado em cada afirmação, mais a
+suíte própria de `rascunho-automatico/`.
 
 **Nenhuma delas é executável hoje:** `parity_specs.md` registra que não há
 oráculo executável nesta árvore (o manifesto de telas declara

@@ -89,11 +89,11 @@
       *entrega:* 6 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-029-1, UT-029-2, UT-029-3, UT-029-4, UT-029-5, UT-029-6), com o mesmo dado de entrada, ação e resultado esperado. Os 2 testes de regra de negócio (UT-029-5, UT-029-6) entram na mesma suíte.
       *satisfaz:* CA-10.1, CA-10.2, CA-10.3, CA-10.4
       *depende de:* T021
-- [ ] **T023** Criar rascunho automático ao abrir o editor, antes de qualquer digitação (US-11)
+- [x] **T023** Criar rascunho automático ao abrir o editor, antes de qualquer digitação (US-11)
       *entrega:* o comportamento de US-11 existe e os critérios CA-11.1, CA-11.2, CA-11.3, CA-11.4 passam contra o sistema novo
       *satisfaz:* CA-11.1, CA-11.2, CA-11.3, CA-11.4
       *depende de:* T001, T002, T005
-- [ ] **T024** [P] Testes de US-11
+- [x] **T024** [P] Testes de US-11
       *entrega:* 6 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-031-1, UT-031-2, UT-031-3, UT-031-4, UT-031-5, UT-031-6), com o mesmo dado de entrada, ação e resultado esperado. Os 2 testes de regra de negócio (UT-031-5, UT-031-6) entram na mesma suíte.
       *satisfaz:* CA-11.1, CA-11.2, CA-11.3, CA-11.4
       *depende de:* T023

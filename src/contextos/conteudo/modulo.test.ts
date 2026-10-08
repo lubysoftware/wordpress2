@@ -94,7 +94,7 @@ test('o modulo carrega com as tres portas declaradas', () => {
   assert.equal(modulo.portas.relogio, portas.relogio);
 });
 
-test('a superficie do modulo e so o que T001, T002, T003, T005, T007, T009, T013, T015, T017 e T021 entregam', () => {
+test('a superficie do modulo e so o que T001, T002, T003, T005, T007, T009, T013, T015, T017, T021 e T023 entregam', () => {
   const { portas } = portasDeTeste();
 
   const modulo = criarModuloDeConteudo(portas);
@@ -120,9 +120,11 @@ test('a superficie do modulo e so o que T001, T002, T003, T005, T007, T009, T013
   // versao. As demais crescem NA TAREFA DELAS. Esta afirmacao esta aqui para
   // que nenhuma operacao chegue antes da propria tarefa, que e o que o P4 da
   // constituicao cobra: "toda operacao exposta nova nasce com declaracao
-  // explicita de permissao".
+  // explicita de permissao"; e T023, que acrescentou `abrirEditor`, cuja
+  // permissao exige **duas** capacidades (ver `rascunho-automatico/`).
   assert.deepEqual(Object.keys(modulo).sort(), [
     // Ordem alfabetica porque a lista e comparada depois de `.sort()`.
+    'abrirEditor',
     'armazenamento',
     'devolverAoAutor',
     'escolherVisibilidade',
