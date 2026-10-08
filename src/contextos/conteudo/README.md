@@ -1,10 +1,11 @@
 # Módulo de conteúdo — BC-01
 
 Esqueleto entregue por **T001** da feature `002-autoria-e-publicacao`, com a
-forma de armazenamento entregue por **T002** e a publicação por ato explícito
-(US-1) entregue por **T003**. Este arquivo é a leitura obrigatória de quem pegar
-T005 em diante: ele diz o que já está decidido, o que está decidido **em outro
-lugar**, e o que ninguém decidiu.
+forma de armazenamento entregue por **T002**, a publicação por ato explícito
+(US-1) entregue por **T003** e a gravação com estado resolvido (US-2) entregue
+por **T005**. Este arquivo é a leitura obrigatória de quem pegar T007 em diante:
+ele diz o que já está decidido, o que está decidido **em outro lugar**, e o que
+ninguém decidiu.
 
 ## O que T001 entrega, e só isso
 
@@ -224,6 +225,117 @@ de escrever a primeira linha.
 | recontar termo | BC-02: é `_update_term_count_on_transition_post_status()`, prioridade 10 no mesmo ponto, com os dois curto-circuitos declarados |
 | sanitizar o corpo | **ninguém**: REQ-030 está fora do pacote, e `wp_publish_post()` não toca `post_content` — esta tarefa não decide a sanitização de ninguém porque não grava corpo nenhum |
 
+## O que T005 entrega, e só isso
+
+> *o comportamento de US-2 existe e os critérios CA-2.1, CA-2.2, CA-2.3 passam
+> contra o sistema novo*
+> — `.specify/specs/002-autoria-e-publicacao/tasks.md`, T005
+
+Tudo em `gravacao/`, e é `wp_insert_post()` (`wp-includes/post.php:4598`) menos o
+que pertence a outras histórias. Os casos de uso são os dois que a tabela de
+rastreabilidade de `spec.md` liga a US-2: [UC-03](../../../.specify/use-cases/UC-03-publicar-conteudo.md),
+que abre com *"duas regras para a mesma coluna"*, e
+[UC-06](../../../.specify/use-cases/UC-06-submeter-conteudo-para-revisao.md), que
+é o mesmo caminho de escrita visto por quem não pode publicar.
+
+| arquivo | o que é |
+|---|---|
+| `gravacao/contexto-de-gravacao.ts` | o contexto, os cinco colaboradores de ligação tardia, as 21 colunas e os **seis** pontos de extensão |
+| `gravacao/verdade-de-php.ts` | o `empty()` e a verdade de PHP, que decidem `'0'` ao contrário deste runtime |
+| `gravacao/estado-na-gravacao.ts` | **CA-2.1**, **CA-2.2** e **CA-2.3**: as duas barreiras do `draft`, e a reescrita do anexo |
+| `gravacao/data-na-gravacao.ts` | as quatro colunas `datetime`, e a sentinela que o rascunho grava |
+| `gravacao/campos-na-gravacao.ts` | os 19 defaults e os campos cuja pergunta não é `empty()` |
+| `gravacao/gravar.ts` | a operação, os **24 passos com o dono de cada um**, e os erros como valor |
+| `gravacao/us-2-gravar-rascunho.test.ts` | 34 testes dos três critérios, por efeito no banco e por sequência de pontos |
+
+`gravar` é a segunda entrada de `ModuloDeConteudo`, e é a primeira a declarar
+**nenhuma** permissão — ver o item 1 abaixo.
+
+### As cinco coisas de T005 que um porte distraído faria diferente
+
+1. **`wp_insert_post()` não tem portão de capacidade, e isso não é brecha.** Ela
+   é chamada pelo painel, pela API REST, pelo XML-RPC, pela publicação por
+   e-mail, pelo importador e pelo próprio núcleo ao criar o rascunho automático
+   (`:8373`) — cada superfície decide a permissão **antes**. O **P4** manda
+   preservar *"o default de cada camada como ele é hoje, inclusive quando o
+   default é permissivo"*, e o achado de QA de REQ-020 é literal: *"não há
+   entrada inválida nem permissão ausente própria deste card"*. A única decisão
+   de capacidade deste caminho é o identificador na URL de quem não pode
+   publicar, que é CA-7.4, em **T015**.
+2. **O `draft` do legado está em DOIS lugares, e os dois ficam.** No arranjo de
+   defaults (`:4612`), que pega quem não manda a chave, e no `empty()` de
+   `:4703`, que pega quem manda a chave vazia. Com os dois, não existe entrada
+   que produza `publish` sem alguém pedir `publish` — que é o texto de CA-2.2.
+3. **Os dois pontos que recebem o pedido veem o estado COMO ELE CHEGOU.**
+   `wp_parse_args()` preenche chave ausente e o `empty()` trabalha numa variável
+   local: quem manda `post_status: ''` continua com `''` no arranjo que chega a
+   `wp_insert_post_empty_content` (`:4695`) e a `wp_insert_post_data` (`:4978`),
+   enquanto a **coluna** recebe `draft`. O mesmo vale para o anexo: o pedido
+   chega com `draft` e a coluna recebe `inherit`. Resolver o estado "uma vez só,
+   no começo" muda o valor que dois pontos de extensão recebem, e o cenário
+   `@ordem-de-emissao` de `PT-002` compara isso byte a byte.
+4. **O rascunho grava a sentinela em `post_date_gmt`.** `draft` é um dos três
+   estados com `date_floating`, logo a coluna GMT fica em
+   `'0000-00-00 00:00:00'` enquanto `post_date` recebe agora, no fuso do site
+   (`:4779`-`:4784`). Gravar a data GMT real num rascunho produz uma linha que o
+   legado nunca produz. 🔴 O destino da sentinela é `BR-HUMANA-003`,
+   **pendente**: T005 segue a mesma premissa de T002 — manter a cadeia literal —
+   e **não decide nada**, importando a constante de `armazenamento/conteudo.ts`.
+5. **Atualizar sem informar `comment_status` FECHA os comentários** (`:4814`), e
+   atualizar sem informar o **estado** rebaixa o publicado para rascunho
+   (`:4703`). As duas são do legado e as duas só não aparecem pela superfície
+   porque `wp_update_post()` mistura a linha existente antes de chamar — e essa
+   mistura **não** é desta tarefa (ver abaixo).
+
+### 🔴 O que T005 declara, e que T007 herda
+
+**Nesta tarefa, gravar conteúdo publicado sem informar identificador na URL grava
+a coluna vazia.** O legado gravaria o título sanitizado e único
+(`:4742`-`:4761`, `:4906` e a segunda escrita de `:5046`), e as três coisas são
+**T007** (US-3). Para o rascunho de US-2 o valor coincide — o legado também grava
+vazio, porque `draft`, `pending` e `auto-draft` dispensam o identificador —, e
+para o publicado a diferença é exatamente o conteúdo da tarefa seguinte, que
+depende desta. Está declarada em três lugares: no `@see` de
+`resolverIdentificadorNaUrl`, na tabela de passos de `gravar.ts` e aqui.
+
+Somado ao achado de T003 (`wp_publish_post()` não toca `post_name`), T007 chega
+com o mapa pronto: **são dois caminhos para publicado, só um deles cobra
+unicidade, e o que cobra é este.**
+
+### A função do legado que T005 NÃO portou, de propósito
+
+**`wp_update_post()`** (`:5327`) não está aqui. Ela não é outra regra: é uma
+**mistura** — lê a linha, sobrepõe o pedido sobre ela e chama `wp_insert_post()`
+(`:5390`). Três das suas quatro decisões próprias pertencem a outras tarefas: a
+delegação do anexo a `wp_insert_attachment()` (BC-04), o descarte de
+`tags_input` igual às etiquetas atuais (BC-02) e o `$clear_date` dos estados de
+data flutuante, vizinho direto do que **T013** resolve.
+
+⚠️ **Isso não deixa CA-2.2 em aberto:** a mistura faz o estado chegar a
+`wp_insert_post()` **preenchido com o valor gravado**, logo omitir o estado ali
+**conserva** o que a linha tinha e nunca publica o que não estava publicado. Quem
+a portar (T015 ou T017, que a usam para devolver conteúdo ao autor) encontra a
+resolução de estado pronta em `gravacao/estado-na-gravacao.ts`.
+
+### O que T005 NÃO fez, e por quê
+
+A tabela de 24 passos no cabeçalho de `gravacao/gravar.ts` tem a lista completa,
+com a linha do legado de cada passo e um "sim" ou "não" por linha. Em resumo:
+
+| não fez | de quem é |
+|---|---|
+| os quatro testes de `backlog/tests.md` (UT-020-1 a UT-020-4) | **T006**, a tarefa `[P]` que roda em paralelo com esta |
+| sanitizar e tornar único o identificador na URL | **T007** (US-3) — ver a seção acima |
+| a comparação de 60 segundos que troca publicado por agendado | **T013** (US-6). É o único passo desta função que lê a porta de relógio |
+| esvaziar o identificador de quem não pode publicar | **T015** (US-7, CA-7.4), e é ela que acrescenta a `base` de autorização ao contexto |
+| guardar a versão anterior | **T021** (US-10) — e o achado é que ela **não** é código de `wp_insert_post()`: é ouvinte do ponto `post_updated`, com prioridade 10 (`default-filters.php:450`) |
+| o rascunho automático | **T023** (US-11), e a recusa de `auto-draft` pedido pela API (CA-11.3) não está nesta função: está na superfície REST |
+| emitir a transição de estado e a família `save_post` deste caminho | ninguém deste pacote emite ponto (REQ-162 está em `do-not-rewrite.md`). Os sete estão declarados em `gravar.ts` com nome, argumentos e posição. A fronteira cai antes deles porque emitir **meia** transição — interceptadores sem o ouvinte do núcleo — perderia o `guid` e a limpeza do evento agendado em silêncio |
+| a categoria padrão, o `tax_input` e a recontagem de termo do caminho de gravação | BC-02 (a metade que CA-1.4 cobra já está em `publicacao/`) |
+| `sanitize_post()`, `wp_encode_emoji()`, `wp_unslash()` e `sanitize_trackback_urls()` | `plataforma/`, feature 015 — cada um com a âncora em `campos-na-gravacao.ts`. O primeiro carrega 🔴 REQ-030, que está **fora do pacote** |
+| o arquivo e o contexto do anexo, a imagem destacada e o modelo de página | BC-04 e BC-07. O `inherit` do anexo **está** aqui, porque é a linha seguinte da função portada (mesmo precedente da guarda de republicação nula de T003) |
+| o erro de banco (`db_insert_error`, `db_update_error`) | os dois códigos e os quatro textos estão declarados em `ERROS_DA_GRAVACAO`, e o ramo **não é alcançável**: a porta de dados de T002 não devolve o `false` de `$wpdb`. Quem construir a camada de dados (feature 015) liga a falha a eles |
+
 ## O que "enumeração fechada" significa aqui — leia antes de usar o tipo
 
 Fechada sobre o **vocabulário de fábrica**: os 12 estados que o núcleo registra
@@ -293,10 +405,13 @@ pode unificar os dois defaults"*.
 
 T001 declara os dois como constante nomeada (`ESTADO_PADRAO_DA_APLICACAO`,
 `ESTADO_PADRAO_DO_ARMAZENAMENTO`) e **não resolve nenhum**. T002 fechou a metade
-do armazenamento — o DDL de `armazenamento/esquema.ts` carrega o `publish` —, e a
-resolução na escrita continua sendo T005 (US-2). A spec de paridade `PT-002` abre com o mesmo aviso e
-tem cenário dedicado a afirmar que *"a divergência entre os dois defaults é
-idêntica nas duas metades"*.
+do armazenamento — o DDL de `armazenamento/esquema.ts` carrega o `publish` — e
+**T005 fechou a da escrita**, em `gravacao/estado-na-gravacao.ts`, com as duas
+barreiras do legado e sem redeclarar nenhuma das duas constantes. A spec de
+paridade `PT-002` abre com o mesmo aviso e tem cenário dedicado a afirmar que
+*"a divergência entre os dois defaults é idêntica nas duas metades"* — as duas
+metades agora existem, e o teste
+`gravacao/us-2-gravar-rascunho.test.ts` afirma as duas lado a lado.
 
 Dois irmãos deste achado, que também não se "consertam":
 

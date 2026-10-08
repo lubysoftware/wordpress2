@@ -1,14 +1,15 @@
 /**
  * Modulo de conteudo — BC-01 de `target_architecture.md`.
  *
- * Feature `002-autoria-e-publicacao`, tarefas T001, T002 e T003. O que existe
- * aqui e o que as tres entregam: o modulo carrega com as tres portas
+ * Feature `002-autoria-e-publicacao`, tarefas T001, T002, T003 e T005. O que
+ * existe aqui e o que as quatro entregam: o modulo carrega com as tres portas
  * declaradas, com o vocabulario de estado editorial do legado como enumeracao
  * fechada, com a forma de armazenamento de conteudo, metadado e versao anterior
- * e com **uma** regra de negocio — a publicacao por ato explicito de US-1.
- * Gravacao, agendamento, identificador na URL, submissao, revisao, versao
- * anterior e rascunho automatico entram nas tarefas delas (T005 em diante), e a
- * leitura obrigatoria de cada uma esta em `./README.md`.
+ * e com **duas** regras de negocio — a publicacao por ato explicito de US-1 e a
+ * gravacao com estado resolvido de US-2. Agendamento, identificador na URL,
+ * submissao, revisao, versao anterior e rascunho automatico entram nas tarefas
+ * delas (T007 em diante), e a leitura obrigatoria de cada uma esta em
+ * `./README.md`.
  *
  * Duas coisas que este arquivo faz de proposito:
  *
@@ -41,6 +42,12 @@ import type {
   PortaDeRelogio,
 } from './portas/index.js';
 import {
+  gravarConteudo,
+  type ContextoDeGravacao,
+  type PedidoDeGravacao,
+  type ResultadoDaGravacao,
+} from './gravacao/index.js';
+import {
   publicar,
   type ContextoDePublicacao,
   type PedidoDePublicacao,
@@ -61,6 +68,16 @@ export * from './armazenamento/index.js';
   chamador no legado (a fila, em T013).
 */
 export * from './publicacao/index.js';
+/*
+  T005 (US-2) sai pelo barril E pela composicao, pela mesma razao de T003: a
+  tabela *Contratos* de `plan.md` lista *"gravar conteudo"* como a primeira
+  operacao desta feature, com entrada, saida e erro proprios. O resto da pasta
+  sai pelo barril porque e o que quem monta o contexto da requisicao precisa
+  alcancar: os cinco colaboradores de ligacao tardia, os seis pontos de
+  extensao, as 21 colunas que o filtro de dados recebe e o `empty()` do legado,
+  que decide `'0'` ao contrario deste runtime.
+*/
+export * from './gravacao/index.js';
 
 /** As tres portas de que este modulo depende, na forma em que ele as recebe. */
 export interface PortasDeConteudo {
@@ -78,6 +95,7 @@ export interface PortasDeConteudo {
  *
  * | operacao | historia | tarefa | permissao exigida |
  * |---|---|---|---|
+ * | `gravar` | US-2 | T005 | **nenhuma, como no legado** — `wp_insert_post()` nao tem portao, e o achado de QA de REQ-020 registra que o card nao tem recusa propria |
  * | `publicar` | US-1 | T003 | **a capacidade de publicar daquele tipo** (`$post_type->cap->publish_posts`), CA-1.1 |
  *
  * O armazenamento **nao e operacao**, e por isso nao declara permissao: ele nao
@@ -114,6 +132,31 @@ export interface ModuloDeConteudo {
     contexto: ContextoDePublicacao,
     pedido: PedidoDePublicacao,
   ): ResultadoDaPublicacao;
+
+  /**
+   * Grava conteudo, com o estado resolvido para **rascunho** quando o pedido nao
+   * o informa (US-2, T005). E `wp_insert_post()`
+   * (`wp-includes/post.php:4598`).
+   *
+   * **Permissao exigida: nenhuma, e isso e o legado, nao uma brecha.** A funcao
+   * e chamada pelo painel, pela API REST, pelo XML-RPC, pela publicacao por
+   * e-mail, pelo importador e pelo proprio nucleo, e **cada superficie decide a
+   * permissao antes de chamar**. O **P4** manda preservar *"o default de cada
+   * camada como ele e hoje, inclusive quando o default e permissivo"*, e o
+   * achado de QA de REQ-020 e literal: *"nao ha entrada invalida nem permissao
+   * ausente propria deste card"*. A unica decisao de capacidade do caminho de
+   * gravacao — o identificador na URL de quem nao pode publicar — e CA-7.4, em
+   * T015, e esta marcada na posicao exata do fluxo em `gravacao/gravar.ts`.
+   *
+   * O contexto chega por argumento pela mesma razao de `publicar`, e aqui ela
+   * tem consequencia direta: o **autor** gravado e, por omissao, o ator do
+   * contexto (`:4824`), e o cenario `@concorrencia` de `PT-002` cobra que *"a
+   * autoria gravada em cada conteudo corresponde a quem o gravou"*.
+   */
+  gravar(
+    contexto: ContextoDeGravacao,
+    pedido: PedidoDeGravacao,
+  ): ResultadoDaGravacao;
 }
 
 /**
@@ -141,5 +184,6 @@ export function criarModuloDeConteudo(
     // sai daqui, que e o que `EXT-ORDEM` cobra e o que `modulo.test.ts` afirma.
     armazenamento: criarArmazenamentoDeConteudo(portas.dados),
     publicar,
+    gravar: gravarConteudo,
   };
 }
