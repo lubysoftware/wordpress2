@@ -1,16 +1,16 @@
 /**
  * Modulo de classificacao — BC-02 de `target_architecture.md`.
  *
- * Feature `003-classificacao-do-conteudo`, tarefas T001, T002, T003 e T005. O
- * que existe aqui e o que as quatro entregam: o modulo carrega com a porta de
- * dados declarada, com os oito contextos de classificacao do nucleo registrados,
- * com a forma de armazenamento de rotulo, contexto e juncao, com **a separacao
- * entre rotulo e contexto** (US-1, em `./rotulo-e-contexto/`) e com **a
+ * Feature `003-classificacao-do-conteudo`, tarefas T001, T002, T003, T005 e
+ * T007. O que existe aqui e o que as cinco entregam: o modulo carrega com a porta
+ * de dados declarada, com os oito contextos de classificacao do nucleo
+ * registrados, com a forma de armazenamento de rotulo, contexto e juncao, com **a
+ * separacao entre rotulo e contexto** (US-1, em `./rotulo-e-contexto/`), com **a
  * classificacao do conteudo** (US-2, em `./vinculo-de-objeto/`), que e a
- * primeira historia desta feature a escrever na juncao. O termo padrao (US-3)
- * entra em T007, a manutencao da lista (US-4) em T009 e a proibicao de apagar o
- * padrao (US-5) em T011. A leitura obrigatoria de cada uma esta em
- * `./README.md`.
+ * primeira historia desta feature a escrever na juncao, e com **o termo padrao do
+ * contexto** (US-3, em `./termo-padrao/`), que e a regra `P3`. A manutencao da
+ * lista (US-4) entra em T009 e a proibicao de apagar o padrao (US-5) em T011. A
+ * leitura obrigatoria de cada uma esta em `./README.md`.
  *
  * BC-02 e a fusao de `taxonomias-e-termos` com `links-e-bookmarks`, e
  * `target_architecture.md` chama a fusao de *"contraintuitiva e necessaria"*:
@@ -57,6 +57,15 @@ import {
   type RotuloLido,
 } from './rotulo-e-contexto/index.js';
 import {
+  aplicarTermoPadraoNaGravacao,
+  criarClassificacaoNaPublicacao,
+  type AplicacaoDoTermoPadrao,
+  type ClassificacaoNaPublicacao,
+  type ColaboracaoDoTermoPadrao,
+  type ColaboracaoDoTermoPadraoSemAtor,
+  type PedidoDeTermoPadraoNaGravacao,
+} from './termo-padrao/index.js';
+import {
   classificarConteudo,
   recontarUsoDosRotulos,
   removerVinculosDoObjeto,
@@ -77,16 +86,26 @@ export * from './registro/index.js';
 export * from './armazenamento/index.js';
 export * from './rotulo-e-contexto/index.js';
 export * from './vinculo-de-objeto/index.js';
+export * from './termo-padrao/index.js';
 
 /**
  * A porta de que este modulo depende, na forma em que ele a recebe.
  *
- * E uma so, e continua sendo uma depois de T002 e de T003: as tres estruturas de
- * armazenamento leem e gravam **por ela**, e nenhuma outra borda entrou. A razao
- * de nao haver porta de cache nem de serializacao esta em `portas/index.ts`; a de
- * nao haver porta de opcoes e que nenhuma das tres tarefas le opcao nenhuma — as
- * operacoes de US-1 perguntam ao registro desta requisicao ou ao banco, e nada
- * mais. A opcao `default_category`, que US-3 consulta, chega com T007.
+ * E uma so, e continua sendo uma depois de T002, T003, T005 e **T007**: as tres
+ * estruturas de armazenamento leem e gravam **por ela**, e nenhuma outra borda
+ * entrou. A razao de nao haver porta de cache nem de serializacao esta em
+ * `portas/index.ts`.
+ *
+ * ⚠️ **T007 nao acrescentou a "porta de opcoes" que T001, T003 e T005
+ * anunciaram**, e a razao esta inteira no bloco 🔴 de
+ * `termo-padrao/escopo-de-termo-padrao.ts`: AD-08 fixa *"portas somente nas 5
+ * bordas"* e nomeia as cinco — *"dados, HTTP, sistema de arquivos, cache de
+ * objeto e e-mail"* —, opcao nao e uma delas, `options` e tabela de
+ * `plataforma/opcoes/` (que nao existe nesta arvore) e o outro lado da **mesma**
+ * chamada ja declarou a leitura como colaboracao e nao como porta
+ * (`ClassificacaoNaPublicacao.opcaoDeTermoPadrao`, em BC-01, merged). A opcao
+ * `default_category` chega, portanto, por ligacao tardia (AD-10), em
+ * {@link OpcoesNaClassificacao}.
  */
 export interface PortasDeClassificacao {
   readonly dados: PortaDeDados;
@@ -112,7 +131,9 @@ export interface PortasDeClassificacao {
  * explicita de permissao que o **P4** da constituicao exige, e nenhuma antes da
  * propria tarefa. Com T003 fechada entraram as cinco de US-1; com T005, as
  * **quatro** de US-2 — e so uma delas verifica capacidade, porque so uma delas
- * corresponde a um ponto em que o legado verifica.
+ * corresponde a um ponto em que o legado verifica; com **T007**, **uma** de US-3
+ * ({@link ModuloDeClassificacao.aplicarTermoPadraoNaGravacao}) mais a fabrica da
+ * colaboracao que BC-01 consome, que **nao** e operacao.
  *
  * O armazenamento **nao e operacao**, e por isso nao declara permissao: ele nao
  * decide nada. Quem decide e a historia que o chama.
@@ -288,6 +309,47 @@ export interface ModuloDeClassificacao {
     rotulosNoContextoIds: readonly number[],
     contexto: string,
   ): boolean;
+
+  /**
+   * Aplica o termo padrao do contexto quando nenhum termo e informado, no caminho
+   * de **gravacao** — os dois ramos de `wp_insert_post()` que a regra `P3` ocupa
+   * (US-3, T007, **CA-3.1**, **CA-3.3** e **CA-3.4**).
+   *
+   * **Permissao declarada: depende da porta, e a assimetria e do legado.** A
+   * categoria do tipo padrao e gravada por `wp_set_post_categories()`
+   * (`wp-includes/post.php:5053`), que **nao cobra capacidade nenhuma** — so o
+   * portao do tipo de objeto, que e o `if` que guarda a chamada (**CA-2.4**); o
+   * termo padrao de qualquer outro contexto e gravado pelo bloco de `tax_input`,
+   * que cobra `$tax->cap->assign_terms` (`:5105`) e **recusa em silencio** quem
+   * nao a tem. Fundir as duas portas mudaria quem consegue classificar — a
+   * analise inteira esta em `termo-padrao/termo-padrao-na-gravacao.ts`.
+   *
+   * ⚠️ **Em rascunho automatico nao sai comando nenhum** (CA-3.3): o `if` que
+   * envolve o laco do legado envolve tambem as leituras, logo nem a juncao nem a
+   * opcao sao consultadas. Devolve lista vazia, e a lista vazia e **afirmacao**.
+   */
+  aplicarTermoPadraoNaGravacao(
+    colaboracao: ColaboracaoDoTermoPadrao,
+    pedido: PedidoDeTermoPadraoNaGravacao,
+  ): readonly AplicacaoDoTermoPadrao[];
+
+  /**
+   * Monta o que BC-01 chama no laco do termo padrao da **publicacao** — as quatro
+   * perguntas de `wp_publish_post()` a este modulo (US-3, T007, **CA-3.2**).
+   *
+   * **Nao e operacao e nao declara permissao**, como o `armazenamento`: ela nao
+   * decide nada. Quem decide e o laco de BC-01, que esta merged em
+   * `../conteudo/publicacao/termo-padrao-na-publicacao.ts` — e **nenhum** dos
+   * quatro metodos cobra capacidade, porque o nucleo chama esse laco sem ator.
+   *
+   * E a imagem espelhada de {@link ConteudoNaClassificacao}: la este modulo
+   * declara tres perguntas e BC-01 as responde, aqui BC-01 declara quatro e este
+   * modulo as responde. As duas metades existem porque a regra de dependencia 3
+   * proibe o `import` entre contextos *"sempre, sem excecao"* (AD-10).
+   */
+  classificacaoNaPublicacao(
+    colaboracao: ColaboracaoDoTermoPadraoSemAtor,
+  ): ClassificacaoNaPublicacao;
 }
 
 /**
@@ -364,5 +426,18 @@ export function criarModuloDeClassificacao(
         rotulosNoContextoIds,
         contexto,
       ),
+    /*
+     * US-3 (T007) reusa o escopo de US-2, e a ausencia de um escopo proprio e
+     * afirmacao: no legado o laco do termo padrao **nao grava nada** — ele decide
+     * a lista e deixa `wp_set_post_categories()` e o bloco de `tax_input`
+     * gravarem. Logo esta historia le o mesmo registro e o mesmo armazenamento, e
+     * escreve pelas operacoes de US-2. O que ela acrescenta — a leitura da opcao —
+     * **nao** e desta composicao: chega por argumento em cada chamada, que e o que
+     * AD-10 pede para toda travessia que sai deste contexto.
+     */
+    aplicarTermoPadraoNaGravacao: (colaboracao, pedido) =>
+      aplicarTermoPadraoNaGravacao(escopoDoVinculo, colaboracao, pedido),
+    classificacaoNaPublicacao: (colaboracao) =>
+      criarClassificacaoNaPublicacao(escopoDoVinculo, colaboracao),
   };
 }

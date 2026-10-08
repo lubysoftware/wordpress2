@@ -1,10 +1,11 @@
 # Modulo de classificacao — BC-02
 
 Entregue por **T001** (o esqueleto), **T002** (a forma de armazenamento),
-**T003** (a separacao entre rotulo e contexto, US-1) e **T005** (a classificacao
-do conteudo, US-2) da feature `003-classificacao-do-conteudo`. Este arquivo e a
-leitura obrigatoria de quem pegar T007 em diante: ele diz o que ja esta decidido,
-o que esta decidido **em outro lugar**, e o que ninguem decidiu.
+**T003** (a separacao entre rotulo e contexto, US-1), **T005** (a classificacao
+do conteudo, US-2) e **T007** (o termo padrao do contexto, US-3) da feature
+`003-classificacao-do-conteudo`. Este arquivo e a leitura obrigatoria de quem
+pegar T009 em diante: ele diz o que ja esta decidido, o que esta decidido **em
+outro lugar**, e o que ninguem decidiu.
 
 ## O que T001 entrega, e so isso
 
@@ -20,7 +21,7 @@ o que esta decidido **em outro lugar**, e o que ninguem decidiu.
 | `registro/contextos-do-nucleo.ts` | as **oito** declaracoes, na ordem de `create_initial_taxonomies()` |
 | `registro/registro-de-contextos.ts` | o `$wp_taxonomies`, por composicao e nao por modulo |
 | `registro/erro-de-registro.ts` | os dois codigos de `WP_Error`, com as mensagens do legado |
-| `modulo.test.ts` | afirma a entrega de T001, T002, T003 e T005 na superficie do modulo, e as invariantes de arquitetura |
+| `modulo.test.ts` | afirma a entrega de T001, T002, T003, T005 e T007 na superficie do modulo, e as invariantes de arquitetura |
 | `registro/registro-de-contextos.test.ts` | afirma os oito, a ordem, os defaults e as duas recusas |
 
 ## O que T002 entrega, e so isso
@@ -227,6 +228,91 @@ Cinco coisas que T005 **nao** fez, e nao e esquecimento:
    comando proprio** — e o que esta tarefa reproduz. Um despachante de nome de
    funcao seria o barramento que `REQ-162` poe fora de escopo.
 
+## O que T007 entrega, e so isso
+
+> *o comportamento de US-3 existe e os criterios CA-3.1, CA-3.2, CA-3.3, CA-3.4
+> passam contra o sistema novo*
+> — `.specify/specs/003-classificacao-do-conteudo/tasks.md`, T007
+
+Tudo em `termo-padrao/`, e o `index.ts` dessa pasta e a leitura de entrada. A
+regra e `P3` / `BR-MIGRAR-003`, que `database/business-rules.md` §3.4 chama de
+*"a regra de negocio mais claramente de dominio em todo o modelo de dados"*:
+
+| arquivo | o que e |
+|---|---|
+| `termo-padrao/chave-do-termo-padrao.ts` | as **duas** chaves de opcao, os tres valores do legado que decidem a regra, e por que `category` e excecao **por nome** |
+| `termo-padrao/escopo-de-termo-padrao.ts` | a leitura da opcao por ligacao tardia, e o 🔴 bloco que explica por que ela **nao** virou porta |
+| `termo-padrao/termo-padrao-na-gravacao.ts` | **CA-3.1**, **CA-3.3** e **CA-3.4**: os dois caminhos da gravacao, as duas portas de escrita, e o 🔴 limite do oraculo |
+| `termo-padrao/classificacao-na-publicacao.ts` | **CA-3.2**: os quatro metodos que BC-01 declarou e que este modulo tinha de implementar |
+| `termo-padrao/us-3-termo-padrao.test.ts` | 24 testes: os quatro criterios por efeito no banco, por sequencia de comandos e por **ausencia** de comando |
+
+**A historia e dois caminhos com mecanismos diferentes**, e tratar os dois como um
+e o jeito mais rapido de aplicar a categoria padrao a `page`:
+
+| | gravacao (`post.php:4719` e `:5062`-`:5087`) | publicacao (`:5419`-`:5439`) |
+|---|---|---|
+| quem tem o laco | **esta tarefa** | **BC-01**, merged em T003 da feature `002` |
+| o que esta tarefa entrega | o laco e as duas escritas | os quatro metodos que o laco de BC-01 chama |
+| cobra capacidade? | **sim** no mapa de contextos (`assign_terms`, `:5105`), **nao** na categoria | **nao**, em nenhum: o nucleo o chama sem ator |
+| cobra o tipo de objeto (CA-2.4)? | **sim** nas duas portas, e na **escrita**, nao na decisao (`:5053`) | nao: o laco de BC-01 ja itera os contextos do tipo |
+| o que dispara o padrao | o tipo ser `post` (categoria) ou o contexto **declarar** `default_term` | o nome ser `category` ou o contexto declarar `default_term` |
+
+⚠️ **A linha da capacidade e a mais consequente, e e ela que explica por que CA-3.2
+existe como criterio separado:** o termo padrao de um contexto que nao e
+`category` passa pelo portao de `assign_terms` na gravacao, logo um ator sem ela
+grava conteudo **sem** o padrao — e o laco da publicacao, que roda sem ator, e o
+que apanha o caso depois. Ha teste para cada metade.
+
+**Duas entradas novas na superficie do modulo, e so uma e operacao:**
+
+| entrada | no legado | permissao |
+|---|---|---|
+| `aplicarTermoPadraoNaGravacao` | os dois ramos de `P3` em `wp_insert_post()` (`:4719` e `:5062`-`:5087`) mais as duas escritas | **depende da porta**: na categoria so o portao do tipo de objeto (`:5053`), no mapa de contextos tambem `assign_terms` (`:5105`) |
+| `classificacaoNaPublicacao` | — | **nao e operacao**: e a fabrica da colaboracao que BC-01 consome, e ela nao decide nada |
+
+**T007 NAO acrescentou a "porta de opcoes" que T001, T003 e T005 anunciaram**, e
+isso e a unica nota de onda anterior que esta tarefa contraria. A razao inteira
+esta no bloco 🔴 de `termo-padrao/escopo-de-termo-padrao.ts`, e sao cinco:
+**AD-08** fixa *"portas somente nas 5 bordas"* e nomeia as cinco (*"dados, HTTP,
+sistema de arquivos, cache de objeto e e-mail"*), e opcao nao e uma delas;
+`options` e tabela de `plataforma/opcoes/`, que **nao existe nesta arvore e
+nenhuma tarefa dos 15 `tasks.md` constroi**; a porta de dados deste contexto ja
+recusou o atalho por escrito (*"a travessia e por ligacao tardia (AD-10), nao por
+nome de tabela de outro contexto"*); o **outro lado da mesma chamada** ja declarou
+a leitura como colaboracao e nao como porta
+(`ClassificacaoNaPublicacao.opcaoDeTermoPadrao`, em BC-01, merged); e BC-05 ja
+havia registrado a doutrina para o mesmo problema (*"aqui a opcao e **entrada lida
+de fora**"*, `identidade-e-acesso/cadastro/configuracao-de-cadastro.ts`).
+
+**T007 nao acrescentou porta, nem leitura ao armazenamento, nem escopo proprio.** O
+laco le o registro e a leitura inversa que T005 ja havia acrescentado, e **escreve
+pelas operacoes de US-2** — como no legado, em que o laco do termo padrao nao
+grava nada: ele reescreve `$post_category` e `$postarr['tax_input']` e deixa os
+dois blocos seguintes gravarem.
+
+Cinco coisas que T007 **nao** fez, e nao e esquecimento:
+
+1. **Nao criou o rotulo padrao.** Quem o cria e o instalador (*"a instalacao nova
+   cria o rotulo padrao do contexto de categoria, como o instalador do legado
+   faz"*, `plan.md` § *Migracao de dados*) e `register_taxonomy()`, para quem
+   declara `default_term`. Aqui a opcao so e **lida**.
+2. **Nao reimplementou o laco da publicacao.** Os cinco ramos dele sao de BC-01 e
+   **estao merged**; este lado so responde as quatro perguntas. Duas copias da
+   mesma regra divergiriam na primeira mudanca.
+3. **Nao protegeu o termo padrao de ser apagado.** *"O termo padrao do contexto e
+   indestrutivel"* (`BR-MIGRAR-091`) e **US-5**, T011; *"apagar um termo devolve o
+   objeto ao termo padrao, se aquele era o unico"* (`DB-TRG4`, `BR-MIGRAR-080`) e
+   **CA-4.4**, T009. As duas vao chamar `chaveDoTermoPadrao()` e
+   `OpcoesNaClassificacao`, que e a razao de os dois nascerem publicados.
+4. **Nao reproduziu o descarte de rotulo ambiguo na leitura do conjunto.** O
+   legado completa cada termo por `populate_terms()`, que descarta o que
+   `get_term()` nao resolve; a leitura daqui e a cadeia de um comando so. E o mesmo
+   limite que T003 e T005 declararam, e o caso so se alcanca com rotulo
+   compartilhado, que **nenhuma operacao do legado 7.1.2 cria** — ver o item 3 de
+   *O que ninguem decidiu*.
+5. **Nao escreveu os testes do catalogo.** `UT-035-1` a `UT-035-5` sao **T008**,
+   que roda em paralelo com esta tarefa.
+
 ## Por que uma porta so
 
 `plan.md` desta feature lista tres slots de tecnologia, e so um vira porta:
@@ -289,7 +375,11 @@ linhas 63, 86, 109, 136, 170, 188, 207 e 226:
    registro (nulo nos oito) e a opcao gravada que a regra `P3` consulta, cujo
    nome depende do contexto — `default_category` para `category`,
    `default_term_{nome}` para os demais (`taxonomy.php:2075` e `:2084`,
-   `post.php:5435` e `:5437`). **O segundo e o de US-3, e e T007.**
+   `post.php:5435` e `:5437`). **O segundo e o de US-3, e T007 o entregou** em
+   `termo-padrao/chave-do-termo-padrao.ts`: e por isso que `category` tem termo
+   padrao sem declarar `default_term`, e que o laco dos demais contextos e
+   codigo sem chamador de fabrica — ele so age em contexto que uma extensao
+   registre.
 
 ## O que este modulo nao resolve do registro, e de quem e
 
@@ -348,12 +438,13 @@ o barramento encaixe os cinco na posicao do legado. Isto e declaracao, nao
 decisao: **a tensao entre o P2 e o `wont` de `REQ-162` e anterior a esta tarefa e
 nao foi resolvida por ela.**
 
-## O que ninguem decidiu, e que T001, T002, T003 e T005 nao decidiram tampouco
+## O que ninguem decidiu, e que T001, T002, T003, T005 e T007 nao decidiram tampouco
 
 As duas primeiras estao em `spec.md`, secao *Perguntas em aberto*. **As duas
 batiam em T002, e T002 as deixou abertas** — o que ela fez foi reproduzir o
-legado, que e o unico caminho que nao antecipa a decisao. A terceira a lista
-abaixo e **nova, e e de T003**: nenhum documento do pacote a menciona.
+legado, que e o unico caminho que nao antecipa a decisao. A terceira a quinta sao
+**novas**, e nenhum documento do pacote as menciona: a terceira e de T003, a
+quarta de T005 e a quinta de **T007**.
 
 1. **O discriminador do objeto classificado.** `term_relationships.object_id` e
    polimorfico por convencao e nada na linha diz se o objeto e conteudo ou link.
@@ -448,7 +539,37 @@ abaixo e **nova, e e de T003**: nenhum documento do pacote a menciona.
    cada uma obriga a reescrever na redacao de CA-2.2, esta no cabecalho de
    `vinculo-de-objeto/rotulos-informados.ts`.
 
-E havia uma quarta — agora quinta — que o plano chama de risco 3 e a spec nao poe
+5. 🔴 **O corpo dos dois ramos de `P3` no caminho de gravacao nao pode ser
+   reconferido nesta arvore, e essa e de T007.**
+
+   **A instalacao do legado nao esta no disco desta maquina.** A ultima secao
+   deste arquivo afirmava *"a arvore 7.1.2 analisada esta no disco"* — e isso
+   deixou de valer: nao ha `wp-includes/post.php` para abrir, e nenhuma varredura
+   da maquina encontra `wp-settings.php`. O oraculo **executavel** ja era ausente
+   por registro (`oracleAvailable: false`, T001 da feature `015`); o que mudou e
+   que a **leitura estatica** tambem nao e mais possivel aqui.
+
+   O que T007 fez foi implementar a regra como o pacote a especifica
+   (`BR-MIGRAR-003`, `UC-05`, `UC-03`, `spec.md` CA-3.1 a CA-3.4,
+   `backlog/tests.md` `UT-035-1` a `UT-035-5`) mais a transcricao **merged** do
+   laco da publicacao que T003 de BC-01 deixou em
+   `../conteudo/publicacao/termo-padrao-na-publicacao.ts`, com os cinco ramos e as
+   linhas. **Nada foi escrito de memoria**, e os dois pontos que o pacote nao
+   especifica ficaram marcados:
+
+   | ponto | o que T007 fez | por que esse lado |
+   |---|---|---|
+   | `post.php:4719` testa a opcao antes de usa-la? | **testa**: opcao `0` faz a regra desistir | a alternativa faria a substituicao integral resolver `0` como inexistente e **remover** os vinculos de `category`, que e o oposto de CA-3.4 — e a tabela *Nao negociavel* poe *"apagar dado"* fora do alcance do agente |
+   | a ordem interna de `:5062`-`:5087` | lista informada vence, depois vinculos existentes, depois a opcao | e a unica ordem que satisfaz CA-3.1 **e** nao apaga termo ja atribuido, que e o ramo 2 do laco gemeo (*"Do not modify previously set terms"*) |
+
+   Os dois tem teste, e o primeiro tem 🔴 no nome
+   (`termo-padrao/us-3-termo-padrao.test.ts`), para que a troca nao passe em
+   silencio. **Para quem tiver o oraculo:** confira as duas linhas; se o legado
+   divergir, a mudanca vem com a referencia da decisao no codigo, como o **P1**
+   exige. A analise inteira esta no bloco 🔴 de
+   `termo-padrao/termo-padrao-na-gravacao.ts`.
+
+E havia uma quarta — agora sexta — que o plano chama de risco 3 e a spec nao poe
 entre as perguntas: **a fusao de `terms` com `term_taxonomy`**. Esta T002 resolveu, e
 resolveu por leitura e nao por escolha: a fusao e do *aggregate*, nao das tabelas
 (`target_domain_model.md` e literal — *"o esquema fica intacto (AD-11), e as duas
@@ -459,7 +580,7 @@ continua sendo o `term_taxonomy_id` do legado — que e o que o risco 3 temia ve
 mudar. **A fusao fisica nao foi feita, e ela e o item 3** daquela mesma secao de
 `target_data_model.md`.
 
-E uma sexta, que nenhuma das duas listas traz e que **vale dizer para a proxima
+E uma setima, que nenhuma das duas listas traz e que **vale dizer para a proxima
 onda**: `plan.md` escreve, na linha de `term_taxonomy`, que *"a hierarquia do
 legado atravessa a tabela errada... Corrigir isso e interno e invisivel, e e a
 parte que mais simplifica"*. **T002 nao corrigiu**, pela mesma razao de zero
@@ -495,9 +616,18 @@ do conjunto, cinco citam termo ou taxonomia de passagem (`01`, `02`, `03`, `15`,
 
 Por isso os testes deste modulo conferem **a leitura estatica das ancoras** do
 legado, com `arquivo:linha` no comentario de cada afirmacao, e nao a execucao do
-original. A arvore 7.1.2 analisada esta no disco; o que a leitura estatica nao
-resolve — valor de opcao em execucao, efeito de cache, HTML emitido — fica
-marcado como "fecha contra o oraculo".
+original. O que a leitura estatica nao resolve — valor de opcao em execucao,
+efeito de cache, HTML emitido — fica marcado como "fecha contra o oraculo".
+
+🔴 **E desde T007 nem a leitura estatica e possivel nesta arvore de trabalho.**
+Ate T005 este paragrafo dizia *"a arvore 7.1.2 analisada esta no disco"*; **ela
+nao esta**: nao ha `wp-includes/post.php` para abrir nesta maquina, e nenhuma
+varredura encontra `wp-settings.php`. As ancoras que os arquivos deste modulo
+citam continuam valendo como **referencia registrada** — vem do pacote e das ondas
+que as transcreveram quando a arvore estava legivel —, mas **nenhuma tarefa a
+partir de T007 pode reconferi-las**. Quem retomar com a arvore em disco tem duas
+coisas a fazer: reconferir os dois pontos do item 5 de *O que ninguem decidiu*, e
+corrigir ou confirmar este paragrafo.
 
 **O que T002 entrega para esse criterio, concretamente:** a area 3 da Decisao 2 e
 *"esquema e efeito de escrita no banco"*, e compara *"snapshot + sequencia de
@@ -543,3 +673,23 @@ monta por concatenacao e REQ-164 proibe (`listarRotulosPorIdsNoContexto` e a
 leitura inversa), e o espaco em branco da leitura inversa — o legado emite
 `SELECT $distinct $fields` com `$distinct` vazio e quebra as clausulas em linhas
 (`class-wp-term-query.php:752`). O conjunto de linhas e o mesmo nas tres.
+
+**E o que T007 entrega para o mesmo criterio:** a segunda linha daquela tabela —
+`@invariante`, porque **CA-3.4 e uma invariante**. O cenario de `PT-002` que cobre
+esta regra e literal: *"Dado um conteudo do tipo padrao sem nenhum termo de
+categoria, fora de rascunho automatico / Quando ele e gravado / Entao as duas
+metades vinculam a categoria padrao / E na publicacao a regra se repete para toda
+taxonomia que tenha termo padrao / E o vinculo gravado e o mesmo nas duas"*
+(`.specify/migration/parity_tests/02-publicacao-e-agendamento-de-conteudo.feature`,
+que cobre `P1` e `P3`-`P7`). A suite de US-3 afirma as cinco clausulas dele contra
+o sistema novo, pela mesma porta falsa — e **nao** contra o original, pela razao
+do bloco 🔴 acima.
+
+Metade das afirmacoes de T007 e de que **nenhum comando sai**, porque metade dos
+criterios e ausencia: rascunho automatico (nem juncao nem opcao sao lidas), tipo
+que nao e o padrao, contexto que nao declara padrao, lista informada presente,
+opcao que vale `0`, e capacidade ausente no mapa de contextos. E duas sao de
+**qual identificador** a juncao grava — o `term_taxonomy_id` resolvido, e nunca o
+`term_id` que `default_category` guarda —, porque essa e a troca que esta historia
+convida a fazer. Nenhuma diferenca de texto nova contra o legado: T007 nao
+acrescentou consulta alguma ao armazenamento.

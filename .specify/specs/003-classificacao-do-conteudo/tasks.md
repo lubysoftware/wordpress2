@@ -25,7 +25,7 @@
       *entrega:* 4 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-034-1, UT-034-2, UT-034-3, UT-034-4), com o mesmo dado de entrada, ação e resultado esperado.
       *satisfaz:* CA-2.1, CA-2.2, CA-2.3, CA-2.4
       *depende de:* T005
-- [ ] **T007** Aplicar o termo padrão do contexto quando nenhum termo é informado (US-3)
+- [x] **T007** Aplicar o termo padrão do contexto quando nenhum termo é informado (US-3)
       *entrega:* o comportamento de US-3 existe e os critérios CA-3.1, CA-3.2, CA-3.3, CA-3.4 passam contra o sistema novo
       *satisfaz:* CA-3.1, CA-3.2, CA-3.3, CA-3.4
       *depende de:* T001, T002, T005
