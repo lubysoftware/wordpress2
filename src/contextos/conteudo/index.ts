@@ -1,14 +1,14 @@
 /**
  * Modulo de conteudo — BC-01 de `target_architecture.md`.
  *
- * Feature `002-autoria-e-publicacao`, tarefas T001 e T002. O que existe aqui e o
- * que as duas entregam: o modulo carrega com as tres portas declaradas, com o
- * vocabulario de estado editorial do legado como enumeracao fechada e com a
- * forma de armazenamento de conteudo, metadado e versao anterior — e
- * **nenhuma regra de negocio implementada**. Gravacao, publicacao, agendamento,
- * identificador na URL, submissao, revisao, versao anterior e rascunho
- * automatico entram nas tarefas delas (T003 em diante), e a leitura obrigatoria
- * de cada uma esta em `./README.md`.
+ * Feature `002-autoria-e-publicacao`, tarefas T001, T002 e T003. O que existe
+ * aqui e o que as tres entregam: o modulo carrega com as tres portas
+ * declaradas, com o vocabulario de estado editorial do legado como enumeracao
+ * fechada, com a forma de armazenamento de conteudo, metadado e versao anterior
+ * e com **uma** regra de negocio — a publicacao por ato explicito de US-1.
+ * Gravacao, agendamento, identificador na URL, submissao, revisao, versao
+ * anterior e rascunho automatico entram nas tarefas delas (T005 em diante), e a
+ * leitura obrigatoria de cada uma esta em `./README.md`.
  *
  * Duas coisas que este arquivo faz de proposito:
  *
@@ -40,10 +40,27 @@ import type {
   PortaDeEmail,
   PortaDeRelogio,
 } from './portas/index.js';
+import {
+  publicar,
+  type ContextoDePublicacao,
+  type PedidoDePublicacao,
+  type ResultadoDaPublicacao,
+} from './publicacao/index.js';
 
 export * from './portas/index.js';
 export * from './estado-editorial.js';
 export * from './armazenamento/index.js';
+/*
+  T003 (US-1) sai pelo barril E pela composicao, pela mesma razao que T021 de
+  BC-05: a tabela *Contratos* de `plan.md` lista *"publicar"* como operacao desta
+  feature, com entrada, saida e erro proprios, e esta e a PRIMEIRA operacao deste
+  modulo — logo e nela que a declaracao de permissao que o P4 cobra aparece na
+  interface. O resto da pasta sai pelo barril porque e o que quem monta o
+  contexto da requisicao precisa alcancar: as duas portas de ligacao tardia, os
+  dez pontos de extensao e `wp_publish_post()` sem portao, que tem um segundo
+  chamador no legado (a fila, em T013).
+*/
+export * from './publicacao/index.js';
 
 /** As tres portas de que este modulo depende, na forma em que ele as recebe. */
 export interface PortasDeConteudo {
@@ -57,13 +74,14 @@ export interface PortasDeConteudo {
  *
  * Cada historia acrescenta aqui a sua operacao — as seis da tabela *Contratos*
  * de `plan.md` —, com a declaracao explicita de permissao que o P4 da
- * constituicao exige, e nenhuma antes da propria tarefa. Hoje ha duas coisas: as
- * portas, de T001, e o armazenamento, de T002.
+ * constituicao exige, e nenhuma antes da propria tarefa.
+ *
+ * | operacao | historia | tarefa | permissao exigida |
+ * |---|---|---|---|
+ * | `publicar` | US-1 | T003 | **a capacidade de publicar daquele tipo** (`$post_type->cap->publish_posts`), CA-1.1 |
  *
  * O armazenamento **nao e operacao**, e por isso nao declara permissao: ele nao
- * decide nada. A primeira operacao desta interface e a gravacao de T005 (US-2),
- * e e ela que nasce com a declaracao de permissao — *"gravar conteudo"* na
- * tabela *Contratos* exige a capacidade do tipo, e CA-1.1 a cobra na publicacao.
+ * decide nada.
  */
 export interface ModuloDeConteudo {
   readonly nome: 'conteudo';
@@ -73,6 +91,29 @@ export interface ModuloDeConteudo {
    * Le e grava **somente** pela porta de dados.
    */
   readonly armazenamento: ArmazenamentoDeConteudo;
+
+  /**
+   * Torna o conteudo visivel ao publico do site, por ato explicito (US-1,
+   * T003).
+   *
+   * **Permissao exigida: a capacidade de publicar daquele tipo de conteudo.**
+   * Nao e a cadeia `publish_posts`: e o slot de mesmo nome no mapa
+   * `$post_type->cap` do **registro do tipo**, e e por isso que publicar pagina
+   * exige `publish_pages` sem um unico `if` sobre o nome `page`. UC-03 declara a
+   * autorizacao na mesma forma, e CA-1.1 a cobra. A recusa e **valor**, com o
+   * codigo e o texto que a API do legado devolve — e a divergencia entre *"recusa
+   * explicita na tela"* e o que o painel do legado faz esta registrada em
+   * `publicacao/permissao-de-publicacao.ts`, sem ser resolvida aqui.
+   *
+   * O contexto chega por argumento, e nao pela composicao, porque identidade,
+   * matriz de papeis e estado de rede sao escopo de REQUISICAO (AD-02,
+   * BR-MIGRAR-105) — e porque as colaboracoes com BC-02, BC-11 e BC-07 sao de
+   * ligacao tardia (AD-10, regra de dependencia 3).
+   */
+  publicar(
+    contexto: ContextoDePublicacao,
+    pedido: PedidoDePublicacao,
+  ): ResultadoDaPublicacao;
 }
 
 /**
@@ -99,5 +140,6 @@ export function criarModuloDeConteudo(
     // Compor o armazenamento monta nome de tabela e nada mais: nenhuma consulta
     // sai daqui, que e o que `EXT-ORDEM` cobra e o que `modulo.test.ts` afirma.
     armazenamento: criarArmazenamentoDeConteudo(portas.dados),
+    publicar,
   };
 }

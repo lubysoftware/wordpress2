@@ -1,9 +1,10 @@
 # Módulo de conteúdo — BC-01
 
 Esqueleto entregue por **T001** da feature `002-autoria-e-publicacao`, com a
-forma de armazenamento entregue por **T002**. Este arquivo é a leitura
-obrigatória de quem pegar T003 em diante: ele diz o que já está decidido, o que
-está decidido **em outro lugar**, e o que ninguém decidiu.
+forma de armazenamento entregue por **T002** e a publicação por ato explícito
+(US-1) entregue por **T003**. Este arquivo é a leitura obrigatória de quem pegar
+T005 em diante: ele diz o que já está decidido, o que está decidido **em outro
+lugar**, e o que ninguém decidiu.
 
 ## O que T001 entrega, e só isso
 
@@ -31,8 +32,8 @@ como o **P6** da constituição exige. Número que aparece aqui antes da tarefa 
 é número sem teste de borda.
 
 **Não há consulta nem transição de estado em T001.** A forma de armazenamento
-entrou em T002 (seção abaixo) e T003 em diante portam o comportamento. Ver os
-conflitos abertos no fim deste arquivo antes de começar.
+entrou em T002 e a transição para publicado em T003, cada uma na seção abaixo.
+Ver os conflitos abertos no fim deste arquivo antes de começar.
 
 ## O que T002 entrega, e só isso
 
@@ -125,6 +126,104 @@ e a terceira derivação divergiria da primeira.
 não há rótulo traduzível. A razão de cada ausência está no cabeçalho de
 `estado-editorial.ts`.
 
+## O que T003 entrega, e só isso
+
+> *o comportamento de US-1 existe e os critérios CA-1.1, CA-1.2, CA-1.3, CA-1.4,
+> CA-1.5 passam contra o sistema novo*
+> — `.specify/specs/002-autoria-e-publicacao/tasks.md`, T003
+
+Tudo em `publicacao/`, e é a **primeira regra de negócio deste módulo**. O caso
+de uso é [UC-03](../../../.specify/use-cases/UC-03-publicar-conteudo.md), a que a
+tabela de rastreabilidade de `spec.md` liga US-1, e a função do legado é
+`wp_publish_post()` (`wp-includes/post.php:5404`-`:5468`).
+
+| arquivo | o que é |
+|---|---|
+| `publicacao/contexto-de-publicacao.ts` | o contexto, as duas portas de ligação tardia e os **dez** pontos de extensão |
+| `publicacao/permissao-de-publicacao.ts` | **CA-1.1**: a capacidade do tipo, as recusas literais, e a divergência de redação do critério |
+| `publicacao/termo-padrao-na-publicacao.ts` | **CA-1.4**: os cinco ramos do laço, e a categoria como exceção por nome |
+| `publicacao/transicao-de-estado.ts` | **CA-1.2**, **CA-1.3** e **CA-1.5**: os três pontos, a cadeia por prioridade e o ouvinte do núcleo |
+| `publicacao/publicar.ts` | a operação `publicar` e `wp_publish_post()` — as duas, e a razão de serem duas |
+| `publicacao/us-1-publicar-conteudo.test.ts` | 27 testes dos cinco critérios, por efeito no banco e por sequência de pontos |
+
+`publicar` é a primeira entrada de `ModuloDeConteudo` e a primeira a declarar
+permissão, como o **P4** exige. As outras cinco operações da tabela *Contratos*
+do plano continuam fora: cada uma na tarefa dela.
+
+### As quatro coisas de T003 que um porte distraído faria diferente
+
+1. **Dois dos cinco critérios não estão em `wp_publish_post()`: estão num
+   ouvinte.** CA-1.3 (o endereço definitivo) e CA-1.5 (o evento agendado
+   removido) são efeito de `_transition_post_status()`, que o **próprio núcleo**
+   registra no ponto `transition_post_status` com prioridade **5**
+   (`wp-includes/default-filters.php:448`). Um porte que escrevesse
+   `wp_publish_post()` "direto no banco" perderia os dois **em silêncio**. A
+   cadeia inteira, com os outros cinco ouvintes de fábrica, a prioridade e o dono
+   de cada um, está no cabeçalho de `publicacao/transicao-de-estado.ts`.
+2. **A capacidade é o *slot* do registro do tipo, não a cadeia `publish_posts`.**
+   O legado lê `$post_type->cap->publish_posts`, e é daí que vem a assimetria que
+   US-8 descreve sem um único `if` sobre o nome `page`. Cravar a cadeia aqui
+   publicaria página com capacidade de post.
+3. **A categoria entra no laço do termo padrão por NOME, mesmo sem `default_term`
+   declarado.** A condição é `'category' !== $taxonomy && empty(
+   $tax_object->default_term )` (`:5422`): o padrão da categoria vive na opção
+   `default_category`, semeada em `1` pelo instalador. E taxonomia que devolve
+   erro é tratada como taxonomia que **já tem** termo, porque `! empty( WP_Error )`
+   é verdadeiro no PHP.
+4. **`wp_publish_post()` não tem portão de capacidade, e isso é superfície
+   publicada.** Ela é chamada por `check_and_publish_future_post()`, onde não há
+   ator nenhum — o disparo vem da fila. Por isso T003 entrega **duas** funções: a
+   operação `publicar`, que declara a capacidade (CA-1.1), e
+   `transitarParaPublicado`, que é a função do legado como ela é. Dar portão à
+   segunda fecharia o sistema mais que o legado e quebraria T013.
+
+### 🔴 O que T003 encontrou aberto, e NÃO fechou
+
+**CA-1.1 diz "recusa explícita na tela", e o painel do legado não recusa: ele
+rebaixa.** O critério escreve *"sem ela a ação é recusada com 403 na API e com
+recusa explícita na tela"*, e a tabela de exceções de UC-03 repete — *"o painel
+recusa com 'Você não tem permissão'"*. No código, `_wp_translate_postdata()`
+reescreve o estado pedido para `pending` em vez de recusar
+(`wp-admin/includes/post.php:150`-`:158`), com o comentário do próprio legado por
+cima: *"Change status from 'publish' to 'pending' if user lacks permissions to
+publish"*. E a tela também não **oferece** publicar: o vínculo
+`wp:action-publish` só entra na resposta REST quando a capacidade existe
+(`class-wp-rest-posts-controller.php:2352`). As únicas recusas por texto que o
+legado tem para publicar estão na API REST e no XML-RPC.
+
+T003 **não escolhe entre as duas leituras**, porque as duas levam ao mesmo lugar
+nesta operação: sem a capacidade, a publicação não acontece. O que ela faz é
+recusar como valor, com o código e o texto da API — a superfície que CA-1.1
+nomeia com número —, **não** reproduzir aqui o rebaixamento (que é o `pending` de
+CA-7.1, em T015) e registrar a divergência de redação para quem decide. O **P1**
+exige decisão humana registrada para divergir, e nenhuma existe. Mesmo precedente
+de T023 com CA-11.2 e de T017 com CA-8.4. A análise completa está no cabeçalho de
+`publicacao/permissao-de-publicacao.ts`.
+
+### 🔴 Um achado que muda o trabalho de T007
+
+**`wp_publish_post()` não toca `post_name`.** A unicidade do identificador na URL
+é cobrada por `wp_unique_post_slug()`, chamada de `wp_insert_post()`
+(`wp-includes/post.php:5561`) — isto é, no caminho de **gravação**. Logo *"o slug
+do rascunho muda sozinho ao publicar"* (BR-MIGRAR-005, CA-3.2) acontece quando se
+publica **salvando**, e **não** quando se publica por esta transição: por esta
+porta, o identificador duplicado sobrevive à publicação. São dois caminhos para
+publicado, e só um deles cobra unicidade. Quem pegar **T007** precisa disso antes
+de escrever a primeira linha.
+
+### O que T003 NÃO fez, e por quê
+
+| não fez | de quem é |
+|---|---|
+| os oito testes de `backlog/tests.md` (UT-019-1 a UT-019-8) | **T004**, a tarefa `[P]` que roda em paralelo com esta |
+| verificar os critérios da republicação nula (CA-5.1 a CA-5.3) | **T011** (US-5). A **guarda** está aqui porque é a terceira linha de `wp_publish_post()`: sem ela a transição dispararia duas vezes e CA-1.2 cairia |
+| rebaixar para `pending` quem não pode publicar | **T015** (US-7), e passa pelo caminho de gravação |
+| emitir os pontos de extensão por um barramento | ninguém deste pacote: REQ-162 está em `do-not-rewrite.md`. Os dez pontos deste caminho estão **declarados** em `publicacao/contexto-de-publicacao.ts`, com nome, argumentos, tipo (ação ou filtro) e posição, e chegam como interceptador opcional — ponto sem interceptador é, no legado, um no-op |
+| invalidar cache | não há cache nesta árvore (REQ-165 ficou fora do pacote). `clean_post_cache()` e as onze chaves de `_transition_post_status()` estão nomeadas na posição exata do fluxo |
+| gravar `_pingme` e `_encloseme`, e agendar `do_pings` | feature 007: é `_publish_post_hook()`, ouvinte do ponto `publish_post` com prioridade 5, declarado em `publicacao/transicao-de-estado.ts` |
+| recontar termo | BC-02: é `_update_term_count_on_transition_post_status()`, prioridade 10 no mesmo ponto, com os dois curto-circuitos declarados |
+| sanitizar o corpo | **ninguém**: REQ-030 está fora do pacote, e `wp_publish_post()` não toca `post_content` — esta tarefa não decide a sanitização de ninguém porque não grava corpo nenhum |
+
 ## O que "enumeração fechada" significa aqui — leia antes de usar o tipo
 
 Fechada sobre o **vocabulário de fábrica**: os 12 estados que o núcleo registra
@@ -204,7 +303,9 @@ Dois irmãos deste achado, que também não se "consertam":
 - **O identificador na URL muda sozinho na publicação** (BR-MIGRAR-005). A
   unicidade é dispensada em `draft`, `pending`, `auto-draft`, em revisão e no tipo
   `user_request`. Declarar `UNIQUE` no slug quebra o produto: a dispensa **é** a
-  regra. É T007 (US-3).
+  regra. É T007 (US-3) — e T003 apurou que isso só vale no caminho de
+  **gravação**: `wp_publish_post()` não toca `post_name`, logo por aquela porta o
+  identificador duplicado sobrevive à publicação. Ver a seção de T003.
 - **O agendamento não é confiado** (BR-MIGRAR-006, ADR-0005). A verificação dupla
   recusa publicar o que não está agendado e reagenda quando a data não chegou.
   Num alvo com fila real ela pareceria redundante, e removê-la mudaria o
@@ -229,6 +330,8 @@ disto se decide no meio da implementação.
 
 ## O que ninguém decidiu, e que T001 não decidiu tampouco
 
+> T003 acrescentou o item 5. Os quatro primeiros são de T001.
+
 1. 🔴 **US-9 pede notificação que o sistema analisado não tem.** CA-9.1 e CA-9.2
    exigem aviso ao autor quando o conteúdo é devolvido ou publicado por outra
    pessoa. O caso de uso que a tabela de rastreabilidade liga a US-9 diz o
@@ -252,9 +355,22 @@ disto se decide no meio da implementação.
    autoria, e nada no pacote especifica o registro de quem decidiu a transição.
    Sem ele, a cadeia editorial existe e não é auditável.
 
-Os quatro estão em `spec.md`, seção *Perguntas em aberto* (o primeiro, como
-consequência de nada ali especificar o aviso). A tabela *Não negociável* da
-constituição põe cada um deles fora do alcance do agente de codificação.
+5. 🔴 **CA-1.1 descreve uma recusa na tela que o painel do legado não tem.** O
+   critério pede *"recusa explícita na tela"* e UC-03 repete, mas
+   `_wp_translate_postdata()` **rebaixa** o estado para `pending` em vez de
+   recusar (`wp-admin/includes/post.php:150`-`:158`), e o editor nem oferece
+   publicar sem a capacidade. **T003 não escolheu entre as duas leituras**, porque
+   as duas levam ao mesmo lugar — sem a capacidade, a publicação não acontece — e
+   registrou a divergência de redação em
+   `publicacao/permissao-de-publicacao.ts`, com o código, o texto e o número que
+   o legado **tem** (os da API REST). O rebaixamento é o `pending` de CA-7.1, em
+   T015, e chega pelo caminho de gravação.
+
+Os quatro primeiros estão em `spec.md`, seção *Perguntas em aberto* (o primeiro,
+como consequência de nada ali especificar o aviso). A tabela *Não negociável* da
+constituição põe cada um deles fora do alcance do agente de codificação. O quinto
+não está em `spec.md`: ele é divergência entre o critério de aceite e o código
+lido, e o **P1** a põe na mesma mesa.
 
 ### Uma divergência menor, registrada e não corrigida aqui
 
