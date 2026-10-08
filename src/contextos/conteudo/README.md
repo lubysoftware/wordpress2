@@ -1,8 +1,9 @@
 # Módulo de conteúdo — BC-01
 
-Esqueleto entregue por **T001** da feature `002-autoria-e-publicacao`. Este
-arquivo é a leitura obrigatória de quem pegar T002 em diante: ele diz o que já
-está decidido, o que está decidido **em outro lugar**, e o que ninguém decidiu.
+Esqueleto entregue por **T001** da feature `002-autoria-e-publicacao`, com a
+forma de armazenamento entregue por **T002**. Este arquivo é a leitura
+obrigatória de quem pegar T003 em diante: ele diz o que já está decidido, o que
+está decidido **em outro lugar**, e o que ninguém decidiu.
 
 ## O que T001 entrega, e só isso
 
@@ -29,10 +30,82 @@ de configuração nomeado com o valor de fábrica do legado e com teste de borda
 como o **P6** da constituição exige. Número que aparece aqui antes da tarefa dele
 é número sem teste de borda.
 
-**Não há estrutura de dados, consulta nem transição de estado neste módulo.**
-T002 porta a forma de armazenamento (`posts`, `postmeta`, versão anterior) e T003
-em diante portam o comportamento. Ver os conflitos abertos no fim deste arquivo
-antes de começar.
+**Não há consulta nem transição de estado em T001.** A forma de armazenamento
+entrou em T002 (seção abaixo) e T003 em diante portam o comportamento. Ver os
+conflitos abertos no fim deste arquivo antes de começar.
+
+## O que T002 entrega, e só isso
+
+> *as estruturas da seção Modelo de dados do plano existem e são lidas e gravadas
+> pela porta de dados, incluindo a auto-referência que liga filho, anexo e versão
+> ao registro pai*
+> — `.specify/specs/002-autoria-e-publicacao/tasks.md`, T002
+
+Tudo em `armazenamento/`, e **nenhuma regra de negócio desta feature ali**: o que
+existe é a linha, a consulta e a sequência de comandos.
+
+| arquivo | o que é |
+|---|---|
+| `armazenamento/index.ts` | a composição dos três repositórios sobre a porta de dados |
+| `armazenamento/conteudo.ts` | `{site}posts`: as 23 colunas lidas, as **21** escritas, na ordem do legado |
+| `armazenamento/metadado.ts` | `{site}postmeta`: a extensão aberta, com as cinco regras de efeito no banco |
+| `armazenamento/versao.ts` | a versão anterior, que **não tem tabela**: é `posts` com `post_type = 'revision'` |
+| `armazenamento/vinculo-com-o-pai.ts` | a auto-referência nas **três** semânticas que o plano manda separar |
+| `armazenamento/esquema.ts` | o DDL das duas tabelas, byte a byte — e nada aqui o executa |
+| `armazenamento/chaves-e-tabelas.ts` | os dois nomes de tabela, montados num lugar só |
+| `armazenamento/leitura-de-linha.ts` | leitura de coluna, sem validar nada (`DB-DEG`) |
+| `armazenamento/porta-falsa.ts` | a porta que **registra comando**, que T003 em diante vai usar |
+| `armazenamento/armazenamento.test.ts` · `esquema.test.ts` | 38 testes de efeito no banco, com o DDL transcrito duas vezes de propósito |
+
+### As três coisas de T002 que um porte distraído faria diferente
+
+1. **Os dois defaults do estado continuam divergindo, e agora os dois existem.**
+   T001 declarou as duas constantes; T002 põe o `publish` no DDL
+   (`esquema.ts`) e deixa o `draft` para o caminho de escrita, que é T005. O
+   teste `o default da coluna de estado no DDL e o do ARMAZENAMENTO` afirma que o
+   default da aplicação **não** aparece no DDL. É BR-MIGRAR-001, e o alvo *"não
+   pode unificar os dois defaults"*.
+2. **`post_parent` virou três relacionamentos, como o plano manda** — página
+   mãe, conteúdo anfitrião de anexo e conteúdo original de versão —, e o
+   discriminador não foi inventado: é o `post_type` da linha filha, que é como
+   `wp_delete_post()` pergunta pelas três, em três consultas sobre a mesma
+   coluna (`wp-includes/post.php:3899`, `:3913` e `:3923`). O `0` continua sendo
+   ausência, e não nulo.
+3. **O metadado serializa pela regra do legado, com a dupla serialização.**
+   `maybe_serialize()`, `maybe_unserialize()` e `is_serialized()` entraram em
+   `../../plataforma/serializacao/talvez-serializar.ts` — ao lado do formato,
+   onde o legado também os põe, e **não** dentro deste contexto, porque opções e
+   os outros três metadados usam a mesma regra. BR-MIGRAR-082 é o teste:
+   *"gravar a string `'a:1:{i:0;s:1:"b";}'` e lê-la de volta devolve a string,
+   não o array"*.
+
+### Uma divergência de T002, declarada e não fechada
+
+⚠️ **A leitura que alimenta a comparação de "valor idêntico" passa pelo cache de
+objeto no legado, e aqui não há cache.** `get_metadata_raw()` carrega *todas* as
+linhas do conteúdo de uma vez e filtra a chave em memória; com o cache quente,
+**nenhum** comando sai. O armazenamento reproduz a cadeia e o filtro em memória,
+mas emite a consulta sempre — a sequência é a do legado **com cache frio**.
+
+Isso não foi decidido aqui e não precisa ser: REQ-165 (*"decidir se o cache de
+objeto nasce persistente"*) ficou fora do pacote, o slot `cache` do plano
+recomenda cache por requisição, e a borda 5 de `target_architecture.md` manda o
+cache **desligado nas duas metades** durante a coexistência — que é como a
+comparação de paridade roda. Quando o cache existir, ele entra na frente desta
+leitura sem mudar o que ela devolve. A nota está no cabeçalho de
+`armazenamento/metadado.ts`.
+
+### O que T002 NÃO fez, e por quê
+
+| não fez | de quem é |
+|---|---|
+| executar o DDL | ninguém desta feature: a borda 4 diz que *"a metade nova lê e nunca escreve estrutura"*, e AD-11 proíbe mudança de esquema nesta fase |
+| decidir o destino da sentinela `'0000-00-00 00:00:00'` | 🔴 `BR-HUMANA-003`, **pendente**. O armazenamento segue a premissa declarada por `target_data_model.md` (manter a cadeia literal) e registra a pendência em três arquivos |
+| cobrar unicidade do identificador na URL | T007 (US-3). A dispensa em rascunho **é** a regra (BR-MIGRAR-005), e `UNIQUE` no DDL quebraria o produto |
+| escrever `comment_count` | o contador é mantido por outro caminho e **pode ser suspenso durante lote** (`DB-TRG1`). Nenhuma escrita deste módulo o menciona |
+| a cascata de exclusão | feature 005 (`PT-003`): `apagar` é só o `DELETE` da linha, e o P5 cobra o conjunto exato do que fica órfão |
+| emitir ponto de extensão | não há barramento nesta árvore (REQ-162 está fora do pacote). Os quatro pontos do caminho de escrita estão **declarados** no cabeçalho de `armazenamento/conteudo.ts`, com argumentos e posição, para quem os for emitir |
+| versionar objeto serializado | `O:` e `C:` passam pela farejada do legado e o codec deste repositório não os lê. A divergência está declarada no teste `DIVERGENCIA DECLARADA` de `talvez-serializar.test.ts` |
 
 ### Uma decisão de escopo que T001 tomou, e por quê
 
@@ -120,8 +193,9 @@ mesma coluna, dependendo de quem escreve, e BR-MIGRAR-001 é literal: *"o alvo n
 pode unificar os dois defaults"*.
 
 T001 declara os dois como constante nomeada (`ESTADO_PADRAO_DA_APLICACAO`,
-`ESTADO_PADRAO_DO_ARMAZENAMENTO`) e **não resolve nenhum**: a resolução na escrita
-é T005 (US-2) e o DDL é T002. A spec de paridade `PT-002` abre com o mesmo aviso e
+`ESTADO_PADRAO_DO_ARMAZENAMENTO`) e **não resolve nenhum**. T002 fechou a metade
+do armazenamento — o DDL de `armazenamento/esquema.ts` carrega o `publish` —, e a
+resolução na escrita continua sendo T005 (US-2). A spec de paridade `PT-002` abre com o mesmo aviso e
 tem cenário dedicado a afirmar que *"a divergência entre os dois defaults é
 idêntica nas duas metades"*.
 
@@ -218,5 +292,8 @@ Mas o **código-fonte** do sistema analisado está legível em disco, fora desta
 árvore, em `~/Downloads/wordpress` (WordPress 7.1.2, a mesma versão do pacote), e
 foi contra ele que cada afirmação deste módulo foi conferida. É por isso que todas
 citam arquivo e linha em vez de descrever o comportamento de memória — e é o que
-T002 em diante deve fazer antes de declarar que falta informação: a âncora do caso
-de uso normalmente existe e está a uma leitura de distância.
+T003 em diante deve fazer antes de declarar que falta informação: a âncora do caso
+de uso normalmente existe e está a uma leitura de distância. Foi assim que T002
+apurou o que o legado faz com a coluna do pai, com o valor serializado e com a
+versão: lendo `post.php`, `meta.php`, `revision.php` e `schema.php`, e citando
+linha a linha.

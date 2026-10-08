@@ -33,3 +33,9 @@ export {
 export { serializar, serializarComoTexto } from './serializar.js';
 
 export { desserializar, type ResultadoDeLeitura } from './desserializar.js';
+
+export {
+  pareceSerializado,
+  talvezDesserializar,
+  talvezSerializar,
+} from './talvez-serializar.js';
