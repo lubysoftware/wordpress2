@@ -73,7 +73,7 @@
  * | o que | de quem |
  * |---|---|
  * | a comparacao de 60 segundos que troca publicado por agendado | **T013**, US-6 |
- * | a **operacao** de submeter para revisao, que poe o conteudo em `pending` — a regra do identificador vazio dela **ja esta aqui** (CA-3.4 e CA-7.4 sao a mesma linha do legado) | **T015**, US-7 |
+ * | a **operacao** de submeter para revisao, que poe o conteudo em `pending` — a regra do identificador vazio dela **ja esta aqui** (CA-3.4 e CA-7.4 sao a mesma linha do legado) | **T015**, US-7 — entregue em `../revisao/`, e e de la que ela chega a esta pasta |
  * | a versao anterior, que e ouvinte do ponto `post_updated` | **T021**, US-10 |
  * | o rascunho automatico criado ao abrir o editor | **T023**, US-11 |
  * | a transicao de estado e a familia `save_post` deste caminho | ninguem deste pacote emite ponto: REQ-162 esta em `do-not-rewrite.md`. Declarados em `gravar.ts`, com nome, argumentos e posicao |
@@ -105,6 +105,11 @@
  * que a linha tinha, e nunca publica o que nao estava publicado. Quem a portar
  * (T015 ou T017, que a usam para devolver conteudo ao autor) encontra a
  * resolucao de estado pronta aqui e nao precisa duplica-la.
+ *
+ * ✔ **T015 a portou**, em `../revisao/submeter-para-revisao.ts`
+ * (`atualizarConteudo`), com duas das quatro decisoes proprias dela — a mistura
+ * e o `$clear_date` — e as outras duas declaradas na posicao exata (BC-04 e
+ * BC-02). T017 a reusa em vez de escrever outra.
  */
 
 export {

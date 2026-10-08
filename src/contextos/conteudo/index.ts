@@ -67,6 +67,12 @@ import {
   type PedidoDeVisibilidade,
   type ResultadoDaVisibilidade,
 } from './visibilidade/index.js';
+import {
+  submeterParaRevisao,
+  type ContextoDeRevisao,
+  type PedidoDeSubmissao,
+  type ResultadoDaSubmissao,
+} from './revisao/index.js';
 
 export * from './portas/index.js';
 export * from './estado-editorial.js';
@@ -126,6 +132,18 @@ export { ESTADO_PRIVADO } from './visibilidade/index.js';
   T007.
 */
 export * from './agendamento/index.js';
+/*
+  T015 (US-7) sai pelo barril E pela composicao, pela mesma razao de T003 e de
+  T005: a tabela *Contratos* de `plan.md` lista *"submeter para revisao"* como
+  operacao desta feature, com entrada, saida e erro proprios. O resto da pasta
+  sai pelo barril porque e o que quem monta o contexto da requisicao precisa
+  alcancar: os quatro colaboradores de ligacao tardia, os dois pontos de
+  extensao da paginacao da fila, a fila em si — que e tela e nao operacao de
+  dominio — e `wp_update_post()` sem portao, que tem outros chamadores no legado
+  (a API, o XML-RPC, o importador e T017, que a usa para devolver o conteudo ao
+  autor).
+*/
+export * from './revisao/index.js';
 
 /** As tres portas de que este modulo depende, na forma em que ele as recebe. */
 export interface PortasDeConteudo {
@@ -148,6 +166,7 @@ export interface PortasDeConteudo {
  * | `escolherVisibilidade` | US-4 | T009 | **a mesma capacidade**, e **somente** quando a visibilidade resolve em `private`, CA-4.1 |
  * | `publicar`, pedido sobre conteudo ja publicado | US-5 | T011 | a mesma, e e cobrada antes da guarda de estado — ver `publicacao/republicacao-nula.ts` |
  * | `publicarSeAindaAgendado` | US-6 | T013 | **nenhuma**, e e o legado: quem chama e a fila, e nao ha ator no disparo |
+ * | `submeterParaRevisao` | US-7 | T015 | **a capacidade de editar AQUELE conteudo** (`edit_post`, com o objeto), somada a de mexer em conteudo alheio quando o autor do pedido nao e quem pede. A capacidade de **publicar** nao e exigida: ela e perguntada, e decide o estado gravado (CA-7.1) e o identificador esvaziado (CA-7.4) |
  *
  * O armazenamento **nao e operacao**, e por isso nao declara permissao: ele nao
  * decide nada. E a comparacao de data de US-6 (`resolverEstadoPelaData`) tambem
@@ -269,6 +288,35 @@ export interface ModuloDeConteudo {
     contexto: ContextoDeAgendamento,
     referencia: number | Conteudo,
   ): ResultadoDaPublicacaoAgendada;
+
+  /**
+   * Entrega o conteudo proprio para que alguem com poder de publicar o avalie,
+   * gravando o estado `pending` (US-7, T015).
+   *
+   * **Permissao exigida: a capacidade de editar AQUELE conteudo** — `edit_post`
+   * com o objeto, que e **meta-capacidade** e resolve por autoria e por estado
+   * (`wp-includes/capabilities.php:108`). Submeter o conteudo de outra pessoa
+   * exige, por cima, a capacidade de mexer em conteudo alheio daquele tipo
+   * (`wp-admin/includes/post.php:88`-`:105`) — e e isso que faz esta historia
+   * ser sobre conteudo **proprio**. O erro e o que `plan.md` declara na tabela
+   * *Contratos*: *"sem permissao de editar"*.
+   *
+   * ⚠️ **A capacidade de publicar nao e exigida: ela e perguntada.** A falta
+   * dela nao recusa — UC-06 chama este caminho de *"o normal do colaborador"*.
+   * Ela decide duas coisas, e as duas sao criterios desta historia: o estado
+   * que vai para a coluna, porque um pedido de publicacao de quem nao pode
+   * publicar e **rebaixado** para `pending` (CA-7.1), e o identificador na URL,
+   * que e **esvaziado** para que ninguem reserve endereco que nao pode usar
+   * (CA-7.4, a regra que T007 ja portou no caminho de gravacao).
+   *
+   * O contexto chega por argumento, e nao pela composicao, pela mesma razao de
+   * `publicar` e de `gravar`: identidade, matriz de papeis e estado de rede sao
+   * escopo de REQUISICAO (AD-02, BR-MIGRAR-105).
+   */
+  submeterParaRevisao(
+    contexto: ContextoDeRevisao,
+    pedido: PedidoDeSubmissao,
+  ): ResultadoDaSubmissao;
 }
 
 /**
@@ -299,5 +347,6 @@ export function criarModuloDeConteudo(
     gravar: gravarConteudo,
     escolherVisibilidade,
     publicarSeAindaAgendado,
+    submeterParaRevisao,
   };
 }

@@ -57,6 +57,7 @@
  * | os criterios da republicacao nula — a guarda esta aqui, as afirmacoes nao | **T011**, US-5 |
  * | o agendamento, a comparacao de data e a verificacao dupla | **T013**, US-6 — em `../agendamento/`, e e de la que vem o ouvinte do ponto 3 desta pasta |
  * | o rebaixamento para `pending` de quem nao pode publicar | **T015**, US-7 |
+ * | o rebaixamento para `pending` de quem nao pode publicar | **T015**, US-7 — entregue em `../revisao/estado-na-submissao.ts`, e **sem fechar** a divergencia de CA-1.1 que `permissao-de-publicacao.ts` registra |
  * | a soma de capacidade sobre conteudo alheio | **T017**, US-8 |
  * | a notificacao ao autor — e a parada registrada sobre ela | **T019**, US-9 |
  * | a versao anterior | **T021**, US-10 |

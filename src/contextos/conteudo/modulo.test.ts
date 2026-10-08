@@ -94,25 +94,27 @@ test('o modulo carrega com as tres portas declaradas', () => {
   assert.equal(modulo.portas.relogio, portas.relogio);
 });
 
-test('a superficie do modulo e so o que T001, T002, T003, T005, T007, T009 e T013 entregam', () => {
+test('a superficie do modulo e so o que T001, T002, T003, T005, T007, T009, T013 e T015 entregam', () => {
   const { portas } = portasDeTeste();
 
   const modulo = criarModuloDeConteudo(portas);
 
   // A lista cresceu em T002, que acrescentou `armazenamento`; em T003, que
   // acrescentou `publicar` — a primeira operacao da tabela *Contratos* de
-  // `plan.md` a entrar aqui, e a primeira a declarar capacidade (CA-1.1) —; e em
+  // `plan.md` a entrar aqui, e a primeira a declarar capacidade (CA-1.1) —; em
   // T005, que acrescentou `gravar`, a operacao que no legado **nao tem portao**
   // (ver `gravacao/gravar.ts`); T009, que acrescentou `escolherVisibilidade`, a
   // operacao de US-4, com a MESMA capacidade e exigida so quando a visibilidade
-  // resolve em `private` (CA-4.1); e T013, que acrescentou
+  // resolve em `private` (CA-4.1); T013, que acrescentou
   // `publicarSeAindaAgendado`, a operacao que a fila aciona e cuja permissao
   // exigida e **nenhuma**, porque no legado nao ha ator no disparo
   // (`wp-includes/default-filters.php:357`) — e declarar "nenhuma", com a
-  // ancora, e declaracao. As demais crescem NA TAREFA DELAS. Esta afirmacao esta
-  // aqui para que nenhuma operacao chegue antes da propria tarefa, que e o que o
-  // P4 da constituicao cobra: "toda operacao exposta nova nasce com declaracao
-  // explicita de permissao".
+  // ancora, e declaracao; e T015, que acrescentou `submeterParaRevisao`, cuja
+  // permissao e `edit_post` sobre o objeto e cuja falta de `publish_posts`
+  // **nao recusa nada** (ver `revisao/permissao-de-revisao.ts`). As demais
+  // crescem NA TAREFA DELAS. Esta afirmacao esta aqui para que nenhuma operacao
+  // chegue antes da propria tarefa, que e o que o P4 da constituicao cobra:
+  // "toda operacao exposta nova nasce com declaracao explicita de permissao".
   assert.deepEqual(Object.keys(modulo).sort(), [
     'armazenamento',
     // Ordem alfabetica porque a lista e comparada depois de `.sort()`.
@@ -122,6 +124,7 @@ test('a superficie do modulo e so o que T001, T002, T003, T005, T007, T009 e T01
     'portas',
     'publicar',
     'publicarSeAindaAgendado',
+    'submeterParaRevisao',
   ]);
 });
 
