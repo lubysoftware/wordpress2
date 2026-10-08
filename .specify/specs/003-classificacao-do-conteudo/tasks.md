@@ -5,15 +5,15 @@
 - [x] **T001** Preparar o esqueleto do módulo de classificação
       *entrega:* o módulo carrega com a porta de dados declarada e os oito contextos de classificação do núcleo registrados, sem regra implementada
       *satisfaz:* — (infraestrutura)
-- [ ] **T002** Portar a forma de armazenamento de rótulo, contexto e junção
+- [x] **T002** Portar a forma de armazenamento de rótulo, contexto e junção
       *entrega:* as três estruturas da seção Modelo de dados do plano existem, com a chave composta da junção e a unicidade de rótulo por contexto, e são lidas e gravadas pela porta de dados
       *satisfaz:* — (infraestrutura)
       *depende de:* T001
-- [ ] **T003** Separar o rótulo de classificação do contexto em que ele classifica (US-1)
+- [x] **T003** Separar o rótulo de classificação do contexto em que ele classifica (US-1)
       *entrega:* o comportamento de US-1 existe e os critérios CA-1.1, CA-1.2, CA-1.3, CA-1.4 passam contra o sistema novo
       *satisfaz:* CA-1.1, CA-1.2, CA-1.3, CA-1.4
       *depende de:* T001, T002
-- [ ] **T004** [P] Testes de US-1
+- [x] **T004** [P] Testes de US-1
       *entrega:* 6 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-033-1, UT-033-2, UT-033-3, UT-033-4, UT-033-5, UT-033-6), com o mesmo dado de entrada, ação e resultado esperado. Os 2 testes de regra de negócio (UT-033-5, UT-033-6) entram na mesma suíte.
       *satisfaz:* CA-1.1, CA-1.2, CA-1.3, CA-1.4
       *depende de:* T003

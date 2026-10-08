@@ -1,13 +1,18 @@
 /**
- * Testes da entrega de T001: *"o modulo carrega com a porta de dados declarada
+ * Testes da entrega de T001 — *"o modulo carrega com a porta de dados declarada
  * e os oito contextos de classificacao do nucleo registrados, sem regra
- * implementada"*.
+ * implementada"* — e da **composicao** de T002 e de T003, que acrescentam o
+ * armazenamento e as operacoes de US-1 a superficie do modulo sem acrescentar
+ * nenhuma consulta ao carregamento. As tres estruturas em si sao afirmadas em
+ * `armazenamento/armazenamento.test.ts` e `armazenamento/esquema.test.ts`.
  *
  * Nao sao os testes de nenhuma historia — esses sao T004, T006, T008, T010 e
- * T012 de `tasks.md`, um por caso de `backlog/tests.md`. Aqui se afirma so o que
- * T001 entrega, mais as duas invariantes de arquitetura que um esqueleto pode
- * quebrar em silencio: estado de modulo (`EXT-CONTEXTO`, a dimensao **D-A**) e
- * trabalho no carregamento (`EXT-ORDEM`).
+ * T012 de `tasks.md`, um por caso de `backlog/tests.md`, e o comportamento que
+ * T003 entrega esta em `rotulo-e-contexto/us-1-rotulo-e-contexto.test.ts`. Aqui
+ * se afirma so o que o esqueleto entrega, mais as duas invariantes de
+ * arquitetura que ele pode quebrar em silencio: estado de modulo
+ * (`EXT-CONTEXTO`, a dimensao **D-A**) e trabalho no carregamento
+ * (`EXT-ORDEM`).
  *
  * O registro em si — os oito, a ordem, os defaults e as duas recusas — esta em
  * `registro/registro-de-contextos.test.ts`.
@@ -68,18 +73,51 @@ test('o modulo carrega com os oito contextos do nucleo registrados', () => {
   assert.equal(modulo.contextos.listar().length, 8);
 });
 
-test('nenhuma regra de negocio implementada: a superficie do modulo e so o que T001 entrega', () => {
+test('a superficie do modulo e so o que T001, T002 e T003 entregam', () => {
   const { portas } = portasDeTeste();
 
   const modulo = criarModuloDeClassificacao(portas);
 
-  // Quando T002 e as historias entrarem, esta lista cresce NA TAREFA DELAS.
-  // Ela esta aqui para que nenhuma operacao chegue antes da propria tarefa, que
-  // e o que o P4 da constituicao cobra: "toda operacao exposta nova nasce com
-  // declaracao explicita de permissao".
+  // Esta lista cresce NA TAREFA DE CADA HISTORIA. Ela esta aqui para que nenhuma
+  // operacao chegue antes da propria tarefa, que e o que o P4 da constituicao
+  // cobra: "toda operacao exposta nova nasce com declaracao explicita de
+  // permissao". `armazenamento` entrou com T002 e nao e operacao: nao decide
+  // nada e nao declara permissao.
+  //
+  // As cinco de T003 sao as de US-1, e cada uma declara a permissao dela em
+  // `index.ts` — as quatro de leitura declaram **nenhuma**, porque o legado nao
+  // cobra capacidade em `get_term()` nem em `get_object_taxonomies()`, e
+  // `renomearRotulo` declara `edit_terms` **sem verificar**, porque
+  // `wp_update_term()` tambem nao verifica (a cobranca e da tela, CA-4.1, T009).
+  //
+  // ⚠️ `removerRotuloDoContexto` (CA-1.3) **nao** esta nesta lista de proposito:
+  // e o trecho final de `wp_delete_term()`, sem a protecao do termo padrao
+  // (US-5) e sem a cascata (US-4), e publica-la como operacao criaria um caminho
+  // de apagar dado que o legado nao expoe. Ela e exportada pelo modulo, por
+  // `./rotulo-e-contexto/`, e a razao esta no bloco 🔴 do arquivo dela.
+  assert.deepEqual(Object.keys(modulo).sort(), [
+    'armazenamento',
+    'contextoAceitaTipoDeObjeto',
+    'contextos',
+    'contextosDoTipoDeObjeto',
+    'nome',
+    'nomesDosContextosDoTipoDeObjeto',
+    'obterTermo',
+    'portas',
+    'renomearRotulo',
+  ]);
+});
+
+test('o armazenamento de T002 chega pela composicao, com as tres estruturas', () => {
+  const { portas } = portasDeTeste();
+
+  const modulo = criarModuloDeClassificacao(portas);
+
+  // As tres estruturas da secao *Modelo de dados* do plano, mais a leitura
+  // fundida que `AGG-Termo` exige. Nenhuma quarta tabela.
   assert.deepEqual(
-    Object.keys(modulo).sort(),
-    ['contextos', 'nome', 'portas'],
+    Object.keys(modulo.armazenamento).sort(),
+    ['rotulos', 'rotulosNoContexto', 'termos', 'vinculos'],
   );
 });
 
@@ -89,10 +127,30 @@ test('criar o modulo nao toca na porta (EXT-ORDEM: nada se resolve no carregamen
   criarModuloDeClassificacao(portas);
 
   // Registrar os oito contextos e trabalho em memoria sobre declaracao em
-  // codigo. Se um dia uma declaracao precisar de dado gravado, este teste
-  // falha — e e exatamente o aviso que se quer.
+  // codigo, e compor o armazenamento de T002 monta nome de tabela e nada mais.
+  // Se um dia uma declaracao precisar de dado gravado, este teste falha — e e
+  // exatamente o aviso que se quer.
   assert.deepEqual(toques.selecionar, []);
   assert.deepEqual(toques.escrever, []);
+});
+
+test('duas composicoes nao compartilham o armazenamento (EXT-CONTEXTO, e o prefixo e dado)', () => {
+  const primeira = portasDeTeste('wp_');
+  const segunda = portasDeTeste('wp_2_');
+
+  const moduloA = criarModuloDeClassificacao(primeira.portas);
+  const moduloB = criarModuloDeClassificacao(segunda.portas);
+
+  moduloA.armazenamento.rotulos.obterPorId(1);
+  moduloB.armazenamento.rotulos.obterPorId(1);
+
+  // O prefixo do site entra no nome da tabela, e a nota 3 de
+  // `target_data_model.md` diz por que isso nao e detalhe de conexao: "o
+  // prefixo de tabela nao e so configuracao de conexao: ele e dado".
+  assert.match(String(primeira.toques.selecionar[0]?.texto), /FROM wp_terms /);
+  assert.match(String(segunda.toques.selecionar[0]?.texto), /FROM wp_2_terms /);
+  assert.equal(primeira.toques.selecionar.length, 1);
+  assert.equal(segunda.toques.selecionar.length, 1);
 });
 
 test('duas composicoes nao compartilham a porta (EXT-CONTEXTO, BR-MIGRAR-105)', () => {
