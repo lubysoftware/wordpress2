@@ -33,7 +33,7 @@
       *entrega:* 6 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-021-1, UT-021-2, UT-021-3, UT-021-4, UT-021-5, UT-021-6), com o mesmo dado de entrada, ação e resultado esperado. Os 2 testes de regra de negócio (UT-021-5, UT-021-6) entram na mesma suíte.
       *satisfaz:* CA-3.1, CA-3.2, CA-3.3, CA-3.4
       *depende de:* T007
-- [ ] **T009** Publicar conteúdo como privado, visível só a quem tem a permissão declarada (US-4)
+- [x] **T009** Publicar conteúdo como privado, visível só a quem tem a permissão declarada (US-4)
       *entrega:* o comportamento de US-4 existe e os critérios CA-4.1, CA-4.2, CA-4.3, CA-4.4 passam contra o sistema novo
       *satisfaz:* CA-4.1, CA-4.2, CA-4.3, CA-4.4
       *depende de:* T001, T002, T003

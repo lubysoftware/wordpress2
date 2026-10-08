@@ -46,6 +46,12 @@ import {
   type PedidoDePublicacao,
   type ResultadoDaPublicacao,
 } from './publicacao/index.js';
+import {
+  escolherVisibilidade,
+  type ContextoDeVisibilidade,
+  type PedidoDeVisibilidade,
+  type ResultadoDaVisibilidade,
+} from './visibilidade/index.js';
 
 export * from './portas/index.js';
 export * from './estado-editorial.js';
@@ -61,6 +67,16 @@ export * from './armazenamento/index.js';
   chamador no legado (a fila, em T013).
 */
 export * from './publicacao/index.js';
+/*
+  T009 (US-4) sai pelo barril E pela composicao, pela mesma razao: `plan.md` nao
+  lista "escolher visibilidade" na tabela *Contratos* porque no legado ela nao e
+  uma funcao — e o `switch` de `wp-admin/includes/post.php:318` somado ao
+  `case 'private'` de `handle_status_param()`, as duas pecas que preparam o
+  pedido ANTES de `wp_insert_post()`. A operacao existe aqui porque e ela que
+  declara a permissao que o P4 cobra, e o resto da pasta sai pelo barril porque e
+  o que a consulta publica e a leitura por identificador precisam alcancar.
+*/
+export * from './visibilidade/index.js';
 
 /** As tres portas de que este modulo depende, na forma em que ele as recebe. */
 export interface PortasDeConteudo {
@@ -79,6 +95,7 @@ export interface PortasDeConteudo {
  * | operacao | historia | tarefa | permissao exigida |
  * |---|---|---|---|
  * | `publicar` | US-1 | T003 | **a capacidade de publicar daquele tipo** (`$post_type->cap->publish_posts`), CA-1.1 |
+ * | `escolherVisibilidade` | US-4 | T009 | **a mesma capacidade**, e **somente** quando a visibilidade resolve em `private`, CA-4.1 |
  *
  * O armazenamento **nao e operacao**, e por isso nao declara permissao: ele nao
  * decide nada.
@@ -114,6 +131,29 @@ export interface ModuloDeConteudo {
     contexto: ContextoDePublicacao,
     pedido: PedidoDePublicacao,
   ): ResultadoDaPublicacao;
+
+  /**
+   * Resolve a visibilidade escolhida nos campos que a gravacao vai escrever —
+   * e o estado `private` de US-4 (T009).
+   *
+   * **Permissao exigida: a capacidade de publicar daquele tipo de conteudo**, a
+   * MESMA de {@link ModuloDeConteudo.publicar}, e exigida **somente** quando a
+   * visibilidade resolve em `private` — `handle_status_param()`,
+   * `case 'private'`
+   * (`class-wp-rest-posts-controller.php:1575`-`:1583`). O legado nao tem
+   * `publish_private_posts`, e os ramos `public` e `password` nao tem portao
+   * proprio: inventar um fecharia uma porta que o legado deixa aberta (**P4**).
+   *
+   * ⚠️ **Nao grava, e no legado ela tambem nao.** O privado chega a coluna pelo
+   * caminho de gravacao (`wp_insert_post()`, T005 em diante), com um `UPDATE` de
+   * 21 colunas; esta operacao e o `switch` de visibilidade somado ao portao, as
+   * duas pecas que preparam o pedido antes dele. A razao completa esta em
+   * `visibilidade/escolher-visibilidade.ts`.
+   */
+  escolherVisibilidade(
+    contexto: ContextoDeVisibilidade,
+    pedido: PedidoDeVisibilidade,
+  ): ResultadoDaVisibilidade;
 }
 
 /**
@@ -141,5 +181,6 @@ export function criarModuloDeConteudo(
     // sai daqui, que e o que `EXT-ORDEM` cobra e o que `modulo.test.ts` afirma.
     armazenamento: criarArmazenamentoDeConteudo(portas.dados),
     publicar,
+    escolherVisibilidade,
   };
 }
