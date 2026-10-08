@@ -1,0 +1,28 @@
+# O portão de saída da árvore, o mesmo que `squad.yaml` declara em `verificar`.
+#
+# `npm test` já é `tsc` (build) + `node --test dist/**/*.test.js`: um comando
+# cobre o typecheck estrito e os 1143 testes. Não há segundo job de propósito —
+# rodar `npm run typecheck` à parte só repetiria o `tsc` que o build faz.
+
+name: verificar
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      # `npm ci` e não `npm install`: a árvore reproduz o lock, não o resolve.
+      - run: ./scripts/preparar.sh
+
+      - run: npm test
