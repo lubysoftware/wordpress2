@@ -1,12 +1,14 @@
 /**
- * **US-2**: gravar conteudo, com o estado resolvido para rascunho quando ninguem
- * o informa — `wp_insert_post()` (`wp-includes/post.php:4598`).
+ * **US-2 e US-3**: gravar conteudo, com o estado resolvido para rascunho quando
+ * ninguem o informa e com o identificador na URL tornado unico a partir da
+ * publicacao — `wp_insert_post()` (`wp-includes/post.php:4598`).
  *
- * Entrega de **T005** da feature `002-autoria-e-publicacao`. E a operacao
- * *"gravar conteudo"* da tabela *Contratos* de `plan.md` — *"tipo, campos,
- * estado opcional"* → *"conteudo gravado com estado resolvido (rascunho quando
- * nada e informado)"* — e e a **segunda** regra de negocio deste modulo, depois
- * da publicacao de T003.
+ * Entrega de **T005** da feature `002-autoria-e-publicacao`, com os **quatro
+ * passos** que **T007** (US-3) acrescentou — 10, 11, 18 e 20 na tabela abaixo. E
+ * a operacao *"gravar conteudo"* da tabela *Contratos* de `plan.md` — *"tipo,
+ * campos, estado opcional"* → *"conteudo gravado com estado resolvido (rascunho
+ * quando nada e informado)"* — e e por ela que passam a **segunda** e a
+ * **terceira** regras de negocio deste modulo, depois da publicacao de T003.
  *
  * ---
  *
@@ -28,10 +30,11 @@
  * > — `backlog/tests.md`, REQ-020
  *
  * E a unica decisao de capacidade que o caminho de gravacao tem — esvaziar o
- * identificador na URL de quem nao pode publicar (`:4731`-`:4739`) — e **T015**
- * (CA-7.4), nao esta aqui, e esta marcada na posicao exata do fluxo. Dar um
- * portao a esta funcao fecharia o sistema mais que o legado e quebraria tres
- * tarefas desta mesma feature.
+ * identificador na URL de quem nao pode publicar (`:4731`-`:4739`) — **nao
+ * recusa a gravacao: ela apaga um campo**. T007 a portou no passo 10, e a
+ * analise dela esta em `permissao-do-identificador.ts`. Dar um portao a esta
+ * funcao fecharia o sistema mais que o legado e quebraria tres tarefas desta
+ * mesma feature.
  *
  * Mesmo desenho, e mesma razao, do par `publicar` / `transitarParaPublicado` de
  * T003: a operacao que **tem** ator declara a capacidade, a funcao do legado
@@ -62,17 +65,17 @@
  * | 7 | o corpo vazio, e o filtro que o decide | `:4673`-`:4701` | **sim** |
  * | 8 | o **estado**, e a reescrita do anexo | `:4703`-`:4707` | **sim** — 2ª barreira de US-2 |
  * | 9 | a categoria padrao do caminho de gravacao | `:4709`-`:4724` | nao — BC-02 |
- * | 10 | o identificador vazio de quem nao pode publicar | `:4726`-`:4739` | nao — **T015** |
- * | 11 | o identificador derivado do titulo e sanitizado | `:4741`-`:4761` | nao — **T007** |
+ * | 10 | o identificador vazio de quem nao pode publicar | `:4726`-`:4739` | **sim** — CA-3.4, e o unico portao de capacidade daqui |
+ * | 11 | o identificador derivado do titulo e sanitizado | `:4741`-`:4763` | **sim** — CA-3.1 e CA-3.2 |
  * | 12 | as quatro colunas de data | `:4765`-`:4795` | **sim** |
  * | 13 | a comparacao de 60 segundos (publicado ⇄ agendado) | `:4797`-`:4809` | nao — **T013** |
  * | 14 | `comment_status`, `ping_status`, autor, pings, `import_id` | `:4811`-`:4828` | **sim** |
  * | 15 | ordem no menu, senha (e o esvaziamento de `private`), pai | `:4834`-`:4849` | **sim** |
  * | 16 | o filtro do pai, com o pedido resolvido | `:4851`-`:4868` | **sim** |
  * | 17 | o sufixo `__trashed`, na entrada e na saida da lixeira | `:4871`-`:4902` | nao — feature 005 |
- * | 18 | `wp_unique_post_slug()` | `:4906` | nao — **T007** |
+ * | 18 | `wp_unique_post_slug()` | `:4906` | **sim** — CA-3.2 |
  * | 19 | as 21 colunas, o emoji, o filtro de dados e o comando | `:4909`-`:5043` | **sim** (menos o emoji) |
- * | 20 | a segunda escrita do identificador | `:5045`-`:5051` | nao — **T007** |
+ * | 20 | a segunda escrita do identificador | `:5047`-`:5052` | **sim** — CA-3.2 |
  * | 21 | categorias, etiquetas, `tax_input`, `meta_input` | `:5053`-`:5115` | nao — BC-02 e quem precisar de metadado |
  * | 22 | o `guid` do conteudo novo | `:5117`-`:5121` | **sim** |
  * | 23 | arquivo do anexo, imagem destacada, modelo de pagina | `:5123`-`:5173` | nao — BC-04 e BC-07 |
@@ -101,17 +104,29 @@
  *
  * ---
  *
- * # As leituras, que sao quatro, e a divergencia de cache que elas carregam
+ * # As leituras, e a divergencia de cache que elas carregam
  *
- * | # | onde | linha | com cache do legado | sem cache (esta arvore) |
- * |---|---|---|---|---|
- * | 1 | `get_post( $post_id )` (`$post_before`) | `:4644` | consulta e popula | consulta |
- * | 2 | `get_post_field( 'guid', $post_id )` | `:4653` | acerta o cache | consulta |
- * | 3 | `get_post_field( 'post_status', $post_id )` | `:4654` | acerta o cache | consulta |
- * | 4 | `get_post_field( 'guid', $post_id )`, depois do comando | `:5117` | consulta (o cache foi esvaziado) | consulta |
+ * | # | onde | linha | quando | com cache do legado | sem cache (esta arvore) |
+ * |---|---|---|---|---|---|
+ * | 1 | `get_post( $post_id )` (`$post_before`) | `:4644` | atualizacao | consulta e popula | consulta |
+ * | 2 | `get_post_field( 'guid', $post_id )` | `:4653` | atualizacao | acerta o cache | consulta |
+ * | 3 | `get_post_field( 'post_status', $post_id )` | `:4654` | atualizacao | acerta o cache | consulta |
+ * | 4 | `get_post( $post_id )`, dentro de `map_meta_cap()` | `capabilities.php:397` | atualizacao **em `pending`** | acerta o cache | consulta |
+ * | 5 | `get_post_field( 'post_name', $post_id )` | `:4757` | atualizacao, e so se a comparacao anterior passou | acerta o cache | consulta |
+ * | 6 | a consulta de unicidade, mais uma por tentativa do sufixo | `:5599`, `:5633`, `:5663` | estado que **nao** dispensa | consulta | consulta |
+ * | 7 | `get_post( $post_id )`, no ramo plano da unicidade | `:5665` | idem, e so no ramo plano | acerta o cache | consulta |
+ * | 8 | a unicidade de novo, na segunda escrita | `:5048` | identificador vazio em estado que nao dispensa | consulta | consulta |
+ * | 9 | `get_post_field( 'guid', $post_id )`, depois do comando | `:5117` | sempre | consulta (o cache foi esvaziado) | consulta |
  *
- * As tres primeiras so acontecem na **atualizacao**; a quarta sempre. **Isso nao
- * foi decidido aqui e nao precisa ser:** e a mesma divergencia que T002 declarou
+ * **As cinco primeiras so acontecem na atualizacao**, as de 6 a 8 dependem do
+ * estado e a nona sempre. As de 4 a 8 sao de **T007** e sao a razao de uma
+ * gravacao de rascunho emitir menos consultas do que uma de publicado: a
+ * dispensa de unicidade de CA-3.1 nao e so sobre o valor gravado, e tambem sobre
+ * **quantos comandos saem**, e a area 3 da Decisao 2 compara *"snapshot +
+ * sequencia de comandos"*.
+ *
+ * **A divergencia de cache nao foi decidida aqui e nao precisa ser:** e a mesma
+ * divergencia que T002 declarou
  * no README deste modulo e que `publicar.ts` registrou para as tres leituras
  * dele — REQ-165 ficou fora do pacote, e a borda 5 de
  * `target_architecture.md` manda o cache **desligado nas duas metades** durante
@@ -158,6 +173,16 @@ import {
   resolverModificacaoDaGravacao,
 } from './data-na-gravacao.js';
 import { RECURSOS_DO_CORPO_VAZIO } from './contexto-de-gravacao.js';
+import {
+  ESTADOS_QUE_DISPENSAM_IDENTIFICADOR,
+  identificadorUnico,
+  identificadorValido,
+  type ContextoDoIdentificadorUnico,
+} from './identificador-na-url.js';
+import {
+  identificadorDeQuemNaoPodePublicar,
+  type FonteDaPermissaoDePublicar,
+} from './permissao-do-identificador.js';
 import { vazioComoNoPhp, verdadeiroComoNoPhp } from './verdade-de-php.js';
 
 /**
@@ -281,13 +306,40 @@ export interface ResultadoDaGravacao {
    * ja trouxe `guid` no pedido.
    */
   readonly enderecoGravadoNoGuid: string | null;
+  /**
+   * **CA-3.3**, primeira metade: o identificador na URL **como o pedido o
+   * trouxe** — ou o da linha existente, quando a atualizacao nao o informou.
+   *
+   * E o valor que o autor escolheu e viu na tela antes de gravar.
+   */
+  readonly identificadorPedido: string;
+  /**
+   * **CA-3.2 e CA-3.3**, segunda metade: o identificador na URL **como ficou
+   * gravado** — sanitizado, e unico quando o estado nao dispensa a unicidade.
+   *
+   * ⚠️ Pode nao ser `colunas.post_name` do momento em que o filtro de dados
+   * rodou: a **segunda escrita** do legado (`:5047`-`:5052`) troca o campo
+   * depois do comando, e este valor e o que esta na coluna ao fim da operacao.
+   * {@link identificadorMudouNaGravacao} compara os dois.
+   */
+  readonly identificadorNaUrl: string;
 }
 
-/** O que os tres desfechos de falha tem em comum: nada foi gravado. */
+/**
+ * O que os tres desfechos de falha tem em comum: nada foi gravado.
+ *
+ * Os dois campos de identificador saem **vazios** nos tres, e nao com o valor
+ * pedido, porque nos tres o legado devolve `0` ou um `WP_Error` e **nenhum
+ * registro**: nao ha identificador gravado para comparar, e inventar um valor
+ * aqui faria {@link identificadorMudouNaGravacao} responder sobre uma gravacao
+ * que nao aconteceu.
+ */
 const SEM_GRAVACAO = {
   conteudoId: 0,
   colunas: null,
   enderecoGravadoNoGuid: null,
+  identificadorPedido: '',
+  identificadorNaUrl: '',
 } as const;
 
 /**
@@ -405,13 +457,38 @@ export function gravarConteudo(
   // (BR-MIGRAR-003). BC-02, e a metade de CA-1.4 que esta feature cobra foi
   // entregue por T003 em `../publicacao/termo-padrao-na-publicacao.ts`.
 
-  // Passo 10 (`:4726`-`:4739`): o identificador vazio de quem nao pode
-  // publicar (CA-7.4). **T015** — e e aqui que a `base` de autorizacao entra no
-  // contexto.
+  // Passo 10 (`:4726`-`:4739`): **CA-3.4** — o identificador vazio de quem nao
+  // pode publicar, e a unica decisao de capacidade deste caminho. Ela nao
+  // recusa a gravacao: apaga um campo. Analise em
+  // `permissao-do-identificador.ts`.
+  const identificadorReservavel = identificadorDeQuemNaoPodePublicar(
+    {
+      base: contexto.base,
+      ator: contexto.ator,
+      fonte: fonteDaPermissao(contexto),
+      ...(contexto.avisarUsoIndevido === undefined
+        ? {}
+        : { avisar: contexto.avisarUsoIndevido }),
+    },
+    { estado, tipo, atualizacao, conteudoId: conteudoIdPedido },
+    identificadorNaUrl,
+  );
 
-  // Passo 11 (`:4741`-`:4761`): o identificador derivado do titulo e
-  // sanitizado, com a dispensa em `draft`, `pending` e `auto-draft` (CA-3.1).
-  // **T007** — ver o aviso em `resolverIdentificadorNaUrl`.
+  // Passo 11 (`:4741`-`:4763`): **CA-3.1 e CA-3.2** — o identificador derivado
+  // do titulo e sanitizado, com a dispensa em `draft`, `pending` e
+  // `auto-draft`, e o ramo que conserva o identificador gravado por versao
+  // antiga do legado.
+  const identificadorSanitizado = identificadorValido(
+    contexto.texto,
+    repositorio,
+    {
+      identificadorNaUrl: identificadorReservavel,
+      titulo,
+      estado,
+      atualizacao,
+      conteudoId: conteudoIdPedido,
+    },
+  );
 
   // Passo 12 (`:4765`-`:4795`): as quatro colunas de data.
   const data = resolverDataDaGravacao(
@@ -500,9 +577,22 @@ export function gravarConteudo(
   // Passo 17 (`:4871`-`:4902`): o sufixo `__trashed`, na entrada e na saida da
   // lixeira, e o metadado `_wp_desired_post_slug`. Feature 005 (`PT-003`).
 
-  // Passo 18 (`:4906`): `wp_unique_post_slug()`. **T007**, e T003 ja apurou que
-  // esta e a UNICA porta do legado que cobra unicidade — `wp_publish_post()`
-  // nao toca `post_name`.
+  // Passo 18 (`:4906`): `wp_unique_post_slug()` — **CA-3.2**. Esta e a UNICA
+  // porta do legado que cobra unicidade: `wp_publish_post()` nao toca
+  // `post_name`, e e por isso que o identificador do rascunho *"muda sozinho"*
+  // quando se publica **salvando**, e sobrevive duplicado quando se publica pela
+  // transicao de T003. O achado inteiro esta no cabecalho de
+  // `identificador-na-url.ts`.
+  const identificadorNaColuna = identificadorUnico(
+    contextoDoIdentificador(contexto),
+    {
+      identificadorNaUrl: identificadorSanitizado,
+      conteudoId: conteudoIdPedido,
+      estado,
+      tipo,
+      paiId,
+    },
+  );
 
   // Passo 19 (`:4909`-`:4932`): as 21 colunas, na ordem do `compact()`.
   const colunasResolvidas: ColunasDaGravacao = {
@@ -518,7 +608,7 @@ export function gravarConteudo(
     comment_status: estadoDeComentario,
     ping_status: estadoDeNotificacao,
     post_password: senha,
-    post_name: identificadorNaUrl,
+    post_name: identificadorNaColuna,
     to_ping: aPingar,
     pinged: pingados,
     post_modified: modificadoEm,
@@ -563,8 +653,50 @@ export function gravarConteudo(
       : repositorio.inserir(camposDoRepositorio(colunas));
   }
 
-  // Passo 20 (`:5045`-`:5051`): a segunda escrita do identificador, quando ele
-  // ficou vazio e o estado nao dispensa unicidade. **T007**.
+  // Passo 20 (`:5047`-`:5052`): a **segunda** escrita do identificador, que
+  // preenche a coluna quando ela saiu vazia do comando — e e com ela que
+  // **CA-3.2** se fecha. Ela vale nos dois caminhos, insercao e atualizacao: o
+  // `if` do legado esta fora dos dois ramos. Tres coisas dela que nao sao
+  // obvias:
+  //
+  // 1. a pergunta e sobre `$data['post_name']` — o valor **depois** do filtro de
+  //    dados —, logo um interceptador que esvazie a coluna faz esta escrita
+  //    acontecer;
+  // 2. a reserva da sanitizacao e o **identificador do conteudo**
+  //    (`sanitize_title( $data['post_title'], $post_id )`), que no legado e
+  //    numero e aqui vai como texto: conteudo cujo titulo sanitiza para vazio
+  //    recebe o proprio identificador como endereco;
+  // 3. ela sai **depois** do comando, logo e o unico momento em que
+  //    `wp_unique_post_slug()` recebe um identificador de conteudo real em vez
+  //    de `0` na insercao — e e por isso que ela nao colide com a propria linha
+  //    (a consulta tem `ID != ?`).
+  let colunasGravadas = colunas;
+  if (
+    vazioComoNoPhp(colunas.post_name) &&
+    !ESTADOS_QUE_DISPENSAM_IDENTIFICADOR.includes(colunas.post_status)
+  ) {
+    const identificadorDaSegundaEscrita = identificadorUnico(
+      contextoDoIdentificador(contexto),
+      {
+        identificadorNaUrl: contexto.texto.sanitizarTitulo(
+          colunas.post_title,
+          String(conteudoId),
+          'save',
+        ),
+        conteudoId,
+        estado: colunas.post_status,
+        tipo,
+        paiId,
+      },
+    );
+    colunasGravadas = { ...colunas, post_name: identificadorDaSegundaEscrita };
+    repositorio.atualizar(conteudoId, {
+      identificadorNaUrl: identificadorDaSegundaEscrita,
+    });
+    // `clean_post_cache( $post_id )` (`:5051`): nao ha cache nesta arvore
+    // (REQ-165 ficou fora do pacote). Fica nomeado nesta posicao porque e ela
+    // que faz a leitura do passo 22 ir ao banco em vez de ao cache.
+  }
 
   // Passo 21 (`:5053`-`:5115`): categorias, etiquetas, `tax_input` e
   // `meta_input`. BC-02, e o metadado de quem precisar dele.
@@ -599,10 +731,89 @@ export function gravarConteudo(
     desfecho: atualizacao ? 'atualizado' : 'inserido',
     conteudoId,
     erro: null,
-    colunas,
+    colunas: colunasGravadas,
     estadoAnterior,
     atualizacao,
     enderecoGravadoNoGuid,
+    // **CA-3.3**: o par que torna a mudanca de endereco visivel a quem pediu a
+    // gravacao. O primeiro e o que o pedido trouxe (ou o que a linha ja tinha),
+    // o segundo e o que ficou na coluna.
+    identificadorPedido: identificadorNaUrl,
+    identificadorNaUrl: colunasGravadas.post_name,
+  };
+}
+
+/**
+ * **CA-3.3**: se o identificador na URL mudou nesta gravacao.
+ *
+ * E funcao, e nao campo do resultado, porque **o legado nao tem esse campo**: o
+ * que ele devolve a quem gravou e o registro com o identificador final, e a
+ * comparacao com o que foi pedido e de quem chamou. Um sinalizador gravado seria
+ * dado que o produto nao tem (P6); uma comparacao nomeada e so a leitura do que
+ * ja esta ali.
+ *
+ * ⚠️ A comparacao e **literal**, e nao *"mudou de forma significativa"*: trocar
+ * `Meu Titulo` por `meu-titulo` e mudanca, e e exatamente a mudanca que CA-3.3
+ * quer que o autor veja antes de descobrir pelo endereco quebrado.
+ */
+export function identificadorMudouNaGravacao(
+  resultado: ResultadoDaGravacao,
+): boolean {
+  return resultado.identificadorPedido !== resultado.identificadorNaUrl;
+}
+
+/**
+ * O contexto de {@link identificadorUnico}, montado do contexto da gravacao.
+ *
+ * Os quatro colaboradores dela sao os mesmos quatro do contexto — a tabela, a
+ * formatacao de texto, a reescrita e o registro de tipos —, e os ganchos sao os
+ * mesmos: `GanchosDaGravacao` **herda** `GanchosDoIdentificadorUnico`, porque e
+ * de `wp_insert_post()` que o legado dispara os cinco pontos da unicidade.
+ *
+ * E funcao, e nao objeto guardado, porque nada deste modulo guarda estado
+ * (`EXT-CONTEXTO`, BR-MIGRAR-105): as duas chamadas de `wp_unique_post_slug()`
+ * desta operacao montam o contexto cada uma, do contexto que recebeu.
+ */
+function contextoDoIdentificador(
+  contexto: ContextoDeGravacao,
+): ContextoDoIdentificadorUnico {
+  return {
+    texto: contexto.texto,
+    repositorio: contexto.armazenamento.conteudo,
+    reescrita: contexto.reescrita,
+    tipoEHierarquico: contexto.tipoEHierarquico,
+    ...(contexto.ganchos === undefined ? {} : { ganchos: contexto.ganchos }),
+  };
+}
+
+/**
+ * A fonte do `case 'publish_post'`, montada do contexto da gravacao.
+ *
+ * `get_post( $args[0] )` do legado aceita identificador **ou** o registro; neste
+ * caminho o argumento e sempre o identificador (`:4736` passa `$post_id`), e o
+ * ramo do registro esta aqui porque a assinatura do caso e a do legado e quem
+ * mais a usar pode passar o outro. Qualquer outra forma devolve `null`, que no
+ * caso de traducao **nega** — e e a mesma postura de BR-MIGRAR-091.
+ */
+function fonteDaPermissao(
+  contexto: ContextoDeGravacao,
+): FonteDaPermissaoDePublicar {
+  return {
+    conteudo(referencia) {
+      if (typeof referencia === 'number') {
+        return contexto.armazenamento.conteudo.obterPorId(referencia);
+      }
+      if (
+        typeof referencia === 'object' &&
+        referencia !== null &&
+        'tipo' in referencia &&
+        typeof referencia.tipo === 'string'
+      ) {
+        return { tipo: referencia.tipo };
+      }
+      return null;
+    },
+    tipoDeConteudo: contexto.tipoDeConteudo,
   };
 }
 

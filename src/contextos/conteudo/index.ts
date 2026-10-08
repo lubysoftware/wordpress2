@@ -1,15 +1,15 @@
 /**
  * Modulo de conteudo — BC-01 de `target_architecture.md`.
  *
- * Feature `002-autoria-e-publicacao`, tarefas T001, T002, T003 e T005. O que
- * existe aqui e o que as quatro entregam: o modulo carrega com as tres portas
+ * Feature `002-autoria-e-publicacao`, tarefas T001, T002, T003, T005 e T007. O
+ * que existe aqui e o que as cinco entregam: o modulo carrega com as tres portas
  * declaradas, com o vocabulario de estado editorial do legado como enumeracao
  * fechada, com a forma de armazenamento de conteudo, metadado e versao anterior
- * e com **duas** regras de negocio — a publicacao por ato explicito de US-1 e a
- * gravacao com estado resolvido de US-2. Agendamento, identificador na URL,
- * submissao, revisao, versao anterior e rascunho automatico entram nas tarefas
- * delas (T007 em diante), e a leitura obrigatoria de cada uma esta em
- * `./README.md`.
+ * e com **tres** regras de negocio — a publicacao por ato explicito de US-1, a
+ * gravacao com estado resolvido de US-2 e o identificador na URL unico so a
+ * partir da publicacao de US-3. Agendamento, submissao, revisao, versao anterior
+ * e rascunho automatico entram nas tarefas delas (T009 em diante), e a leitura
+ * obrigatoria de cada uma esta em `./README.md`.
  *
  * Duas coisas que este arquivo faz de proposito:
  *
@@ -95,7 +95,7 @@ export interface PortasDeConteudo {
  *
  * | operacao | historia | tarefa | permissao exigida |
  * |---|---|---|---|
- * | `gravar` | US-2 | T005 | **nenhuma, como no legado** — `wp_insert_post()` nao tem portao, e o achado de QA de REQ-020 registra que o card nao tem recusa propria |
+ * | `gravar` | US-2, US-3 | T005, T007 | **nenhuma para gravar, como no legado** — `wp_insert_post()` nao tem portao, e o achado de QA de REQ-020 registra que o card nao tem recusa propria. A **unica** decisao de capacidade do caminho nao recusa: ela esvazia o identificador na URL de quem nao pode publicar, em `pending` (CA-3.4) |
  * | `publicar` | US-1 | T003 | **a capacidade de publicar daquele tipo** (`$post_type->cap->publish_posts`), CA-1.1 |
  *
  * O armazenamento **nao e operacao**, e por isso nao declara permissao: ele nao
@@ -135,7 +135,8 @@ export interface ModuloDeConteudo {
 
   /**
    * Grava conteudo, com o estado resolvido para **rascunho** quando o pedido nao
-   * o informa (US-2, T005). E `wp_insert_post()`
+   * o informa (US-2, T005) e com o identificador na URL tornado **unico a partir
+   * da publicacao** (US-3, T007). E `wp_insert_post()`
    * (`wp-includes/post.php:4598`).
    *
    * **Permissao exigida: nenhuma, e isso e o legado, nao uma brecha.** A funcao
@@ -145,8 +146,10 @@ export interface ModuloDeConteudo {
    * camada como ele e hoje, inclusive quando o default e permissivo"*, e o
    * achado de QA de REQ-020 e literal: *"nao ha entrada invalida nem permissao
    * ausente propria deste card"*. A unica decisao de capacidade do caminho de
-   * gravacao — o identificador na URL de quem nao pode publicar — e CA-7.4, em
-   * T015, e esta marcada na posicao exata do fluxo em `gravacao/gravar.ts`.
+   * gravacao — o identificador na URL de quem nao pode publicar, em `pending` —
+   * **nao recusa a gravacao: ela apaga um campo** (CA-3.4 e CA-7.4 sao a mesma
+   * linha do legado), e esta no passo 10 de `gravacao/gravar.ts`, analisada em
+   * `gravacao/permissao-do-identificador.ts`.
    *
    * O contexto chega por argumento pela mesma razao de `publicar`, e aqui ela
    * tem consequencia direta: o **autor** gravado e, por omissao, o ator do

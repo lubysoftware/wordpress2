@@ -52,8 +52,8 @@
  * | `sanitize_trackback_urls( $to_ping )` | `:4826` | `plataforma/formatacao`, feature 015. O valor passa **como veio** |
  * | `wp_encode_emoji()` nas tres colunas de texto | `:4936`-`:4945` | `plataforma/dados`: a decisao depende do charset **da coluna** (`get_col_charset`), que e da camada de dados |
  * | `wp_unslash( $data )` | `:4980` | `plataforma/formatacao`. Nesta arvore nada acrescenta barra, logo a funcao seria identidade — e identidade escondida e pior do que ausencia declarada |
- * | o identificador na URL sanitizado, unico e derivado do titulo | `:4742`-`:4761`, `:4906`, `:5046` | **T007** (US-3) — ver o aviso em {@link resolverIdentificadorNaUrl} |
- * | o esvaziamento do identificador de quem nao pode publicar | `:4726`-`:4739` | **T015** (US-7, CA-7.4) |
+ * | o identificador na URL sanitizado, unico e derivado do titulo | `:4741`-`:4763`, `:4906`, `:5047` | **T007** (US-3), em `identificador-na-url.ts` — o que fica neste arquivo e so o passo 6 |
+ * | o esvaziamento do identificador de quem nao pode publicar | `:4726`-`:4739` | **T007** (US-3), em `permissao-do-identificador.ts` — CA-3.4 e CA-7.4 sao a mesma linha do legado |
  * | o sufixo `__trashed` na entrada e na saida da lixeira | `:4871`-`:4902` | feature 005 (`PT-003`) |
  * | a categoria padrao e o `tax_input` do caminho de gravacao | `:4709`-`:4724`, `:5053`-`:5108` | BC-02; a metade que esta feature cobra (CA-1.4) foi entregue por T003 |
  */
@@ -200,28 +200,27 @@ export function resolverSenhaDoConteudo(
 }
 
 /**
- * `post_name` — **o valor como ele chega**, e nada mais.
+ * `post_name` — **o valor como ele chega**, e e o **passo 6** de
+ * `wp_insert_post()` (`:4666`-`:4671`), nao a regra de US-3.
  *
- * O legado faz tres coisas com este campo que **esta tarefa nao faz**, e as tres
- * sao de T007 e T015:
+ * `isset( $postarr['post_name'] ) ... elseif ( $update )`: na atualizacao sem o
+ * campo, o identificador da linha existente e mantido. Sem esta funcao uma
+ * atualizacao qualquer apagaria o identificador de quem nao o informou.
  *
- * 1. `isset( $postarr['post_name'] ) ... elseif ( $update )` (`:4666`-`:4671`):
- *    na atualizacao sem o campo, o identificador da linha existente e mantido.
- *    **Isto esta aqui**, porque sem ele uma atualizacao apagaria o identificador;
- * 2. derivar do titulo quando vazio e o estado **nao** e `draft`, `pending` nem
- *    `auto-draft` (`:4746`-`:4749`), e sanitizar o informado (`:4752`-`:4761`) —
- *    **T007**, e e a dispensa de unicidade de CA-3.1 que explica por que a lista
- *    de tres estados e exatamente a de US-2 e US-7;
- * 3. `wp_unique_post_slug()` (`:4906`) e a segunda escrita que ele provoca
- *    (`:5046`-`:5051`) — **T007**.
+ * As outras tres coisas que o legado faz com este campo acontecem **depois**, e
+ * sao de **T007** (US-3), cada uma no arquivo dela:
  *
- * ⚠️ **Consequencia declarada, e nao silenciosa:** nesta tarefa, gravar conteudo
- * **publicado** sem informar identificador grava a coluna vazia, onde o legado
- * gravaria o titulo sanitizado e unico. Para o rascunho de US-2 o valor coincide
- * — o legado tambem grava vazio —, e para o publicado a diferenca e exatamente o
- * conteudo de T007 (US-3), que e a tarefa seguinte deste caminho e **depende
- * desta**. Esta registrado aqui, na tabela do fim de `index.ts` e no README do
- * modulo, para que ninguem a descubra por endereco quebrado.
+ * | o que | linha | onde |
+ * |---|---|---|
+ * | esvaziar o de quem nao pode publicar, em `pending` | `:4731`-`:4739` | `permissao-do-identificador.ts` |
+ * | derivar do titulo quando vazio, e sanitizar o informado | `:4745`-`:4763` | `identificadorValido`, em `identificador-na-url.ts` |
+ * | cobrar unicidade, e a segunda escrita que ela provoca | `:4906`, `:5047`-`:5052` | `identificadorUnico`, no mesmo arquivo |
+ *
+ * ⚠️ **O valor que esta funcao devolve nao e o que vai para a coluna**, e isso e
+ * do legado: `$post_name` e uma variavel local reescrita tres vezes depois
+ * daqui. Quem quiser o valor gravado le `identificadorNaUrl` no resultado da
+ * gravacao, e quem quiser o pedido le `identificadorPedido` — o par existe para
+ * CA-3.3.
  */
 export function resolverIdentificadorNaUrl(
   pedido: PedidoDeGravacao,

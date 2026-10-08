@@ -2,8 +2,9 @@
 
 Esqueleto entregue por **T001** da feature `002-autoria-e-publicacao`, com a
 forma de armazenamento entregue por **T002**, a publicação por ato explícito
-(US-1) entregue por **T003** e a gravação com estado resolvido (US-2) entregue
-por **T005**. Este arquivo é a leitura obrigatória de quem pegar T007 em diante:
+(US-1) entregue por **T003**, a gravação com estado resolvido (US-2) entregue por
+**T005** e o identificador na URL único só a partir da publicação (US-3) entregue
+por **T007**. Este arquivo é a leitura obrigatória de quem pegar T009 em diante:
 ele diz o que já está decidido, o que está decidido **em outro lugar**, e o que
 ninguém decidiu.
 
@@ -103,7 +104,7 @@ leitura sem mudar o que ela devolve. A nota está no cabeçalho de
 |---|---|
 | executar o DDL | ninguém desta feature: a borda 4 diz que *"a metade nova lê e nunca escreve estrutura"*, e AD-11 proíbe mudança de esquema nesta fase |
 | decidir o destino da sentinela `'0000-00-00 00:00:00'` | 🔴 `BR-HUMANA-003`, **pendente**. O armazenamento segue a premissa declarada por `target_data_model.md` (manter a cadeia literal) e registra a pendência em três arquivos |
-| cobrar unicidade do identificador na URL | T007 (US-3). A dispensa em rascunho **é** a regra (BR-MIGRAR-005), e `UNIQUE` no DDL quebraria o produto |
+| cobrar unicidade do identificador na URL | T007 (US-3) acrescentou as **três consultas** que fazem a pergunta e **nenhuma restrição**. A dispensa em rascunho **é** a regra (BR-MIGRAR-005), e `UNIQUE` no DDL quebraria o produto |
 | escrever `comment_count` | o contador é mantido por outro caminho e **pode ser suspenso durante lote** (`DB-TRG1`). Nenhuma escrita deste módulo o menciona |
 | a cascata de exclusão | feature 005 (`PT-003`): `apagar` é só o `DELETE` da linha, e o P5 cobra o conjunto exato do que fica órfão |
 | emitir ponto de extensão | não há barramento nesta árvore (REQ-162 está fora do pacote). Os quatro pontos do caminho de escrita estão **declarados** no cabeçalho de `armazenamento/conteudo.ts`, com argumentos e posição, para quem os for emitir |
@@ -201,7 +202,7 @@ exige decisão humana registrada para divergir, e nenhuma existe. Mesmo preceden
 de T023 com CA-11.2 e de T017 com CA-8.4. A análise completa está no cabeçalho de
 `publicacao/permissao-de-publicacao.ts`.
 
-### 🔴 Um achado que muda o trabalho de T007
+### 🔴 O achado de T003 que decidiu o trabalho de T007
 
 **`wp_publish_post()` não toca `post_name`.** A unicidade do identificador na URL
 é cobrada por `wp_unique_post_slug()`, chamada de `wp_insert_post()`
@@ -209,8 +210,9 @@ de T023 com CA-11.2 e de T017 com CA-8.4. A análise completa está no cabeçalh
 do rascunho muda sozinho ao publicar"* (BR-MIGRAR-005, CA-3.2) acontece quando se
 publica **salvando**, e **não** quando se publica por esta transição: por esta
 porta, o identificador duplicado sobrevive à publicação. São dois caminhos para
-publicado, e só um deles cobra unicidade. Quem pegar **T007** precisa disso antes
-de escrever a primeira linha.
+publicado, e só um deles cobra unicidade. **T007 o confirmou e o preservou:** a
+unicidade está no caminho de gravação, e por esta porta o identificador duplicado
+continua sobrevivendo à publicação.
 
 ### O que T003 NÃO fez, e por quê
 
@@ -287,20 +289,13 @@ que abre com *"duas regras para a mesma coluna"*, e
    porque `wp_update_post()` mistura a linha existente antes de chamar — e essa
    mistura **não** é desta tarefa (ver abaixo).
 
-### 🔴 O que T005 declara, e que T007 herda
+### A lacuna que T005 declarou, e que T007 fechou
 
-**Nesta tarefa, gravar conteúdo publicado sem informar identificador na URL grava
-a coluna vazia.** O legado gravaria o título sanitizado e único
-(`:4742`-`:4761`, `:4906` e a segunda escrita de `:5046`), e as três coisas são
-**T007** (US-3). Para o rascunho de US-2 o valor coincide — o legado também grava
-vazio, porque `draft`, `pending` e `auto-draft` dispensam o identificador —, e
-para o publicado a diferença é exatamente o conteúdo da tarefa seguinte, que
-depende desta. Está declarada em três lugares: no `@see` de
-`resolverIdentificadorNaUrl`, na tabela de passos de `gravar.ts` e aqui.
-
-Somado ao achado de T003 (`wp_publish_post()` não toca `post_name`), T007 chega
-com o mapa pronto: **são dois caminhos para publicado, só um deles cobra
-unicidade, e o que cobra é este.**
+T005 registrou que *"gravar conteúdo publicado sem informar identificador na URL
+grava a coluna vazia"*, onde o legado gravaria o título sanitizado e único. **Os
+três passos que faltavam são de T007 e estão no lugar** — `:4745`-`:4763`,
+`:4906` e a segunda escrita de `:5047` —, e a tabela de 24 passos de
+`gravacao/gravar.ts` marca os quatro como `sim`.
 
 ### A função do legado que T005 NÃO portou, de propósito
 
@@ -325,9 +320,9 @@ com a linha do legado de cada passo e um "sim" ou "não" por linha. Em resumo:
 | não fez | de quem é |
 |---|---|
 | os quatro testes de `backlog/tests.md` (UT-020-1 a UT-020-4) | **T006**, a tarefa `[P]` que roda em paralelo com esta |
-| sanitizar e tornar único o identificador na URL | **T007** (US-3) — ver a seção acima |
+| sanitizar e tornar único o identificador na URL | **T007** (US-3) — feito, ver a seção de T007 |
 | a comparação de 60 segundos que troca publicado por agendado | **T013** (US-6). É o único passo desta função que lê a porta de relógio |
-| esvaziar o identificador de quem não pode publicar | **T015** (US-7, CA-7.4), e é ela que acrescenta a `base` de autorização ao contexto |
+| esvaziar o identificador de quem não pode publicar | **T007** (US-3, CA-3.4) — feito, e foi ela que acrescentou a `base` de autorização ao contexto. CA-7.4 é a mesma linha do legado |
 | guardar a versão anterior | **T021** (US-10) — e o achado é que ela **não** é código de `wp_insert_post()`: é ouvinte do ponto `post_updated`, com prioridade 10 (`default-filters.php:450`) |
 | o rascunho automático | **T023** (US-11), e a recusa de `auto-draft` pedido pela API (CA-11.3) não está nesta função: está na superfície REST |
 | emitir a transição de estado e a família `save_post` deste caminho | ninguém deste pacote emite ponto (REQ-162 está em `do-not-rewrite.md`). Os sete estão declarados em `gravar.ts` com nome, argumentos e posição. A fronteira cai antes deles porque emitir **meia** transição — interceptadores sem o ouvinte do núcleo — perderia o `guid` e a limpeza do evento agendado em silêncio |
@@ -335,6 +330,136 @@ com a linha do legado de cada passo e um "sim" ou "não" por linha. Em resumo:
 | `sanitize_post()`, `wp_encode_emoji()`, `wp_unslash()` e `sanitize_trackback_urls()` | `plataforma/`, feature 015 — cada um com a âncora em `campos-na-gravacao.ts`. O primeiro carrega 🔴 REQ-030, que está **fora do pacote** |
 | o arquivo e o contexto do anexo, a imagem destacada e o modelo de página | BC-04 e BC-07. O `inherit` do anexo **está** aqui, porque é a linha seguinte da função portada (mesmo precedente da guarda de republicação nula de T003) |
 | o erro de banco (`db_insert_error`, `db_update_error`) | os dois códigos e os quatro textos estão declarados em `ERROS_DA_GRAVACAO`, e o ramo **não é alcançável**: a porta de dados de T002 não devolve o `false` de `$wpdb`. Quem construir a camada de dados (feature 015) liga a falha a eles |
+
+## O que T007 entrega, e só isso
+
+> *o comportamento de US-3 existe e os critérios CA-3.1, CA-3.2, CA-3.3, CA-3.4
+> passam contra o sistema novo*
+> — `.specify/specs/002-autoria-e-publicacao/tasks.md`, T007
+
+Tudo em `gravacao/`, porque é lá que o legado tem a regra: **as duas chamadas de
+`wp_unique_post_slug()` são `:4906` e `:5048`, dentro de `wp_insert_post()`**. Os
+casos de uso são os três que a tabela de rastreabilidade de `spec.md` liga a
+US-3: [UC-03](../../../.specify/use-cases/UC-03-publicar-conteudo.md), cujo passo
+4 é *"cobra unicidade do identificador na URL, que em rascunho era dispensada"*,
+[UC-06](../../../.specify/use-cases/UC-06-submeter-conteudo-para-revisao.md),
+cujo passo 3 é *"esvazia o identificador de URL"*, e
+[UC-07](../../../.specify/use-cases/UC-07-revisar-e-publicar-conteudo-de-outro-autor.md),
+cujo passo 5 é *"fixa o identificador de URL, que estava vazio"*.
+
+| arquivo | o que é |
+|---|---|
+| `gravacao/identificador-na-url.ts` | **CA-3.1** e **CA-3.2**: a dispensa (seis casos), os três escopos de unicidade, o laço do sufixo, o truncamento e os **cinco** pontos de extensão |
+| `gravacao/permissao-do-identificador.ts` | **CA-3.4**: o único portão de capacidade deste caminho, e o `case 'publish_post'` que não existia na plataforma |
+| `gravacao/identificador-de-amostra.ts` | **CA-3.3**: o endereço que o editor mostra antes de publicar, que já é o da publicação |
+| `gravacao/us-3-identificador-unico.test.ts` | 49 testes dos quatro critérios, por efeito no banco e por sequência de comandos |
+
+Os quatro passos novos de `wp_insert_post()` — 10, 11, 18 e 20 — estão na posição
+exata do legado em `gravacao/gravar.ts`, e `armazenamento/conteudo.ts` ganhou as
+**três** consultas de unicidade (e nenhuma restrição).
+
+### As seis coisas de T007 que um porte distraído faria diferente
+
+1. **A dispensa tem SEIS casos, não três.** Além de `draft`, `pending` e
+   `auto-draft` (`:5561`), `wp_unique_post_slug()` devolve o identificador como
+   veio para revisão (`inherit` **e** tipo `revision`), para o tipo
+   `user_request` e — mais tarde, dentro do ramo hierárquico — para
+   `nav_menu_item`. Os três últimos não são desta feature e são **linhas desta
+   função**: omitir qualquer um faria o sistema cobrar unicidade onde o legado
+   não cobra. O cenário `@critico` de `PT-002` cobra os quatro primeiros juntos.
+2. **São TRÊS escopos de unicidade, com três consultas diferentes.** Anexo é
+   único em toda a tabela; página, dentro do próprio pai e disputando com anexo;
+   conteúdo em linha do tempo, dentro do próprio tipo. O comentário do legado é
+   a regra: *"Pages are in a separate namespace than posts so page slugs are
+   allowed to overlap post slugs"*. Unificar as três em *"único na tabela"*
+   mudaria o endereço de toda página cujo apelido coincide com o de um post.
+3. **O identificador `'0'` escapa de tudo.** A condição de parada do laço é a
+   **verdade de PHP** do valor devolvido (`while ( $post_name_check )`,
+   `:5620`), e `'0'` é falso lá: um conteúdo gravado com `post_name = '0'` nunca
+   provoca sufixo e nunca é empurrado por um. O mesmo zero é descartado na
+   colisão com arquivo de data (`if ( $slug_num )`, `:5672`). Por isso a porta
+   de dados devolve **o valor encontrado**, e não um booleano.
+4. **O sufixo começa em `2` e encurta a base.** `200 - ( strlen( $suffix ) + 1 )`
+   (`:5617`): ao passar de `-9` para `-10` o identificador base perde um
+   caractere, logo o endereço do centésimo homônimo não é o do nono com outro
+   número. E o `rtrim( $slug, '-' )` de `_truncate_post_slug()` vale **mesmo
+   quando o identificador cabe**: `titulo-` mais sufixo dá `titulo-2`.
+5. **Na inserção de tipo não registrado o colaborador CONSERVA o endereço.** A
+   condição de `:4734` é `! $update && $post_type_object && ! current_user_can(
+   ... )` — com o objeto de tipo falso a conjunção inteira cai, ninguém pergunta
+   nada e o campo fica como veio. Na **atualização** do mesmo tipo a resposta é a
+   oposta: `map_meta_cap()` degrada para `edit_others_posts`
+   (`capabilities.php:421`), que o colaborador não tem. Duas portas, dois
+   resultados.
+6. **A dispensa de CA-3.1 é também sobre quantos comandos saem.** Gravar rascunho
+   não emite consulta de unicidade nenhuma; gravar publicado emite uma por
+   tentativa, mais a leitura do conteúdo no ramo plano (`:5665`, sem condição). A
+   área 3 da Decisão 2 compara *"snapshot + **sequência de comandos**"*, e a
+   tabela de leituras de `gravacao/gravar.ts` tem as nove, com o quando de cada
+   uma.
+
+### 🔴 O que T007 encontrou aberto, e NÃO fechou
+
+**CA-3.3 diz que *"o autor é informado"*, e o legado não notifica ninguém.** Não
+há e-mail, não há aviso de painel e não há registro quando o identificador muda:
+`wp_insert_post()` troca o campo em silêncio. O **P1** exige decisão humana
+registrada para divergir, e nenhuma existe — mesmo precedente de T003 com a
+*"recusa explícita na tela"* de CA-1.1, e o mesmo que T019 vai encontrar em US-9.
+
+O que T007 entregou são **os dois mecanismos pelos quais o legado informa**, e os
+dois são resposta a quem pediu a gravação:
+
+- **depois** de gravar, o resultado traz `identificadorPedido` e
+  `identificadorNaUrl` lado a lado (e `identificadorMudouNaGravacao()` compara os
+  dois) — é o campo `slug` da resposta REST e o endereço que o painel volta a
+  renderizar, o passo 7 de UC-03;
+- **antes** de gravar, `identificadorDeAmostra()` — a metade de
+  `get_sample_permalink()` que é identificador (`wp-admin/includes/post.php:1479`).
+  Ela **finge que o conteúdo está publicado** e passa pela mesma
+  `wp_unique_post_slug()`, logo o endereço que o editor mostra num rascunho já é
+  o da publicação, com sufixo e tudo. É o mecanismo mais direto do critério:
+  *"em lugar de descobrir pelo endereço quebrado"*.
+
+Inventar aqui um aviso seria inventar superfície. Quem decidir que o critério
+pede notificação tem a decisão a registrar, e o ponto onde ela entra está
+nomeado no cabeçalho de `gravacao/identificador-de-amostra.ts`.
+
+### 🔴 O `case 'publish_post'` não existia na plataforma, e T007 não o moveu para lá
+
+`target_architecture.md` põe os 86 `case` de `map_meta_cap()` em
+`plataforma/autorizacao/`, e o README daquela pasta registra a divisão: o caso de
+conteúdo e o de conta estão lá (feature 001), e *"os demais chegam com a feature
+do objeto de cada um"*. `casoDeConteudo()` cobre **editar**, **apagar** e **ler**;
+`publish_post` não está em nenhuma das três.
+
+Ele foi declarado em `gravacao/permissao-do-identificador.ts`, na forma canônica
+de `CasoDeTraducao`, e é exportado para quem montar a autorização da requisição
+registrar junto dos outros. **A regra de dependência 2 proíbe `plataforma/`
+importar `contextos/`, e não o contrário** — um caso declarado aqui é consumível
+lá, por argumento, e um caso declarado lá por esta tarefa decidiria no lugar da
+feature 001.
+
+E o fluxo **não depende de ele estar registrado na base**: no legado
+`map_meta_cap()` tem os 86 casos embutidos, ninguém os registra, e perguntar
+`publish_post` sempre resolve. `podeReservarIdentificador()` acrescenta o próprio
+caso à lista que recebeu, no fim, onde ele não desloca nenhum caso que a base já
+traga. Sem isso, uma composição que esquecesse o caso esvaziaria o identificador
+de um editor.
+
+### O que T007 NÃO fez, e por quê
+
+| não fez | de quem é |
+|---|---|
+| os seis testes de `backlog/tests.md` (UT-021-1 a UT-021-6) | **T008**, a tarefa `[P]` que roda em paralelo com esta |
+| `sanitize_title()` e `utf8_uri_encode()` | `plataforma/formatacao/`, feature 015. Chegam pelo colaborador `TextoDoIdentificador`, com o aviso de **não as implementar "o suficiente"**: o identificador é comparado byte a byte contra o oráculo, e uma versão aproximada produz endereço diferente para todo título com acento, aspa curva ou travessão |
+| `$wp_rewrite->feeds`, `->pagination_base` e `permalink_structure` | BC-07 / BC-08. Chegam pelo colaborador `ReescritaNaGravacao`, e são **leituras a cada chamada**, como no legado |
+| `is_post_type_hierarchical()` | `plataforma/tipos-de-conteudo/`, que não existe nesta árvore. Tipo não registrado devolve `false` e cai no ramo plano, em vez de recusar |
+| o molde do endereço de amostra, e o ponto `sample_permalink` | BC-07 / BC-08: sem o molde o par não existe para ser filtrado. O ponto `editable_slug`, que filtra o **identificador**, está aqui |
+| a **operação** de submeter para revisão | **T015** (US-7). A regra do identificador vazio dela já está aqui: CA-3.4 e CA-7.4 são a mesma linha do legado |
+| o sufixo `__trashed`, que também mexe no identificador | feature 005 (`PT-003`) |
+| cobrar unicidade na transição de T003 | **ninguém**: `wp_publish_post()` não toca `post_name`, e por aquela porta o identificador duplicado sobrevive à publicação. Fechar isso seria fechar um duplicado que o legado deixa passar |
+| limite de tentativa no laço do sufixo | **ninguém**: o legado não tem, e o **P6** proíbe inventar contagem que o produto não tem |
+| invalidar cache depois da segunda escrita | não há cache nesta árvore (REQ-165 ficou fora do pacote). `clean_post_cache()` está nomeada na posição exata do fluxo |
 
 ## O que "enumeração fechada" significa aqui — leia antes de usar o tipo
 
@@ -418,9 +543,10 @@ Dois irmãos deste achado, que também não se "consertam":
 - **O identificador na URL muda sozinho na publicação** (BR-MIGRAR-005). A
   unicidade é dispensada em `draft`, `pending`, `auto-draft`, em revisão e no tipo
   `user_request`. Declarar `UNIQUE` no slug quebra o produto: a dispensa **é** a
-  regra. É T007 (US-3) — e T003 apurou que isso só vale no caminho de
-  **gravação**: `wp_publish_post()` não toca `post_name`, logo por aquela porta o
-  identificador duplicado sobrevive à publicação. Ver a seção de T003.
+  regra. **É T007 (US-3), e está fechada** — em `gravacao/identificador-na-url.ts`,
+  com a dispensa, os três escopos de unicidade e o laço do sufixo. E só vale no
+  caminho de **gravação**: `wp_publish_post()` não toca `post_name`, logo por
+  aquela porta o identificador duplicado sobrevive à publicação.
 - **O agendamento não é confiado** (BR-MIGRAR-006, ADR-0005). A verificação dupla
   recusa publicar o que não está agendado e reagenda quando a data não chegou.
   Num alvo com fila real ela pareceria redundante, e removê-la mudaria o
@@ -513,6 +639,13 @@ ao publicar, o colaborador que não reserva slug, a verificação dupla do
 agendamento, a republicação nula e a ordem dos pontos de filtro na gravação. Para
 as telas do editor, `parity_tests/screens/05-editor-de-blocos-novo.feature` e
 `06-editor-de-blocos-edicao.feature`.
+
+Com T007, **dois desses cenários passam a ter as duas metades no sistema novo**:
+*"Rascunho pode ter slug duplicado, publicado não — e o slug muda sozinho ao
+publicar"*, inclusive a cláusula *"a dispensa de unicidade vale também para
+pendente, rascunho automático, revisão e solicitação de dado pessoal"*, e
+*"Colaborador não reserva slug do que está em revisão"*. Os dois estão afirmados
+em `gravacao/us-3-identificador-unico.test.ts`, com o texto de cada consulta.
 
 **Nenhuma delas é executável hoje:** `parity_specs.md` registra que não há
 oráculo executável nesta árvore (o manifesto de telas declara

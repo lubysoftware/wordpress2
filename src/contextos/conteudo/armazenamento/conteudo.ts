@@ -35,7 +35,11 @@
  *    identificador na URL. `DB-DEG` (BR-MIGRAR-083): escrita grande demais se
  *    degrada em silencio; `DB-UNIQ` (BR-MIGRAR-076) registra que a unicidade do
  *    identificador *"e verificacao de codigo, sujeita a corrida"* — e e corrida
- *    de T007 (US-3), nao restricao daqui.
+ *    de T007 (US-3), nao restricao daqui. **T007 acrescentou as tres consultas
+ *    que fazem a pergunta** (`identificadorDeAnexoEmUso`,
+ *    `identificadorHierarquicoEmUso`, `identificadorPlanoEmUso`) e **nenhuma
+ *    restricao**: a corrida continua existindo, e e ela que BR-MIGRAR-005 poe no
+ *    contrato — *"um alvo que declare `UNIQUE` no slug **quebra** o produto"*.
  *
  * ── OS PONTOS DE EXTENSAO DESTE CAMINHO, DECLARADOS E NAO EMITIDOS ─────────
  *
@@ -73,6 +77,7 @@ import { tabelaDeConteudo } from './chaves-e-tabelas.js';
 import { comoInteiro, comoTexto, primeiraLinha } from './leitura-de-linha.js';
 import {
   colunaDoVinculo,
+  TIPO_DE_ANEXO,
   vinculoDaLinha,
   type VinculoComOPai,
 } from './vinculo-com-o-pai.js';
@@ -199,6 +204,57 @@ export interface RepositorioDeConteudo {
    */
   existeId(id: number): boolean;
   /**
+   * `SELECT post_name FROM $wpdb->posts WHERE post_name = %s AND ID != %d LIMIT 1`
+   * — a consulta de unicidade do **anexo** (`wp-includes/post.php:5598`).
+   *
+   * **Acrescentada por T007** (US-3), junto das duas de baixo. Sao **tres**
+   * consultas e nao uma com ramo, porque o legado tem tres cadeias diferentes e
+   * o texto do comando e o que a area 3 da Decisao 2 compara: *"a consulta
+   * precisa poder ser a MESMA string que o legado envia"*
+   * (`portas/porta-de-dados.ts`). O que muda entre elas e **o escopo da
+   * unicidade**: o anexo e unico em toda a tabela, a pagina so dentro do pai e o
+   * conteudo em linha do tempo dentro do proprio tipo.
+   *
+   * ⚠️ **Devolve o `post_name` encontrado, e nao um booleano.** No legado o
+   * valor volta por `$wpdb->get_var()` e e testado pela **verdade de PHP**
+   * (`while ( $post_name_check )`, `:5620`), logo um identificador gravado como
+   * `'0'` conta como **nao encontrado** e nunca recebe sufixo. Devolver booleano
+   * aqui apagaria esse caminho; quem o le aplica
+   * `verdadeiroComoNoPhp` (ver `../gravacao/identificador-na-url.ts`).
+   */
+  identificadorDeAnexoEmUso(
+    identificadorNaUrl: string,
+    conteudoId: number,
+  ): string | null;
+  /**
+   * `SELECT post_name FROM $wpdb->posts WHERE post_name = %s AND post_type IN
+   * ( %s, 'attachment' ) AND ID != %d AND post_parent = %d LIMIT 1` — a
+   * unicidade do tipo **hierarquico**, dentro da propria arvore
+   * (`wp-includes/post.php:5632`).
+   *
+   * O `'attachment'` literal dentro do `IN` e do legado: pagina e anexo
+   * disputam o mesmo endereco, e conteudo em linha do tempo nao disputa com
+   * nenhum dos dois. Ver {@link identificadorDeAnexoEmUso} sobre o retorno.
+   */
+  identificadorHierarquicoEmUso(
+    identificadorNaUrl: string,
+    tipo: string,
+    conteudoId: number,
+    paiId: number,
+  ): string | null;
+  /**
+   * `SELECT post_name FROM $wpdb->posts WHERE post_name = %s AND post_type = %s
+   * AND ID != %d LIMIT 1` — a unicidade do tipo **plano**
+   * (`wp-includes/post.php:5662`).
+   *
+   * Ver {@link identificadorDeAnexoEmUso} sobre o retorno.
+   */
+  identificadorPlanoEmUso(
+    identificadorNaUrl: string,
+    tipo: string,
+    conteudoId: number,
+  ): string | null;
+  /**
    * Os filhos de um registro, **por tipo** — a leitura das tres semanticas da
    * auto-referencia, que se distinguem so pelo tipo pedido
    * (`wp-includes/post.php:3899`).
@@ -298,6 +354,40 @@ export function criarRepositorioDeConteudo(
       );
     },
 
+    identificadorDeAnexoEmUso(identificadorNaUrl, conteudoId) {
+      return identificadorEncontrado(
+        dados.selecionar({
+          texto:
+            `SELECT post_name FROM ${tabela} ` +
+            `WHERE post_name = ? AND ID != ? LIMIT 1`,
+          parametros: [identificadorNaUrl, conteudoId],
+        }),
+      );
+    },
+
+    identificadorHierarquicoEmUso(identificadorNaUrl, tipo, conteudoId, paiId) {
+      return identificadorEncontrado(
+        dados.selecionar({
+          texto:
+            `SELECT post_name FROM ${tabela} ` +
+            `WHERE post_name = ? AND post_type IN ( ?, '${TIPO_DE_ANEXO}' ) ` +
+            `AND ID != ? AND post_parent = ? LIMIT 1`,
+          parametros: [identificadorNaUrl, tipo, conteudoId, paiId],
+        }),
+      );
+    },
+
+    identificadorPlanoEmUso(identificadorNaUrl, tipo, conteudoId) {
+      return identificadorEncontrado(
+        dados.selecionar({
+          texto:
+            `SELECT post_name FROM ${tabela} ` +
+            `WHERE post_name = ? AND post_type = ? AND ID != ? LIMIT 1`,
+          parametros: [identificadorNaUrl, tipo, conteudoId],
+        }),
+      );
+    },
+
     listarFilhosDoTipo(paiId, tipo) {
       return dados
         .selecionar({
@@ -368,6 +458,23 @@ export function criarRepositorioDeConteudo(
       }).linhasAfetadas;
     },
   };
+}
+
+/**
+ * O `post_name` que a consulta de unicidade achou, ou `null` quando ela nao
+ * achou linha.
+ *
+ * E `$wpdb->get_var()`: a **primeira coluna da primeira linha**, e `null` quando
+ * o resultado e vazio (`class-wpdb.php`). A distincao entre *"nao achou"* e
+ * *"achou e o valor e `'0'`"* chega inteira a quem chama, porque e ela que faz o
+ * identificador `'0'` escapar do sufixo — ver
+ * {@link RepositorioDeConteudo.identificadorDeAnexoEmUso}.
+ */
+function identificadorEncontrado(
+  linhas: readonly LinhaDeResultado[],
+): string | null {
+  const linha = primeiraLinha(linhas);
+  return linha === null ? null : comoTexto(linha['post_name']);
 }
 
 /**
