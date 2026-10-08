@@ -1,15 +1,17 @@
 /**
  * Modulo de conteudo — BC-01 de `target_architecture.md`.
  *
- * Feature `002-autoria-e-publicacao`, tarefas T001, T002, T003, T005 e T007. O
- * que existe aqui e o que as cinco entregam: o modulo carrega com as tres portas
- * declaradas, com o vocabulario de estado editorial do legado como enumeracao
- * fechada, com a forma de armazenamento de conteudo, metadado e versao anterior
- * e com **tres** regras de negocio — a publicacao por ato explicito de US-1, a
- * gravacao com estado resolvido de US-2 e o identificador na URL unico so a
- * partir da publicacao de US-3. Agendamento, submissao, revisao, versao anterior
- * e rascunho automatico entram nas tarefas delas (T009 em diante), e a leitura
- * obrigatoria de cada uma esta em `./README.md`.
+ * Feature `002-autoria-e-publicacao`, tarefas T001, T002, T003, T005, T007, T015
+ * e T017. O que existe aqui e o que as sete entregam: o modulo carrega com as
+ * tres portas declaradas, com o vocabulario de estado editorial do legado como
+ * enumeracao fechada, com a forma de armazenamento de conteudo, metadado e
+ * versao anterior e com **cinco** regras de negocio — a publicacao por ato
+ * explicito de US-1, a gravacao com estado resolvido de US-2, o identificador na
+ * URL unico so a partir da publicacao de US-3, a submissao para revisao de US-7
+ * e a revisao do conteudo alheio com a autoria preservada de US-8. Agendamento,
+ * visibilidade privada, versao anterior e rascunho automatico entram nas tarefas
+ * delas (T009 em diante), e a leitura obrigatoria de cada uma esta em
+ * `./README.md`.
  *
  * Duas coisas que este arquivo faz de proposito:
  *
@@ -59,6 +61,12 @@ import {
   type PedidoDeSubmissao,
   type ResultadoDaSubmissao,
 } from './revisao/index.js';
+import {
+  devolverAoAutor,
+  revisarEPublicar,
+  type PedidoDeRevisaoEditorial,
+  type ResultadoDaRevisaoEditorial,
+} from './revisao-editorial/index.js';
 
 export * from './portas/index.js';
 export * from './estado-editorial.js';
@@ -96,6 +104,21 @@ export * from './gravacao/index.js';
   autor).
 */
 export * from './revisao/index.js';
+/*
+  T017 (US-8) sai pelo barril E pela composicao, pela mesma razao de T003, de
+  T005 e de T015: a tabela *Contratos* de `plan.md` lista *"revisar e publicar
+  de outro autor"* como operacao desta feature, com entrada, saida e erro
+  proprios. O resto da pasta sai pelo barril porque e o que quem monta a tela do
+  editor precisa alcancar: a **lista** de capacidades que o portao comparou — que
+  e o que CA-8.1, CA-8.5 e CA-8.6 distinguem, e e o que uma tela precisa para
+  dizer o que falta —, a resolucao do autor que o formulario devolve e o par de
+  codigos que a superficie de atualizacao da API declara para a autoria alheia.
+
+  ⚠️ Esta pasta NAO acrescenta contexto nem porta: ela usa o `ContextoDeRevisao`
+  de T015, porque no legado as duas historias sao a mesma funcao — `edit_post()`
+  — e o gatilho de UC-07 e a fila que aquele contexto ja serve.
+*/
+export * from './revisao-editorial/index.js';
 
 /** As tres portas de que este modulo depende, na forma em que ele as recebe. */
 export interface PortasDeConteudo {
@@ -116,6 +139,7 @@ export interface PortasDeConteudo {
  * | `gravar` | US-2, US-3 | T005, T007 | **nenhuma para gravar, como no legado** — `wp_insert_post()` nao tem portao, e o achado de QA de REQ-020 registra que o card nao tem recusa propria. A **unica** decisao de capacidade do caminho nao recusa: ela esvazia o identificador na URL de quem nao pode publicar, em `pending` (CA-3.4) |
  * | `publicar` | US-1 | T003 | **a capacidade de publicar daquele tipo** (`$post_type->cap->publish_posts`), CA-1.1 |
  * | `submeterParaRevisao` | US-7 | T015 | **a capacidade de editar AQUELE conteudo** (`edit_post`, com o objeto), somada a de mexer em conteudo alheio quando o autor do pedido nao e quem pede. A capacidade de **publicar** nao e exigida: ela e perguntada, e decide o estado gravado (CA-7.1) e o identificador esvaziado (CA-7.4) |
+ * | `revisarEPublicar` e `devolverAoAutor` | US-8 | T017 | **a mesma** `edit_post` com o objeto, e para conteudo de outra pessoa ela resolve na **soma** de `edit_others_posts` daquele tipo com a que o estado exige — `edit_published_posts` em publicado e agendado, `edit_private_posts` em privado (CA-8.1). Trocar o autor exige, por cima, a primitiva do alheio. A de **publicar** continua apenas perguntada: sem ela, o estado e rebaixado para `pending`, nao recusado |
  *
  * O armazenamento **nao e operacao**, e por isso nao declara permissao: ele nao
  * decide nada.
@@ -208,6 +232,69 @@ export interface ModuloDeConteudo {
     contexto: ContextoDeRevisao,
     pedido: PedidoDeSubmissao,
   ): ResultadoDaSubmissao;
+
+  /**
+   * Revisa e publica o conteudo que **outra pessoa** escreveu, preservando a
+   * autoria original (US-8, T017).
+   *
+   * **Permissao exigida: a capacidade de editar AQUELE conteudo** — a **mesma**
+   * `edit_post` com o objeto que `submeterParaRevisao` pergunta, porque no
+   * legado as duas historias sao a mesma funcao (`edit_post()`,
+   * `wp-admin/post.php:236`). O que muda e o que a traducao **devolve**: para o
+   * conteudo de outra pessoa ela soma `edit_others_posts` daquele tipo a
+   * capacidade que o estado exige — `edit_published_posts` em publicado e em
+   * agendado, `edit_private_posts` em privado
+   * (`wp-includes/capabilities.php:266`-`:275`, **CA-8.1**). O erro e o que
+   * `plan.md` declara: *"sem permissao sobre conteudo de outro"*.
+   *
+   * A lista que o portao comparou sai no resultado, e nao e enfeite: **CA-8.1**
+   * (a soma), **CA-8.5** (a familia de pagina) e **CA-8.6** (a capacidade da
+   * funcao especial declarada) sao criterios sobre a **lista**, nao sobre o
+   * booleano.
+   *
+   * ⚠️ **A capacidade de publicar continua apenas perguntada**, como em US-7 e
+   * pela mesma linha: quem tem `edit_others_posts` e nao tem `publish_posts`
+   * **nao e recusado** — o estado pedido e rebaixado para `pending`
+   * (`wp-admin/includes/post.php:152`-`:159`).
+   *
+   * ⚠️ **A autoria original sobrevive por dois mecanismos, e nenhum deles e um
+   * `if` que diga isso**: a superficie devolve o autor da linha antes de
+   * traduzir o pedido (`:691`-`:695`) e a mistura de `wp_update_post()` faz
+   * chave ausente conservar o valor gravado (`wp-includes/post.php:5367`). A
+   * analise esta em `revisao-editorial/autoria-na-revisao.ts`.
+   *
+   * O contexto chega por argumento, e nao pela composicao, pela mesma razao das
+   * outras tres operacoes (AD-02, BR-MIGRAR-105) — e aqui ela tem consequencia
+   * direta: a decisao de capacidade e sobre **quem revisa**, e o cenario
+   * `@concorrencia` de `PT-002` cobra que duas gravacoes simultaneas nao troquem
+   * de autoria.
+   */
+  revisarEPublicar(
+    contexto: ContextoDeRevisao,
+    pedido: PedidoDeRevisaoEditorial,
+  ): ResultadoDaRevisaoEditorial;
+
+  /**
+   * Devolve o conteudo ao autor, voltando o estado para rascunho sem perder o
+   * texto (US-8, T017, **CA-8.4**).
+   *
+   * **Permissao exigida: a mesma de {@link ModuloDeConteudo.revisarEPublicar}**
+   * — e o mesmo `edit_post()` com o mesmo portao.
+   *
+   * 🟢 **E o seletor de estado da tela, nao um botao**, e o painel so o
+   * renderiza para quem pode publicar (`wp-admin/includes/meta-boxes.php:129` e
+   * `:160`-`:165`): devolver ao autor e privilegio de quem podia ter publicado,
+   * e nao ha outro caminho pelo painel.
+   *
+   * ⚠️ **Nenhum aviso sai daqui.** UC-07 e literal — *"Nenhuma notificacao e
+   * enviada ao autor: o sistema nao avisa"* — e US-9 pede o contrario. A
+   * divergencia esta registrada, e **nao resolvida**, na PARADA de
+   * `portas/porta-de-email.ts`: quem pegar T019 decide com quem decide.
+   */
+  devolverAoAutor(
+    contexto: ContextoDeRevisao,
+    pedido: PedidoDeRevisaoEditorial,
+  ): ResultadoDaRevisaoEditorial;
 }
 
 /**
@@ -237,5 +324,7 @@ export function criarModuloDeConteudo(
     publicar,
     gravar: gravarConteudo,
     submeterParaRevisao,
+    revisarEPublicar,
+    devolverAoAutor,
   };
 }

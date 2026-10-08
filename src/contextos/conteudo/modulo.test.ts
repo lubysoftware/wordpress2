@@ -94,7 +94,7 @@ test('o modulo carrega com as tres portas declaradas', () => {
   assert.equal(modulo.portas.relogio, portas.relogio);
 });
 
-test('a superficie do modulo e so o que T001, T002, T003, T005 e T015 entregam', () => {
+test('a superficie do modulo e so o que T001, T002, T003, T005, T015 e T017 entregam', () => {
   const { portas } = portasDeTeste();
 
   const modulo = criarModuloDeConteudo(portas);
@@ -103,19 +103,23 @@ test('a superficie do modulo e so o que T001, T002, T003, T005 e T015 entregam',
   // acrescentou `publicar` — a primeira operacao da tabela *Contratos* de
   // `plan.md` a entrar aqui, e a primeira a declarar capacidade (CA-1.1) —; em
   // T005, que acrescentou `gravar`, a operacao que no legado **nao tem portao**
-  // (ver `gravacao/gravar.ts`); e em T015, que acrescentou
-  // `submeterParaRevisao`, cuja permissao e `edit_post` sobre o objeto e cuja
-  // falta de `publish_posts` **nao recusa nada** (ver
-  // `revisao/permissao-de-revisao.ts`). As outras tres crescem NA TAREFA DELAS.
-  // Esta afirmacao esta aqui para que nenhuma operacao chegue antes da propria
-  // tarefa, que e o que o P4 da constituicao cobra: "toda operacao exposta nova
-  // nasce com declaracao explicita de permissao".
+  // (ver `gravacao/gravar.ts`); em T015, que acrescentou `submeterParaRevisao`,
+  // cuja permissao e `edit_post` sobre o objeto e cuja falta de `publish_posts`
+  // **nao recusa nada** (ver `revisao/permissao-de-revisao.ts`); e em T017, que
+  // acrescentou `revisarEPublicar` e `devolverAoAutor` — as duas metades de
+  // UC-07, com a **mesma** `edit_post` resolvendo na soma de `edit_others_posts`
+  // com a capacidade do estado (ver `revisao-editorial/`). As outras crescem NA
+  // TAREFA DELAS. Esta afirmacao esta aqui para que nenhuma operacao chegue
+  // antes da propria tarefa, que e o que o P4 da constituicao cobra: "toda
+  // operacao exposta nova nasce com declaracao explicita de permissao".
   assert.deepEqual(Object.keys(modulo).sort(), [
     'armazenamento',
+    'devolverAoAutor',
     'gravar',
     'nome',
     'portas',
     'publicar',
+    'revisarEPublicar',
     'submeterParaRevisao',
   ]);
 });
