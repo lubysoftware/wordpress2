@@ -116,13 +116,20 @@ test('a superficie do modulo tem exatamente as operacoes das tarefas fechadas', 
   // `cadastrar`, tambem sem capacidade — quem autoriza e a OPCAO
   // `users_can_register`, que nasce desligada (`U1`), e o ator e o visitante,
   // que por definicao nao tem papel.
+  // T021 (US-10): `emitirCredencialDeAplicacao` e
+  // `revogarCredencialDeAplicacao`, as duas com `edit_user` da conta alvo
+  // declarado na interface do modulo — e sao as PRIMEIRAS operacoes desta lista
+  // que exigem capacidade. As quatro anteriores declaram "nenhuma"; estas
+  // declaram a de UC-22, e CA-10.4 e o critério que a cobra.
   assert.deepEqual(Object.keys(modulo).sort(), [
     'armazenamento',
     'autenticar',
     'cadastrar',
+    'emitirCredencialDeAplicacao',
     'nome',
     'portas',
     'redefinirSenha',
+    'revogarCredencialDeAplicacao',
     'sair',
     'sessaoDaRequisicao',
     'solicitarRedefinicaoDeSenha',

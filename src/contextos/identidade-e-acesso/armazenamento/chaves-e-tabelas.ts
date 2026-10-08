@@ -82,6 +82,24 @@ export function chaveDeNivel(prefixos: Prefixos): string {
 export const CHAVE_DE_TOKENS_DE_SESSAO = 'session_tokens';
 
 /**
+ * `_application_passwords` — **sem prefixo**, e pelo mesmo motivo da sessao.
+ *
+ * A credencial de aplicacao e da **conta**, nao do site: ela prova identidade, e
+ * `permissions.md` §8.2 registra que ela *"vale exatamente o que a conta vale"* —
+ * logo numa rede ela vale em todos os sites, enquanto a autorizacao muda de chave
+ * a cada site. Prefixar esta chave daria a cada site uma credencial propria, que
+ * e comportamento que o legado nao tem.
+ *
+ * O nome e o do legado, lido na primeira das tres ancoras que a rastreabilidade de
+ * US-10 cita (`wp-includes/class-wp-application-passwords.php:24`, a constante
+ * `USERMETA_KEY_APPLICATION_PASSWORDS`). O sublinhado inicial nao e enfeite: no
+ * legado ele e a marca de metadado **protegido**, que a interface de campos
+ * personalizados nao lista nem deixa editar. Renomear a chave esconderia a
+ * credencial de quem le o banco e exporia o resumo a quem edita perfil.
+ */
+export const CHAVE_DE_SENHAS_DE_APLICACAO = '_application_passwords';
+
+/**
  * `{site}user_roles` — o nome da opcao em que a definicao dos papeis e gravada.
  *
  * ADR-0001: a definicao e **dado gravado**, nao codigo. O nome carrega o

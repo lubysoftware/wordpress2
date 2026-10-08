@@ -70,6 +70,17 @@ import {
   type ResultadoDoCadastro,
 } from './cadastro/cadastrar.js';
 import type { ContextoDeCadastro } from './cadastro/contexto-de-cadastro.js';
+import {
+  emitirCredencialDeAplicacao,
+  type PedidoDeEmissao,
+  type ResultadoDaEmissao,
+} from './senha-de-aplicacao/emitir-credencial.js';
+import {
+  revogarCredencialDeAplicacao,
+  type PedidoDeRevogacao,
+  type ResultadoDaRevogacao,
+} from './senha-de-aplicacao/revogar-credencial.js';
+import type { ContextoDeSenhaDeAplicacao } from './senha-de-aplicacao/contexto-de-senha-de-aplicacao.js';
 
 export * from './portas/index.js';
 export * from './armazenamento/index.js';
@@ -155,6 +166,24 @@ export * from './cadastro/erro-de-cadastro.js';
 export * from './cadastro/geracao-de-segredo.js';
 export * from './cadastro/notificacao-de-conta-nova.js';
 export * from './cadastro/validacao-de-cadastro.js';
+/*
+  T021 (US-10) sai pelo barril E pela composicao, e as duas coisas tem motivo. As
+  DUAS OPERACOES entram em `ModuloDeIdentidadeEAcesso` porque a tabela *Contratos*
+  de `plan.md` as lista como operacao desta feature, com entrada, saida e erro
+  proprios — e porque esta e a primeira operacao do modulo que EXIGE capacidade,
+  logo a declaracao de permissao que o P4 cobra tem de aparecer na interface, ao
+  lado das quatro que declaram "nenhuma".
+
+  O CASO DE TRADUCAO das seis capacidades sai so pelo barril, como `fonte-de-papeis`:
+  ele e costura de autorizacao, nao passo de fluxo, e quem o consome e quem monta o
+  contexto de autorizacao da requisicao.
+*/
+export * from './senha-de-aplicacao/autorizacao-de-senha-de-aplicacao.js';
+export * from './senha-de-aplicacao/contexto-de-senha-de-aplicacao.js';
+export * from './senha-de-aplicacao/emitir-credencial.js';
+export * from './senha-de-aplicacao/erro-de-senha-de-aplicacao.js';
+export * from './senha-de-aplicacao/geracao-de-credencial.js';
+export * from './senha-de-aplicacao/revogar-credencial.js';
 
 /*
   ── DOIS NOMES QUE COLIDEM NO BARRIL, E NENHUM DOS DOIS SOME ────────────────
@@ -198,6 +227,8 @@ export interface PortasDeIdentidadeEAcesso {
  * | `solicitarRedefinicaoDeSenha` | US-4 | T009 | **nenhuma capacidade**, declarada (ver abaixo) |
  * | `redefinirSenha` | US-4 | T009 | **nenhuma capacidade**, declarada (ver abaixo) |
  * | `cadastrar` | US-6 | T013 | **nenhuma capacidade**, declarada (ver abaixo) |
+ * | `emitirCredencialDeAplicacao` | US-10 | T021 | **`edit_user` daquela conta** (CA-10.4) |
+ * | `revogarCredencialDeAplicacao` | US-10 | T021 | **`edit_user` daquela conta** (CA-10.4) |
  */
 export interface ModuloDeIdentidadeEAcesso {
   readonly nome: 'identidade-e-acesso';
@@ -333,6 +364,53 @@ export interface ModuloDeIdentidadeEAcesso {
     dados: DadosDoCadastro,
     contexto: ContextoDeCadastro,
   ): ResultadoDoCadastro;
+
+  /**
+   * Emite uma credencial de aplicacao, exibindo o segredo uma unica vez (US-10,
+   * T021 — passos 1 a 4 de UC-22).
+   *
+   * **Permissao exigida: `edit_user` da conta alvo, e e a primeira operacao deste
+   * modulo que exige capacidade.** A linha *Autorizacao* de UC-22 e literal —
+   * *"`edit_user` daquele usuario. As seis capacidades de senha de aplicacao
+   * resolvem todas para isso: quem pode editar a conta administra as credenciais
+   * dela"* — e CA-10.4 cobra exatamente isso. A capacidade **pedida** e
+   * `create_app_password`: a traducao dela esta em
+   * `senha-de-aplicacao/autorizacao-de-senha-de-aplicacao.js`, e quem compoe tem
+   * de registra-la nos casos de traducao do contexto de autorizacao.
+   *
+   * A segunda pre-condicao de UC-22 — *"a conexao e segura, ou a instalacao
+   * dispensou o requisito"* — **nao** e cobrada aqui: no legado quem a cobra e a
+   * camada de rota, e o slot `framework-http` esta em aberto. A consequencia esta
+   * declarada no cabecalho de
+   * `senha-de-aplicacao/contexto-de-senha-de-aplicacao.ts`.
+   *
+   * O contexto chega por argumento, e nao pela composicao, pelo mesmo motivo de
+   * `autenticar` — e aqui com uma razao a mais: ele carrega a autorizacao da
+   * requisicao, que e o estado que `EXT-CONTEXTO` (BR-MIGRAR-105) mais proibe
+   * guardar.
+   */
+  emitirCredencialDeAplicacao(
+    pedido: PedidoDeEmissao,
+    contexto: ContextoDeSenhaDeAplicacao,
+  ): ResultadoDaEmissao;
+
+  /**
+   * Revoga uma credencial de aplicacao (US-10, T021 — fluxo *Revogar uma senha* de
+   * UC-22).
+   *
+   * **Permissao exigida: a mesma, `edit_user` da conta alvo.** UC-22 e explicito —
+   * *"a capacidade exigida continua sendo `edit_user` daquele usuario"* —, e a
+   * capacidade pedida e `delete_app_password`.
+   *
+   * 🔴 A metade de CA-10.3 que fala em *"deixar de autenticar"* nao e verificavel
+   * neste pacote: quem autentica com a credencial e `REQ-012`, que nao entrou (ver
+   * o cabecalho de `senha-de-aplicacao/revogar-credencial.ts` e o risco 2 de
+   * `plan.md`).
+   */
+  revogarCredencialDeAplicacao(
+    pedido: PedidoDeRevogacao,
+    contexto: ContextoDeSenhaDeAplicacao,
+  ): ResultadoDaRevogacao;
 }
 
 /** O que a instalacao informa ao modulo. Ver `armazenamento/index.ts`. */
@@ -370,5 +448,7 @@ export function criarModuloDeIdentidadeEAcesso(
     solicitarRedefinicaoDeSenha,
     redefinirSenha,
     cadastrar,
+    emitirCredencialDeAplicacao,
+    revogarCredencialDeAplicacao,
   };
 }
