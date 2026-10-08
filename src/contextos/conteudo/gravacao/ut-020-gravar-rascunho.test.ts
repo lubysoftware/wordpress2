@@ -116,6 +116,7 @@ import {
   PROPRIEDADES_DO_ESTADO_EDITORIAL,
   type EstadoEditorial,
 } from '../estado-editorial.js';
+import { REDE_INATIVA_NA_AUTORIZACAO } from '../../../plataforma/autorizacao/index.js';
 import type { LinhaDeResultado } from '../portas/index.js';
 import {
   ESTADO_ANTERIOR_DE_CONTEUDO_NOVO,
@@ -196,6 +197,33 @@ function cenario(linha: LinhaDeResultado | null = linhaDeConteudo()): Cenario {
   const contexto: ContextoDeGravacao = {
     ator: { contaId: 3, login: 'autora', existe: true, concessoes: [] },
     armazenamento: { conteudo: criarRepositorioDeConteudo(dados.porta) },
+    /*
+      Os cinco campos abaixo entraram em `ContextoDeGravacao` com T007, e esta
+      suite nasceu em T005, numa arvore que nao os tinha — o merge das duas so
+      acusou no `tsc`. Valores minimos de proposito: eles alimentam a decisao
+      do identificador na URL, que tem suite propria (US-3). Aqui existem para
+      o contexto estar completo, nao para serem exercitados.
+    */
+    base: { matriz: [], rede: REDE_INATIVA_NA_AUTORIZACAO },
+    texto: {
+      sanitizarTitulo: (titulo: string, reserva: string) =>
+        titulo
+          .toLowerCase()
+          .replace(/[\s_]+/g, '-')
+          .replace(/[^a-z0-9-]/g, '') || reserva,
+      codificarEmUtf8NaUrl: (texto: string, tamanho: number) => texto.slice(0, tamanho),
+    },
+    reescrita: {
+      feeds: () => ['feed', 'rdf', 'rss', 'rss2', 'atom'],
+      baseDePaginacao: () => 'page',
+      estruturaDeLinks: () => '',
+    },
+    tipoDeConteudo: (nome: string) => ({
+      nome,
+      traduzMetaCapacidade: true,
+      capacidades: { publish_posts: 'publish_posts' },
+    }),
+    tipoEHierarquico: () => false,
     datas: {
       agoraNoFusoDoSite: () => AGORA_LOCAL,
       agoraEmUtc: () => AGORA_UTC,

@@ -94,7 +94,7 @@ test('o modulo carrega com as tres portas declaradas', () => {
   assert.equal(modulo.portas.relogio, portas.relogio);
 });
 
-test('a superficie do modulo e so o que T001, T002, T003 e T005 entregam', () => {
+test('a superficie do modulo e so o que T001, T002, T003, T005, T007 e T009 entregam', () => {
   const { portas } = portasDeTeste();
 
   const modulo = criarModuloDeConteudo(portas);
@@ -103,12 +103,16 @@ test('a superficie do modulo e so o que T001, T002, T003 e T005 entregam', () =>
   // acrescentou `publicar` — a primeira operacao da tabela *Contratos* de
   // `plan.md` a entrar aqui, e a primeira a declarar capacidade (CA-1.1) —; e em
   // T005, que acrescentou `gravar`, a operacao que no legado **nao tem portao**
-  // (ver `gravacao/gravar.ts`). As outras quatro crescem NA TAREFA DELAS. Esta
-  // afirmacao esta aqui para que nenhuma operacao chegue antes da propria
-  // tarefa, que e o que o P4 da constituicao cobra: "toda operacao exposta nova
-  // nasce com declaracao explicita de permissao".
+  // (ver `gravacao/gravar.ts`); e T009, que acrescentou `escolherVisibilidade`,
+  // a operacao de US-4, com a MESMA capacidade e exigida so quando a
+  // visibilidade resolve em `private` (CA-4.1). As demais crescem NA TAREFA
+  // DELAS. Esta afirmacao esta aqui para que nenhuma operacao chegue antes da
+  // propria tarefa, que e o que o P4 da constituicao cobra: "toda operacao
+  // exposta nova nasce com declaracao explicita de permissao".
   assert.deepEqual(Object.keys(modulo).sort(), [
     'armazenamento',
+    // Ordem alfabetica porque a lista e comparada depois de `.sort()`.
+    'escolherVisibilidade',
     'gravar',
     'nome',
     'portas',

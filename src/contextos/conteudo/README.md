@@ -2,11 +2,11 @@
 
 Esqueleto entregue por **T001** da feature `002-autoria-e-publicacao`, com a
 forma de armazenamento entregue por **T002**, a publicação por ato explícito
-(US-1) entregue por **T003**, a gravação com estado resolvido (US-2) entregue por
-**T005** e o identificador na URL único só a partir da publicação (US-3) entregue
-por **T007**. Este arquivo é a leitura obrigatória de quem pegar T009 em diante:
-ele diz o que já está decidido, o que está decidido **em outro lugar**, e o que
-ninguém decidiu.
+(US-1) entregue por **T003**, a gravação com estado resolvido (US-2) entregue
+por **T005**, o identificador na URL único só a partir da publicação (US-3)
+entregue por **T007** e o conteúdo privado (US-4) entregue por **T009**. Este
+arquivo é a leitura obrigatória de quem pegar T011 em diante: ele diz o que já
+está decidido, o que está decidido **em outro lugar**, e o que ninguém decidiu.
 
 ## O que T001 entrega, e só isso
 
@@ -460,6 +460,120 @@ de um editor.
 | cobrar unicidade na transição de T003 | **ninguém**: `wp_publish_post()` não toca `post_name`, e por aquela porta o identificador duplicado sobrevive à publicação. Fechar isso seria fechar um duplicado que o legado deixa passar |
 | limite de tentativa no laço do sufixo | **ninguém**: o legado não tem, e o **P6** proíbe inventar contagem que o produto não tem |
 | invalidar cache depois da segunda escrita | não há cache nesta árvore (REQ-165 ficou fora do pacote). `clean_post_cache()` está nomeada na posição exata do fluxo |
+## O que T009 entrega, e só isso
+
+> *o comportamento de US-4 existe e os critérios CA-4.1, CA-4.2, CA-4.3, CA-4.4
+> passam contra o sistema novo*
+> — `.specify/specs/002-autoria-e-publicacao/tasks.md`, T009
+
+Tudo em `visibilidade/`. Os casos de uso são
+[UC-03](../../../.specify/use-cases/UC-03-publicar-conteudo.md), fluxo alternativo
+*"Publicar como privado"*, e
+[UC-01](../../../.specify/use-cases/UC-01-consultar-conteudo-publicado.md), fluxo
+alternativo *"Conteúdo privado"* — os dois que a tabela de rastreabilidade de
+`spec.md` liga a US-4.
+
+| arquivo | o que é |
+|---|---|
+| `visibilidade/contexto-de-visibilidade.ts` | o contexto, e as **duas ausências** com motivo: nem porta de dados nem relógio |
+| `visibilidade/visibilidade-do-conteudo.ts` | **CA-4.1**: o `switch` de visibilidade, os três ramos e os dois efeitos colaterais |
+| `visibilidade/permissao-de-conteudo-privado.ts` | **CA-4.1**: a capacidade, que é a de publicar, e o rebaixamento **próprio** do painel |
+| `visibilidade/leitura-de-conteudo-privado.ts` | **CA-4.2** e **CA-4.3**: o portão de duas alturas, e a resposta indistinguível |
+| `visibilidade/presenca-em-consulta-publica.ts` | **CA-4.4**: listagem e feed por registro de estados, sitemap por literal |
+| `visibilidade/escolher-visibilidade.ts` | a operação de US-4, e a razão de ela não gravar |
+| `visibilidade/us-4-conteudo-privado.test.ts` | 26 testes dos quatro critérios, por efeito no banco e por decisão |
+
+`escolherVisibilidade` é a segunda entrada de `ModuloDeConteudo` e declara a
+permissão que o **P4** exige: a **mesma** capacidade de `publicar`, e exigida
+**somente** quando a visibilidade resolve em `private`.
+
+### As quatro coisas de T009 que um porte distraído faria diferente
+
+1. **`private` não é "publicado com um atributo": é um valor da mesma coluna**, e
+   os três critérios de leitura saem das propriedades com que o legado o
+   registra (`wp-includes/post.php:718`-`:730`). A propriedade `privado` é o que
+   faz a leitura exigir `read_private_posts`; a ausência de `publico` é o que o
+   tira da consulta pública. Um porte que gravasse `publish` com uma marca ao
+   lado passaria em CA-4.1 e falharia nos três outros **sem erro nenhum**.
+2. **As três superfícies de CA-4.4 são DOIS mecanismos.** Listagem e feed são a
+   mesma consulta, montada a partir do **registro de estados**, e **mostram** o
+   privado a quem tem a capacidade (`class-wp-query.php:2738`-`:2766`); o mapa do
+   site pede `publish` **por nome** (`class-wp-sitemaps-posts.php:244` e `:123`)
+   e não o mostra a ninguém, nem ao super administrador. Unificar os dois ou põe
+   endereço privado no mapa do site, ou esconde o privado da própria listagem de
+   quem o pode ler. E o feed **não** tem regra própria: ele herda a da listagem
+   (`wp-includes/functions.php:1612`) — quem lhe escrever consulta própria repete
+   a cláusula, e é aí que o vazamento entra.
+3. **O autor lê e lista o PRÓPRIO conteúdo privado sem ter `read_private_posts`.**
+   Na leitura, `map_meta_cap()` devolve `read` para o autor
+   (`wp-includes/capabilities.php:374`-`:375`); na listagem, a cláusula vira um
+   recorte por `post_author` (`class-wp-query.php:2764`). É por isso que esta
+   tarefa **pergunta por `read_post`** e deixa a plataforma traduzir, em vez de
+   perguntar direto pela capacidade privada: perguntar direto perderia este ramo,
+   o da revisão e os dois de degradação de `PERM-4`.
+4. **A visibilidade privada apaga a senha de conteúdo e retira a fixação no
+   topo** (`wp-admin/includes/post.php:326`-`:330`). Os dois mecanismos de
+   restrição são exclusivos por construção — privado esconde a **existência**, a
+   senha esconde o **corpo** —, e CA-6.6 da feature 004 diz o oposto para a senha:
+   *"o conteúdo protegido continua aparecendo em sitemap e listagem"*.
+
+### Por que T009 não emite comando de escrita
+
+**No legado não existe função que leve conteúdo a privado.** Não há
+`wp_private_post()`: o privado chega à coluna por duas peças, as duas **sem
+escrita**, as duas rodando antes de `wp_insert_post()` — o `switch` de
+visibilidade (`wp-admin/includes/post.php:318`-`:331` e `:950`-`:964`) e
+`handle_status_param()` (`class-wp-rest-posts-controller.php:1569`-`:1583`). Quem
+escreve é `wp_insert_post()`, com **um** `UPDATE` de 21 colunas que ela mesma
+resolve, e esse caminho é **T005** em diante.
+
+`tasks.md` dá a T009 as dependências T001, T002 e T003 — não T005 —, e `plan.md`
+põe a gravação **antes** do conteúdo privado na *Sequência* interna da feature.
+Emitir aqui um `UPDATE` de duas colunas pareceria mais completo e seria uma
+divergência medida: a área 3 da Decisão 2 compara *"snapshot + sequência de
+comandos"*, e o legado não tem comando de duas colunas neste caminho. Por isso a
+operação resolve e devolve `CamposDeConteudo` — o mesmo tipo que a gravação
+consome —, e a suíte fecha o circuito levando esses campos ao repositório real de
+T002 e afirmando, nos bytes do parâmetro, que `post_status` carrega `private` e
+não `publish`.
+
+### 🔴 O que T009 encontrou aberto, e NÃO fechou
+
+1. **O painel não recusa a visibilidade privada: ele a rebaixa, e de um jeito
+   diferente do rebaixamento de `publish`.** Sem a capacidade de publicar, pedir
+   `private` grava **o estado anterior**, ou `pending` quando não há
+   (`wp-admin/includes/post.php:142`-`:144`); pedir `publish` ou `future` grava
+   `pending` (`:152`-`:159`). A diferença é observável — um rascunho continua
+   rascunho em vez de ir para a fila de revisão — e uniformizar os dois poria em
+   revisão rascunhos que o legado deixa quietos. É o mesmo precedente de T003
+   com CA-1.1: **a recusa sai como valor**, com o código e o texto da API
+   (`rest_cannot_publish` e *"Sorry, you are not allowed to create private posts
+   in this post type."*), o rebaixamento fica **declarado e não aplicado**, e a
+   divergência de redação vai para quem decide. O **P1** exige decisão humana
+   registrada para divergir, e nenhuma existe.
+2. **Nenhuma das 20 specs de paridade deste pacote menciona conteúdo privado.**
+   Uma busca por `private` e por `privad` em `.specify/migration/parity_tests/`
+   devolve zero ocorrências: `PT-002` tem os onze cenários da publicação e do
+   agendamento e nenhum do privado, e `PT-011` cobre a invariante só de lado, no
+   cenário `@concorrencia` (*"a resposta anônima não contém nada que só a
+   autenticada veria"*). Escrever cenário de paridade não é tarefa de T009 e
+   `parity_specs.md` é artefato do Inspector — a lacuna fica declarada aqui e em
+   `visibilidade/index.ts`.
+
+### O que T009 NÃO fez, e de quem é
+
+| não fez | de quem é |
+|---|---|
+| os quatro testes de `backlog/tests.md` (UT-022-1 a UT-022-4) | **T010**, a tarefa `[P]` que roda em paralelo com esta |
+| o `UPDATE` que leva `private` à coluna | **T005** (US-2) em diante: é `wp_insert_post()`, e é um comando de 21 colunas |
+| o rebaixamento do painel | **T005** e **T015** — declarado em `visibilidade/permissao-de-conteudo-privado.ts` |
+| a cláusula SQL da consulta pública, o 404 e o modelo de erro do tema | feature **004**, `contextos/leitura-publica/` — a regra de dependência 3 proíbe aquele contexto importar este, logo ele monta o mesmo portão sobre a mesma `plataforma/autorizacao/` |
+| o portão dos estados **protegidos** (rascunho, pendente, agendado) e o modo de pré-visualização | feature **004**, US-4 CA-4.2 de lá: o ramo vizinho do mesmo bloco do legado, e ele reescreve `post_date` em memória |
+| a senha de conteúdo, que o ramo privado apaga | feature **004**, US-6 — REQ-044 está em `do-not-rewrite.md`, e a resposta 8 manda preservar os três fatos do legado |
+| a fixação no topo, que o ramo privado retira | BC-07: é a opção `sticky_posts` |
+| o mapa do site e o feed como **saída** | BC-08, feature 013 — aqui há só a regra de quais estados entram |
+| a comparação de data que produz o agendado | **T013** (US-6) — e ela **não alcança `private`**: `wp_insert_post()` só troca `publish` por `future` e `future` por `publish` (`wp-includes/post.php:4797`-`:4808`), logo conteúdo privado com data à frente continua privado. Quem pegar T013 precisa disso |
+| emitir ponto de extensão | ninguém deste pacote: REQ-162 está em `do-not-rewrite.md`. **Nenhum dos dois caminhos de T009 atravessa ponto de extensão no legado** — o `switch` de visibilidade não tem nenhum, e a cláusula de estado da consulta é filtrada só depois, por `posts_where` (`class-wp-query.php:2796`), que é da feature 004 |
 
 ## O que "enumeração fechada" significa aqui — leia antes de usar o tipo
 
@@ -607,11 +721,21 @@ disto se decide no meio da implementação.
    o legado **tem** (os da API REST). O rebaixamento é o `pending` de CA-7.1, em
    T015, e chega pelo caminho de gravação.
 
+6. 🔴 **O rebaixamento da visibilidade privada é OUTRO, e ninguém o decidiu
+   tampouco.** É o irmão do item 5, apurado por T009: sem a capacidade de
+   publicar, o painel grava, para `private`, **o estado anterior** — ou `pending`
+   quando não há (`wp-admin/includes/post.php:142`-`:144`) —, enquanto para
+   `publish` e `future` grava `pending` (`:152`-`:159`). CA-4.1 não fala de
+   rebaixamento, e uniformizar os dois poria em revisão rascunhos que o legado
+   deixa quietos. **T009 não escolheu entre as duas leituras**, pelo mesmo
+   precedente: recusa como valor com o código e o texto da API, rebaixamento
+   declarado e não aplicado em `visibilidade/permissao-de-conteudo-privado.ts`.
+
 Os quatro primeiros estão em `spec.md`, seção *Perguntas em aberto* (o primeiro,
 como consequência de nada ali especificar o aviso). A tabela *Não negociável* da
 constituição põe cada um deles fora do alcance do agente de codificação. O quinto
-não está em `spec.md`: ele é divergência entre o critério de aceite e o código
-lido, e o **P1** a põe na mesma mesa.
+e o sexto não estão em `spec.md`: os dois são divergência entre o critério de
+aceite e o código lido, e o **P1** os põe na mesma mesa.
 
 ### Uma divergência menor, registrada e não corrigida aqui
 
@@ -646,6 +770,16 @@ publicar"*, inclusive a cláusula *"a dispensa de unicidade vale também para
 pendente, rascunho automático, revisão e solicitação de dado pessoal"*, e
 *"Colaborador não reserva slug do que está em revisão"*. Os dois estão afirmados
 em `gravacao/us-3-identificador-unico.test.ts`, com o texto de cada consulta.
+⚠️ **E há uma lacuna declarada por T009: nenhuma das 20 specs de paridade deste
+pacote menciona conteúdo privado.** Uma busca por `private` e por `privad` em
+`.specify/migration/parity_tests/` devolve zero ocorrências — `PT-002` não tem
+cenário do privado entre os onze, e a invariante de US-4 só aparece de lado em
+`PT-011`, no cenário `@concorrencia` (*"a resposta anônima não contém nada que só
+a autenticada veria"*). Para CA-4.2, CA-4.3 e CA-4.4 vale também a **área 1** do
+critério — *saída byte a byte* —, porque feed, sitemap e API REST são contrato de
+terceiro. Escrever cenário de paridade não é tarefa de implementação e
+`parity_specs.md` é artefato do Inspector; a lacuna fica registrada aqui, em
+`visibilidade/index.ts` e no relato de T009.
 
 **Nenhuma delas é executável hoje:** `parity_specs.md` registra que não há
 oráculo executável nesta árvore (o manifesto de telas declara

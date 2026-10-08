@@ -53,6 +53,12 @@ import {
   type PedidoDePublicacao,
   type ResultadoDaPublicacao,
 } from './publicacao/index.js';
+import {
+  escolherVisibilidade,
+  type ContextoDeVisibilidade,
+  type PedidoDeVisibilidade,
+  type ResultadoDaVisibilidade,
+} from './visibilidade/index.js';
 
 export * from './portas/index.js';
 export * from './estado-editorial.js';
@@ -78,6 +84,30 @@ export * from './publicacao/index.js';
   que decide `'0'` ao contrario deste runtime.
 */
 export * from './gravacao/index.js';
+/*
+  T009 (US-4) sai pelo barril E pela composicao, pela mesma razao: `plan.md` nao
+  lista "escolher visibilidade" na tabela *Contratos* porque no legado ela nao e
+  uma funcao — e o `switch` de `wp-admin/includes/post.php:318` somado ao
+  `case 'private'` de `handle_status_param()`, as duas pecas que preparam o
+  pedido ANTES de `wp_insert_post()`. A operacao existe aqui porque e ela que
+  declara a permissao que o P4 cobra, e o resto da pasta sai pelo barril porque e
+  o que a consulta publica e a leitura por identificador precisam alcancar.
+*/
+export * from './visibilidade/index.js';
+
+/*
+  `ESTADO_PRIVADO` está DEFINIDO DUAS VEZES, e isto aqui só resolve a
+  ambiguidade do barril — não a duplicação.
+
+  T005 o declarou em `gravacao/campos-na-gravacao.ts` e T009 em
+  `visibilidade/visibilidade-do-conteudo.ts`, cada um na sua árvore, sem ver o
+  do outro. O valor é o mesmo (`'private'`) nos dois; o da visibilidade é
+  tipado como `EstadoEditorial`, e é por isso que ele ganha aqui.
+
+  Qual dos dois módulos é dono do conceito é decisão de quem trabalha, não
+  minha num merge: quem decidir apaga o outro e importa deste.
+*/
+export { ESTADO_PRIVADO } from './visibilidade/index.js';
 
 /** As tres portas de que este modulo depende, na forma em que ele as recebe. */
 export interface PortasDeConteudo {
@@ -97,6 +127,7 @@ export interface PortasDeConteudo {
  * |---|---|---|---|
  * | `gravar` | US-2, US-3 | T005, T007 | **nenhuma para gravar, como no legado** — `wp_insert_post()` nao tem portao, e o achado de QA de REQ-020 registra que o card nao tem recusa propria. A **unica** decisao de capacidade do caminho nao recusa: ela esvazia o identificador na URL de quem nao pode publicar, em `pending` (CA-3.4) |
  * | `publicar` | US-1 | T003 | **a capacidade de publicar daquele tipo** (`$post_type->cap->publish_posts`), CA-1.1 |
+ * | `escolherVisibilidade` | US-4 | T009 | **a mesma capacidade**, e **somente** quando a visibilidade resolve em `private`, CA-4.1 |
  *
  * O armazenamento **nao e operacao**, e por isso nao declara permissao: ele nao
  * decide nada.
@@ -160,6 +191,28 @@ export interface ModuloDeConteudo {
     contexto: ContextoDeGravacao,
     pedido: PedidoDeGravacao,
   ): ResultadoDaGravacao;
+  /**
+   * Resolve a visibilidade escolhida nos campos que a gravacao vai escrever —
+   * e o estado `private` de US-4 (T009).
+   *
+   * **Permissao exigida: a capacidade de publicar daquele tipo de conteudo**, a
+   * MESMA de {@link ModuloDeConteudo.publicar}, e exigida **somente** quando a
+   * visibilidade resolve em `private` — `handle_status_param()`,
+   * `case 'private'`
+   * (`class-wp-rest-posts-controller.php:1575`-`:1583`). O legado nao tem
+   * `publish_private_posts`, e os ramos `public` e `password` nao tem portao
+   * proprio: inventar um fecharia uma porta que o legado deixa aberta (**P4**).
+   *
+   * ⚠️ **Nao grava, e no legado ela tambem nao.** O privado chega a coluna pelo
+   * caminho de gravacao (`wp_insert_post()`, T005 em diante), com um `UPDATE` de
+   * 21 colunas; esta operacao e o `switch` de visibilidade somado ao portao, as
+   * duas pecas que preparam o pedido antes dele. A razao completa esta em
+   * `visibilidade/escolher-visibilidade.ts`.
+   */
+  escolherVisibilidade(
+    contexto: ContextoDeVisibilidade,
+    pedido: PedidoDeVisibilidade,
+  ): ResultadoDaVisibilidade;
 }
 
 /**
@@ -188,5 +241,6 @@ export function criarModuloDeConteudo(
     armazenamento: criarArmazenamentoDeConteudo(portas.dados),
     publicar,
     gravar: gravarConteudo,
+    escolherVisibilidade,
   };
 }
