@@ -7,7 +7,7 @@ administrativo de cerca de 100 telas e quem estende o produto com plugin ou tema
 terceiro é público de primeira classe, não "usuário avançado": é para ele que existem os
 3.373 pontos de extensão, 2.460 deles devolvendo valor.
 
-O wordpress-nucleo é um sistema **novo, escrito a partir de especificações**. As
+O Wordpress2 é um sistema **novo, escrito a partir de especificações**. As
 especificações saíram da engenharia reversa da árvore do WordPress 7.1.2: 15 features, 136
 histórias, 621 critérios de aceite e 301 tarefas, derivadas de 151 cards selecionados num
 backlog de 181. Do código PHP nada foi reaproveitado: nem função, nem template, nem
@@ -68,7 +68,7 @@ caso a caso — é a terceira divergência autorizada (resposta 16) e é a taref
 
 ## Os dois sistemas lado a lado
 
-| | WordPress 7.1.2 (legado) | wordpress-nucleo |
+| | WordPress 7.1.2 (legado) | Wordpress2 |
 |---|---|---|
 | propósito | CMS instalável no servidor do dono | **o mesmo**: o porte não muda o produto |
 | linguagem | PHP | TypeScript, Node >= 22 |
@@ -145,7 +145,7 @@ pacote, listadas em [`index.md`](index.md).
 
 Medido em 2026-10-08, com `003/T005` fechada.
 
-| | WordPress 7.1.2 (legado) | wordpress-nucleo |
+| | WordPress 7.1.2 (legado) | Wordpress2 |
 |---|---|---|
 | arquivos | 3.381 | 285 `.ts` em `src/` |
 | código de produção | — | 48.870 linhas TypeScript, em 221 arquivos |
