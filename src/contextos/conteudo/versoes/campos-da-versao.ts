@@ -1,6 +1,6 @@
 /**
  * Quais campos entram na versao, e com que valores — `_wp_post_revision_fields()`
- * e `_wp_post_revision_data()` (`wp-includes/revision.php:22` e `:74`).
+ * e `_wp_post_revision_data()` (`wp-includes/revision.php:22` e `:75`).
  *
  * Entrega de **T021** da feature `002-autoria-e-publicacao` (US-10). T002 ja
  * declarou os **tres** campos de fabrica, os **nove** nomes protegidos e a
@@ -13,7 +13,7 @@
  * # A coincidencia que nao e coincidencia: os nove sao os seis mais tres
  *
  * `_wp_post_revision_data()` copia os campos filtrados e **depois** fixa seis
- * chaves (`:87`-`:93`): `post_parent`, `post_status`, `post_type`, `post_name`,
+ * chaves (`:88`-`:93`): `post_parent`, `post_status`, `post_type`, `post_name`,
  * `post_date` e `post_date_gmt`. Os nove nomes que `_wp_post_revision_fields()`
  * remove da lista sao **exatamente** esses seis mais `ID`, `comment_count` e
  * `post_author`.
@@ -76,8 +76,8 @@ export const CAMPOS_VERSIONAVEIS_DE_FABRICA: readonly CampoVersionavel[] =
  *
  * | # | passo | linha |
  * |---|---|---|
- * | 1 | o ponto de extensao `_wp_post_revision_fields` sobre a lista de fabrica | `:53` |
- * | 2 | a remocao dos **nove** nomes protegidos, **depois** do ponto | `:55`-`:58` |
+ * | 1 | o ponto de extensao `_wp_post_revision_fields` sobre a lista de fabrica | `:54` |
+ * | 2 | a remocao dos **nove** nomes protegidos, **depois** do ponto | `:56`-`:58` |
  *
  * E por o passo 2 vir depois que o ponto de extensao e **poderoso e limitado ao
  * mesmo tempo**: ele pode acrescentar qualquer coluna de `posts` e pode remover
@@ -95,14 +95,14 @@ export function camposVersionaveis(
   contexto: ContextoDeVersao,
   conteudo: Conteudo,
 ): readonly CampoVersionavel[] {
-  // Passo 1 (`:53`).
+  // Passo 1 (`:54`).
   const filtrados =
     contexto.ganchos?.filtrarCamposVersionaveis?.(
       CAMPOS_VERSIONAVEIS_DE_FABRICA,
       conteudo,
     ) ?? CAMPOS_VERSIONAVEIS_DE_FABRICA;
 
-  // Passo 2 (`:55`): e DEPOIS do ponto, de proposito.
+  // Passo 2 (`:56`): e DEPOIS do ponto, de proposito.
   const vistos = new Set<string>();
   const resultado: CampoVersionavel[] = [];
   for (const campo of filtrados) {
@@ -118,9 +118,9 @@ export function camposVersionaveis(
 /**
  * `_wp_post_revision_data( $post, $autosave )` — a linha da versao, com os
  * campos filtrados copiados e as seis chaves fixas
- * (`wp-includes/revision.php:74`-`:95`).
+ * (`wp-includes/revision.php:75`-`:95`).
  *
- * Devolve {@link CamposDeConteudo} — **parcial de propósito**, e nao a
+ * Devolve {@link CamposDeConteudo} — **parcial de proposito**, e nao a
  * `CamposDaVersao` de T002 — porque o legado devolve **nove chaves de 21** e
  * porque o ponto de extensao pode tirar uma das tres: um interceptador que
  * remova `post_content` da lista faz o legado **nao** copiar o corpo, e a coluna
@@ -128,7 +128,7 @@ export function camposVersionaveis(
  * os tres campos obrigatorios nao conseguiria representar isso.
  *
  * ⚠️ **O `array_intersect` nao e simetria: ele descarta nome que nao e coluna da
- * linha** (`:82`). Um interceptador que declare `campo_inventado` o ve na lista
+ * linha** (`:84`). Um interceptador que declare `campo_inventado` o ve na lista
  * de {@link camposVersionaveis} e **nao** o ve na linha gravada, porque
  * `array_intersect( array_keys( $post ), ... )` o deixa de fora — e e isso que
  * {@link campoDaColuna} devolvendo `null` reproduz.
@@ -163,7 +163,7 @@ export function camposDaVersaoFiltrados(
 
   return {
     ...copiados,
-    // As seis chaves fixas (`:87`-`:93`), **depois** da copia. Nao ha conflito
+    // As seis chaves fixas (`:88`-`:93`), **depois** da copia. Nao ha conflito
     // possivel: as seis estao entre os nove que o passo 2 de
     // `camposVersionaveis` removeu.
     vinculo: { tipo: 'original-da-versao', id: original.id },
@@ -178,7 +178,7 @@ export function camposDaVersaoFiltrados(
 
 /**
  * Os campos que a **restauracao** escreve de volta no conteudo — o `$update` de
- * `wp_restore_post_revision()` (`wp-includes/revision.php:489`-`:496`).
+ * `wp_restore_post_revision()` (`wp-includes/revision.php:488`-`:496`).
  *
  * E o espelho de {@link camposDaVersaoFiltrados}, com **duas** diferencas que
  * decidem:
@@ -188,16 +188,16 @@ export function camposDaVersaoFiltrados(
  *    do **conteudo** ficam como estao. Um porte que devolvesse a linha inteira
  *    da versao poria o conteudo em `inherit`, com tipo `revision` — e o tiraria
  *    do ar;
- * 2. **o alvo e o pai.** `$update['ID'] = $revision['post_parent']` (`:498`): a
+ * 2. **o alvo e o pai.** `$update['ID'] = $revision['post_parent']` (`:496`): a
  *    versao nunca e escrita, e e dai que sai a metade de **CA-10.3** que diz que
  *    *"uma versao nao e editavel"*.
  *
  * O `array_intersect` do legado e sobre as chaves da **versao**, nao sobre as do
- * conteudo (`:491`), e a diferenca aparece quando um interceptador acrescenta
+ * conteudo (`:488`), e a diferenca aparece quando um interceptador acrescenta
  * coluna: so o que a linha da versao tem e que volta.
  *
  * Devolve lista vazia de campos como `{}`, e e quem chama que transforma isso no
- * `false` do legado (`:494`) — ver `restaurar-versao.ts`.
+ * `false` do legado (`:493`) — ver `restaurar-versao.ts`.
  */
 export function camposDaRestauracao(
   versao: Conteudo,

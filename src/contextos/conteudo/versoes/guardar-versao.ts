@@ -7,10 +7,10 @@
  *
  * | funcao | o que e no legado | verifica capacidade? |
  * |---|---|---|
- * | {@link guardarVersaoNaInsercao} | `wp_save_post_revision_on_insert()` (`wp-includes/revision.php:105`) | **nao** |
+ * | {@link guardarVersaoNaInsercao} | `wp_save_post_revision_on_insert()` (`wp-includes/revision.php:107`) | **nao** |
  * | {@link guardarVersao} | `wp_save_post_revision()` (`:130`) | **nao** |
- * | {@link gravarVersaoDoConteudo} | `_wp_put_post_revision()` (`:359`) | **nao** |
- * | {@link apagarVersao} | `wp_delete_post_revision()` (`:637`) | **nao, e e o achado de CA-10.3** |
+ * | {@link gravarVersaoDoConteudo} | `_wp_put_post_revision()` (`:354`) | **nao** |
+ * | {@link apagarVersao} | `wp_delete_post_revision()` (`:631`) | **nao, e e o achado de CA-10.3** |
  *
  * **Nenhuma das quatro tem portao de capacidade, e as quatro sao assim no
  * legado.** Isso **nao** e a camada de autorizacao esquecida: e o default dela,
@@ -30,7 +30,7 @@
  * CA-10.1 diz *"cada gravacao de conteudo ja existente guarda **a versao
  * anterior**"*. O legado guarda **o texto como ele acabou de ser gravado**, e o
  * docblock da propria funcao e literal: *"the most recent revision always
- * matches the current post"* (`:119`-`:120`). A analise completa, com a tabela do
+ * matches the current post"* (`:122`-`:123`). A analise completa, com a tabela do
  * que sobra no banco depois de tres gravacoes, esta no cabecalho de
  * `contexto-de-versao.ts`. O **P1** exige decisao humana registrada para
  * divergir, e nenhuma existe — logo esta tarefa reproduz o legado e **nao
@@ -45,12 +45,12 @@
  *
  * | # | onde | linha |
  * |---|---|---|
- * | 1 | `get_post( $post_id )` | `:139` |
- * | 2 | dentro de `wp_get_post_revisions( $post_id )` | `:163` → `:657` |
+ * | 1 | `get_post( $post_id )` | `:140` |
+ * | 2 | dentro de `wp_get_post_revisions( $post_id )` | `:163` → `:667` |
  * | 3 | dentro de `_wp_put_post_revision()`, pelo caminho de gravacao | `:372` |
- * | 4 | dentro de `wp_save_revisioned_meta_fields()`, o `get_post_type()` | `:396` |
- * | 5 | dentro de `wp_get_post_revisions( $post_id, ASC )` | `:229` → `:657` |
- * | 6 | dentro de `wp_delete_post_revision()`, o `wp_get_post_revision()` | `:638` |
+ * | 4 | dentro de `wp_save_revisioned_meta_fields()`, o `get_post_type()` | `:403` |
+ * | 5 | dentro de `wp_get_post_revisions( $post_id, ASC )` | `:229` → `:667` |
+ * | 6 | dentro de `wp_delete_post_revision()`, o `wp_get_post_revision()` | `:632` |
  * | 7 | dentro de `wp_delete_post()`, pelo caminho de exclusao | feature 005 |
  *
  * **Com o cache de objeto do legado ligado**, 1 consulta e popula, 2 e 4 acertam
@@ -117,17 +117,17 @@ export interface ErroDeVersao {
   readonly mensagem: string;
 }
 
-/** `invalid_post` — o codigo de `_wp_put_post_revision()` sem linha (`:363`). */
+/** `invalid_post` — o codigo de `_wp_put_post_revision()` sem linha (`:362`). */
 export const CODIGO_DE_CONTEUDO_INVALIDO = 'invalid_post';
 
-/** O texto do legado para o codigo acima (`wp-includes/revision.php:363`). */
+/** O texto do legado para o codigo acima (`wp-includes/revision.php:362`). */
 export const MENSAGEM_DE_CONTEUDO_INVALIDO = 'Invalid post ID.';
 
-/** `post_type` — o codigo da recusa de versionar uma versao (`:367`). */
+/** `post_type` — o codigo da recusa de versionar uma versao (`:366`). */
 export const CODIGO_DE_VERSAO_DE_VERSAO = 'post_type';
 
 /**
- * O texto do legado para o codigo acima (`wp-includes/revision.php:367`).
+ * O texto do legado para o codigo acima (`wp-includes/revision.php:366`).
  *
  * ⚠️ **Sem ponto final**, e nao e descuido de transcricao: o legado escreve
  * `__( 'Cannot create a revision of a revision' )`, enquanto o irmao dele na
@@ -138,11 +138,12 @@ export const MENSAGEM_DE_VERSAO_DE_VERSAO =
   'Cannot create a revision of a revision';
 
 /**
- * O que aconteceu ao pedir que a versao fosse guardada. **Oito desfechos, e
- * sete deles sao `null` no legado.**
+ * O que aconteceu ao pedir que a versao fosse guardada. **Nove desfechos, e oito
+ * deles sao `null` (ou `return` nu) no legado.**
  *
- * `wp_save_post_revision()` devolve `null` em sete pontos diferentes e nao
- * distingue nenhum deles para quem chama — e o chamador e um ouvinte de ponto de
+ * `wp_save_post_revision()` devolve `null` em sete pontos diferentes,
+ * `wp_save_post_revision_on_insert()` tem um `return` nu em dois, e nenhum dos
+ * dois distingue o motivo para quem chama — o chamador e um ouvinte de ponto de
  * extensao, que tambem ignora o retorno. O **P7** manda *"preservar o modo de
  * falha, inclusive o silencio"*, e e por isso que estes nomes existem **sem**
  * mensagem: eles tornam cada desvio afirmavel por teste sem inventar superficie
@@ -153,13 +154,21 @@ export type DesfechoDeGuardarVersao =
   | 'guardada'
   /** `DOING_AUTOSAVE` esta definida: salvamento automatico em curso (`:131`). */
   | 'salvamento-automatico-em-curso'
+  /**
+   * A insercao nao versiona: o `! $update` de `:108`.
+   *
+   * **Nao e o mesmo que adiar**, e por isso tem nome proprio: aqui nenhum
+   * ouvinte vai gravar depois, porque **criar conteudo nao cria versao**. E a
+   * linha que faz CA-10.1 valer so para *"conteudo ja existente"*.
+   */
+  | 'insercao-nao-versiona'
   /** A guarda cruzada do par de ouvintes adiou para o outro (`:136`, `:112`). */
   | 'adiada-para-o-outro-ouvinte'
-  /** `get_post()` nao achou a linha (`:141`). */
+  /** `get_post()` nao achou a linha (`:142`). */
   | 'inexistente'
-  /** O tipo nao declara suporte a `revisions` (`:148`). */
+  /** O tipo nao declara suporte a `revisions` (`:146`). */
   | 'tipo-sem-suporte'
-  /** O conteudo esta em rascunho automatico (`:152`). */
+  /** O conteudo esta em rascunho automatico (`:150`). */
   | 'rascunho-automatico'
   /** `WP_POST_REVISIONS` resolveu em zero (`:154`). */
   | 'versionamento-desligado'
@@ -206,7 +215,7 @@ const SEM_VERSAO = {
 /**
  * `wp_save_post_revision_on_insert( $post_id, $post, $update )` — **ouvinte de
  * fabrica do ponto `wp_after_insert_post`, prioridade 9**
- * (`wp-includes/revision.php:105`-`:117`, `default-filters.php:445`).
+ * (`wp-includes/revision.php:107`-`:117`, `default-filters.php:445`).
  *
  * **E aqui que a instalacao de fabrica versiona**, e nao em `post_updated`: ver
  * `OUVINTES_DE_FABRICA_DA_VERSAO`, em `contexto-de-versao.ts`, para a guarda
@@ -215,7 +224,7 @@ const SEM_VERSAO = {
  *
  * As duas guardas, na ordem:
  *
- * 1. **`! $update` desiste** (`:106`). E esta a linha que faz **CA-10.1** valer
+ * 1. **`! $update` desiste** (`:108`). E esta a linha que faz **CA-10.1** valer
  *    so para *"conteudo ja existente"*: criar conteudo **nao** cria versao. Um
  *    porte que versionasse na insercao produziria, no primeiro `INSERT`, uma
  *    versao que o legado nao tem;
@@ -233,9 +242,9 @@ export function guardarVersaoNaInsercao(
   conteudoId: number,
   atualizacao: boolean,
 ): ResultadoDeGuardarVersao {
-  // Guarda 1 (`:106`): o `$update` falso e a insercao, e insercao nao versiona.
+  // Guarda 1 (`:108`): o `$update` falso e a insercao, e insercao nao versiona.
   if (!atualizacao) {
-    return { desfecho: 'adiada-para-o-outro-ouvinte', ...SEM_VERSAO };
+    return { desfecho: 'insercao-nao-versiona', ...SEM_VERSAO };
   }
 
   // Guarda 2 (`:112`).
@@ -249,7 +258,7 @@ export function guardarVersaoNaInsercao(
 
 /**
  * `wp_save_post_revision( $post_id )` — **CA-10.1**, e a poda de **CA-10.2**
- * (`wp-includes/revision.php:130`-`:262`).
+ * (`wp-includes/revision.php:130`-`:261`).
  *
  * E tambem **ouvinte de fabrica do ponto `post_updated`, prioridade 10**
  * (`default-filters.php:446`), e nessa posicao ela normalmente nao faz nada: ver
@@ -262,13 +271,13 @@ export function guardarVersaoNaInsercao(
  * |---|---|---|
  * | 1 | `DOING_AUTOSAVE` desiste | `:131` |
  * | 2 | a guarda cruzada do par de ouvintes | `:136` |
- * | 3 | ler o conteudo; sem linha, desiste | `:139`-`:143` |
- * | 4 | o tipo tem de suportar `revisions` | `:148` |
- * | 5 | rascunho automatico nao versiona | `:152` |
+ * | 3 | ler o conteudo; sem linha, desiste | `:140`-`:142` |
+ * | 4 | o tipo tem de suportar `revisions` | `:146` |
+ * | 5 | rascunho automatico nao versiona | `:150` |
  * | 6 | versionamento desligado nao versiona | `:154` |
  * | 7 | listar as versoes, decrescente | `:163` |
- * | 8 | achar a ultima que **nao** e salvamento automatico | `:165`-`:169` |
- * | 9 | comparar, e desistir se nada mudou | `:186`-`:213` |
+ * | 8 | achar a ultima que **nao** e salvamento automatico | `:166`-`:171` |
+ * | 9 | comparar, e desistir se nada mudou | `:186`-`:212` |
  * | 10 | gravar a versao | `:217` |
  * | 11 | a poda do que passa do limite | `:223`-`:260` |
  */
@@ -293,18 +302,18 @@ export function guardarVersao(
     return { desfecho: 'adiada-para-o-outro-ouvinte', ...SEM_VERSAO };
   }
 
-  // Passo 3 (`:139`): a leitura 1 de sete. Ver a nota de cache no cabecalho.
+  // Passo 3 (`:140`): a leitura 1 de sete. Ver a nota de cache no cabecalho.
   const conteudo = contexto.armazenamento.conteudo.obterPorId(conteudoId);
   if (conteudo === null) {
     return { desfecho: 'inexistente', ...SEM_VERSAO };
   }
 
-  // Passo 4 (`:148`).
+  // Passo 4 (`:146`).
   if (!contexto.suportaVersao(conteudo.tipo)) {
     return { desfecho: 'tipo-sem-suporte', ...SEM_VERSAO };
   }
 
-  // Passo 5 (`:152`): o rascunho automatico e o registro que o editor reserva
+  // Passo 5 (`:150`): o rascunho automatico e o registro que o editor reserva
   // antes da primeira digitacao (US-11), e versiona-lo guardaria o vazio.
   if (conteudo.estado === ESTADO_DE_RASCUNHO_AUTOMATICO) {
     return { desfecho: 'rascunho-automatico', ...SEM_VERSAO };
@@ -315,7 +324,7 @@ export function guardarVersao(
     return { desfecho: 'versionamento-desligado', ...SEM_VERSAO };
   }
 
-  // Passos 7 a 9 (`:163`-`:213`): a comparacao so acontece quando ja existe
+  // Passos 7 a 9 (`:163`-`:212`): a comparacao so acontece quando ja existe
   // versao comum. **Sem versao nenhuma, grava sempre** — e o comentario do
   // legado diz isso em uma linha: *"If no previous revisions, save one."*
   const versoes = listarVersoes(contexto, conteudo.id);
@@ -385,7 +394,7 @@ function mudouDesdeAUltimaVersao(
     return true;
   }
 
-  // `:189`-`:196`: os campos versionaveis, um a um, com normalizacao.
+  // `:189`-`:195`: os campos versionaveis, um a um, com normalizacao.
   let mudou = conteudoMudou(contexto, conteudo, ultimaVersao);
 
   // `:208`, posicao 1: o ouvinte do nucleo, prioridade 10.
@@ -411,17 +420,17 @@ export type ResultadoDaGravacaoDeVersao =
 
 /**
  * `_wp_put_post_revision( $post, $autosave )` — a linha da versao
- * (`wp-includes/revision.php:359`-`:391`).
+ * (`wp-includes/revision.php:354`-`:390`).
  *
  * Os cinco passos, na ordem do legado:
  *
  * | # | passo | linha |
  * |---|---|---|
- * | 1 | sem linha, ou com `ID` vazio: erro `invalid_post` | `:361`-`:363` |
- * | 2 | linha de tipo `revision`: erro `post_type` | `:365`-`:367` |
- * | 3 | montar os campos da versao | `:370` |
+ * | 1 | sem linha, ou com `ID` vazio: erro `invalid_post` | `:360`-`:362` |
+ * | 2 | linha de tipo `revision`: erro `post_type` | `:365`-`:366` |
+ * | 3 | montar os campos da versao | `:369` |
  * | 4 | `wp_insert_post( $post, true )` | `:372` |
- * | 5 | com identificador, disparar o ponto `_wp_put_post_revision` | `:381`-`:388` |
+ * | 5 | com identificador, disparar o ponto `_wp_put_post_revision` | `:377`-`:387` |
  *
  * ⚠️ **A ordem dos passos 1 e 2 e observavel**: um pedido para versionar uma
  * linha que **nao existe** devolve `invalid_post`, e um para versionar uma
@@ -434,7 +443,7 @@ export type ResultadoDaGravacaoDeVersao =
  * recusada com texto. A outra metade — nao haver superficie que escreva na linha
  * de uma versao — esta em `permissao-de-versao.ts`.
  *
- * O passo 5 so dispara **quando o identificador e verdadeiro** (`:381`): a
+ * O passo 5 so dispara **quando o identificador e verdadeiro** (`:377`): a
  * insercao que devolve `0` nao dispara o ponto, e portanto nao copia metadado
  * versionado. Silencio do legado, preservado (P7).
  */
@@ -443,7 +452,7 @@ export function gravarVersaoDoConteudo(
   original: Conteudo,
   autosave = false,
 ): ResultadoDaGravacaoDeVersao {
-  // Passo 1 (`:361`): o `empty( $post['ID'] )` e um teste de valor verdadeiro,
+  // Passo 1 (`:360`): o `empty( $post['ID'] )` e um teste de valor verdadeiro,
   // logo `ID = 0` tambem cai aqui.
   if (original.id === 0) {
     return {
@@ -462,7 +471,7 @@ export function gravarVersaoDoConteudo(
     };
   }
 
-  // Passo 3 (`:370`). O `wp_slash()` da linha seguinte do legado nao viaja:
+  // Passo 3 (`:369`). O `wp_slash()` da linha seguinte do legado nao viaja:
   // escapar e da camada de dados, e a porta parametrizada nao concatena cadeia.
   const campos = camposDaVersaoFiltrados(
     original,
@@ -477,7 +486,7 @@ export function gravarVersaoDoConteudo(
     return { ok: false, codigo: insercao.codigo, mensagem: insercao.mensagem };
   }
 
-  // Passo 5 (`:381`): `if ( $revision_id )`.
+  // Passo 5 (`:377`): `if ( $revision_id )`.
   //
   // ⚠️ **Este ramo e inalcancavel pelo chamador do legado, e existe porque o
   // `if` do legado existe.** `_wp_put_post_revision()` chama `wp_insert_post(
@@ -519,12 +528,12 @@ const TIPO_DA_VERSAO = 'revision';
  *
  * | # | passo | linha |
  * |---|---|---|
- * | 1 | quantas guardar; **negativo desiste antes de consultar** | `:223`-`:227` |
+ * | 1 | quantas guardar; **negativo desiste antes de consultar** | `:223`-`:226` |
  * | 2 | listar as versoes em ordem **crescente** | `:229` |
  * | 3 | o ponto `wp_save_post_revision_revisions_before_deletion` | `:240` |
- * | 4 | quantas sobram do limite; menos de uma desiste | `:245`-`:248` |
- * | 5 | cortar as `$delete` primeiras da lista | `:250` |
- * | 6 | apagar, **pulando salvamento automatico** | `:252`-`:259` |
+ * | 4 | quantas sobram do limite; menos de uma desiste | `:245`-`:247` |
+ * | 5 | cortar as `$delete` primeiras da lista | `:251` |
+ * | 6 | apagar, **pulando salvamento automatico** | `:253`-`:258` |
  *
  * ⚠️ **O passo 1 e o que torna `-1` literalmente ilimitado** em vez de muito
  * grande: com limite negativo, a segunda consulta **nao sai**. E e o estado de
@@ -572,7 +581,7 @@ function podarVersoes(
     return [];
   }
 
-  // Passos 5 e 6 (`:250`-`:259`).
+  // Passos 5 e 6 (`:251`-`:258`).
   const apagadas: number[] = [];
   for (const versao of versoes.slice(0, quantasApagar)) {
     if (versao.identificadorNaUrl.includes(MARCA_DE_SALVAMENTO_AUTOMATICO)) {
@@ -587,7 +596,7 @@ function podarVersoes(
 
 /**
  * `autosave` — a marca **nua** que a poda procura no identificador na URL
- * (`wp-includes/revision.php:253`).
+ * (`wp-includes/revision.php:254`).
  *
  * Declarada como constante porque ela e **mais larga** que a de
  * `wp_is_post_autosave()`, que monta `"{$pai}-autosave"`
@@ -599,15 +608,15 @@ const MARCA_DE_SALVAMENTO_AUTOMATICO = 'autosave';
 
 /**
  * `wp_delete_post_revision( $revision )` — apagar uma versao
- * (`wp-includes/revision.php:637`-`:653`).
+ * (`wp-includes/revision.php:631`-`:653`).
  *
  * Os tres passos:
  *
  * | # | passo | linha |
  * |---|---|---|
- * | 1 | `wp_get_post_revision()`: a linha tem de ser de versao | `:638` |
- * | 2 | `wp_delete_post( $revision->ID )` — a exclusao da **feature 005** | `:642` |
- * | 3 | com exclusao feita, o ponto `wp_delete_post_revision` | `:644`-`:650` |
+ * | 1 | `wp_get_post_revision()`: a linha tem de ser de versao | `:632` |
+ * | 2 | `wp_delete_post( $revision->ID )` — a exclusao da **feature 005** | `:638` |
+ * | 3 | com exclusao feita, o ponto `wp_delete_post_revision` | `:640`-`:650` |
  *
  * ⚠️ **Nao ha portao de capacidade aqui, e e esse o achado de CA-10.3.** Pela
  * capacidade, `delete_post` sobre uma versao devolve `do_not_allow` **para todo
@@ -624,17 +633,17 @@ export function apagarVersao(
   contexto: ContextoDeVersao,
   versaoId: number,
 ): boolean {
-  // Passo 1 (`:638`).
+  // Passo 1 (`:632`).
   const versao = versaoPorId(contexto, versaoId);
   if (versao === null) {
     return false;
   }
 
-  // Passo 2 (`:642`): a linha nao e apagada aqui. `wp_delete_post()` sao sete
+  // Passo 2 (`:638`): a linha nao e apagada aqui. `wp_delete_post()` sao sete
   // etapas em quatro tabelas, e o P5 cobra o conjunto exato do que fica orfao.
   const apagou = contexto.gravacao.apagar(versao.id);
 
-  // Passo 3 (`:644`): so com exclusao feita.
+  // Passo 3 (`:640`): so com exclusao feita.
   if (apagou) {
     contexto.ganchos?.aoApagarVersao?.(versao.id, versao);
   }

@@ -479,7 +479,7 @@ test('CA-10.2: o tipo sem suporte zera ANTES dos filtros, logo um filtro pode re
   const conteudo = semSuporte.contexto.armazenamento.conteudo.obterPorId(CONTEUDO);
   assert.ok(conteudo !== null);
 
-  // `revision.php:818` zera, `:835` filtra — nessa ordem.
+  // `revision.php:821` zera, `:835` filtra — nessa ordem.
   assert.equal(quantasVersoesGuardar(semSuporte.contexto, conteudo), 5);
 });
 
@@ -503,12 +503,13 @@ test('CA-10.2: o filtro por tipo corre DEPOIS do geral, e o nome dele e o do leg
 
 /* ── CA-10.1 — A VERSAO A CADA GRAVACAO DE CONTEUDO JA EXISTENTE ───────────── */
 
-test('CA-10.1: criar conteudo NAO cria versao — o `! $update` de `revision.php:106`', () => {
+test('CA-10.1: criar conteudo NAO cria versao — o `! $update` de `revision.php:108`', () => {
   const { contexto, insercoes, dados } = cenario();
 
   const resultado = guardarVersaoNaInsercao(contexto, CONTEUDO, false);
 
-  assert.equal(resultado.desfecho, 'adiada-para-o-outro-ouvinte');
+  // O desfecho **nao** e o de adiar: aqui nenhum ouvinte vai gravar depois.
+  assert.equal(resultado.desfecho, 'insercao-nao-versiona');
   assert.deepEqual(insercoes, []);
   // E a guarda e **antes** de qualquer leitura: nenhum comando sai.
   assert.deepEqual(dados.selecoes, []);
@@ -518,10 +519,10 @@ test('CA-10.1: criar conteudo NAO cria versao — o `! $update` de `revision.php
 test('CA-10.1: gravar conteudo que ja existia cria UMA versao, filha, com estado herdado', () => {
   const { contexto, insercoes, dados, pontos } = cenario({
     respostas: [
-      [linha()], // `:139` — `get_post( $post_id )`
-      [linha()], // `:657` — o `get_post()` de `wp_get_post_revisions()`
-      [], // `:690` — nenhuma versao ainda
-      [linha()], // `:396` — o `get_post_type()` do ouvinte de metadado
+      [linha()], // `:140` — `get_post( $post_id )`
+      [linha()], // `:667` — o `get_post()` de `wp_get_post_revisions()`
+      [], // `:693` — nenhuma versao ainda
+      [linha()], // `:403` — o `get_post_type()` do ouvinte de metadado
     ],
   });
 
@@ -559,7 +560,7 @@ test('CA-10.1: gravar conteudo que ja existia cria UMA versao, filha, com estado
   assert.deepEqual(dados.escritas, []);
 
   // Sem versao anterior, nao ha o que comparar: *"If no previous revisions, save
-  // one"* (`revision.php:162`). Logo nenhum dos dois pontos de comparacao
+  // one"* (`revision.php:161`). Logo nenhum dos dois pontos de comparacao
   // dispara.
   assert.deepEqual(semOsPontosDeLimite(pontos), [
     '_wp_post_revision_fields',
@@ -572,12 +573,12 @@ test('a sequencia de pontos do caminho completo e a do legado, com as repeticoes
   const { contexto, pontos } = cenario({
     constante: 2,
     respostas: [
-      [linha()], // `:139`
-      [linha()], // `:657`
-      [linhaDeVersao(90, { post_content: 'corpo antigo' })], // `:690` DESC
-      [linha()], // `:396`
-      [linha()], // `:657` da segunda listagem
-      [linhaDeVersao(90), linhaDeVersao(99)], // `:690` ASC
+      [linha()], // `:140`
+      [linha()], // `:667`
+      [linhaDeVersao(90, { post_content: 'corpo antigo' })], // `:693` DESC
+      [linha()], // `:403`
+      [linha()], // `:667` da segunda listagem
+      [linhaDeVersao(90), linhaDeVersao(99)], // `:693` ASC
     ],
   });
 
@@ -620,17 +621,17 @@ test('CA-10.1: a consulta das versoes e a do legado — pai, tipo, estado herdad
 
   guardarVersao(contexto, CONTEUDO);
 
-  // `:139`: `get_post( $post_id )`.
+  // `:140`: `get_post( $post_id )`.
   assert.deepEqual(consulta(dados, 0), {
     texto: 'SELECT * FROM wp_posts WHERE ID = ? LIMIT 1',
     parametros: ['42'],
   });
 
-  // `:657`: a releitura que `wp_get_post_revisions()` faz. Ver a divergencia de
+  // `:667`: a releitura que `wp_get_post_revisions()` faz. Ver a divergencia de
   // cache declarada em `leitura-de-versoes.ts`.
   assert.equal(consulta(dados, 1).texto, 'SELECT * FROM wp_posts WHERE ID = ? LIMIT 1');
 
-  // `:690`: os tres criterios e os dois de ordem (`orderby => 'date ID'`).
+  // `:693`: os tres criterios e os dois de ordem (`orderby => 'date ID'`).
   assert.deepEqual(consulta(dados, 2), {
     texto:
       'SELECT * FROM wp_posts WHERE post_parent = ? AND post_type = ? ' +
@@ -648,18 +649,18 @@ test('CA-10.1: os cinco desvios silenciosos de `wp_save_post_revision()`', () =>
   );
   assert.deepEqual(automatico.dados.selecoes, []);
 
-  // `:141` — a linha nao existe.
+  // `:142` — a linha nao existe.
   const inexistente = cenario({ respostas: [[]] });
   assert.equal(guardarVersao(inexistente.contexto, CONTEUDO).desfecho, 'inexistente');
 
-  // `:148` — o tipo nao suporta versao.
+  // `:146` — o tipo nao suporta versao.
   const semSuporte = cenario({ suportaVersao: false, respostas: [[linha()]] });
   assert.equal(
     guardarVersao(semSuporte.contexto, CONTEUDO).desfecho,
     'tipo-sem-suporte',
   );
 
-  // `:152` — rascunho automatico nao versiona.
+  // `:150` — rascunho automatico nao versiona.
   const rascunho = cenario({
     respostas: [[linha({ post_status: 'auto-draft' })]],
   });
@@ -824,7 +825,7 @@ test('CA-10.1: o filtro de conferencia desligado grava versao mesmo sem mudanca'
 
 test('CA-10.1: a ultima versao usada na comparacao e a que tem `-revision` no nome', () => {
   // A lista chega decrescente, e o salvamento automatico esta na frente: o laco
-  // de `:165` o PULA e toma a versao comum de tras (`revision.php:166`).
+  // de `:166` o PULA e toma a versao comum de tras (`revision.php:167`).
   const { contexto, insercoes } = cenario({
     respostas: [
       [linha()],
@@ -894,7 +895,7 @@ test('P2: o ponto de extensao dos campos pode acrescentar e remover — mas NAO 
     ['post_title', 'post_excerpt'],
   );
 
-  // ⚠️ E os nove protegidos sao removidos **depois** do ponto (`:55`): declara-los
+  // ⚠️ E os nove protegidos sao removidos **depois** do ponto (`:56`): declara-los
   // nao os versiona, por mais explicito que o interceptador seja.
   assert.deepEqual(
     comFiltro(() =>
@@ -923,7 +924,7 @@ test('P2: a coluna acrescentada pelo ponto chega a linha da versao, e o nome inv
   assert.ok(campos !== undefined);
   // A coluna real viaja...
   assert.equal(campos.senha, 'segredo');
-  // ...e o nome que nao e coluna e descartado pelo `array_intersect` (`:82`).
+  // ...e o nome que nao e coluna e descartado pelo `array_intersect` (`:84`).
   assert.equal(Object.hasOwn(campos, 'campo_inventado'), false);
 });
 
@@ -942,7 +943,7 @@ test('CA-10.3: nao existe versao de versao, e a recusa tem texto', () => {
     codigo: CODIGO_DE_VERSAO_DE_VERSAO,
     mensagem: MENSAGEM_DE_VERSAO_DE_VERSAO,
   });
-  // ⚠️ Sem ponto final, como no legado (`revision.php:367`).
+  // ⚠️ Sem ponto final, como no legado (`revision.php:366`).
   assert.equal(MENSAGEM_DE_VERSAO_DE_VERSAO.endsWith('.'), false);
   assert.deepEqual(insercoes, []);
 });
@@ -953,7 +954,7 @@ test('a ordem dos dois erros de `_wp_put_post_revision()` e a do legado', () => 
   assert.ok(semId !== null);
 
   // A linha e de versao **e** tem `ID` 0. O legado confere o `ID` primeiro
-  // (`:361` antes de `:365`), logo o codigo e `invalid_post`.
+  // (`:360` antes de `:365`), logo o codigo e `invalid_post`.
   const resultado = gravarVersaoDoConteudo(contexto, semId);
   assert.deepEqual(resultado, {
     ok: false,
@@ -975,7 +976,7 @@ test('o erro da gravacao de conteudo e repassado como valor, sem ponto de extens
     codigo: 'empty_content',
     mensagem: 'Content, title, and excerpt are empty.',
   });
-  // O ponto `_wp_put_post_revision` **nao** dispara (`:381`).
+  // O ponto `_wp_put_post_revision` **nao** dispara (`:377`).
   assert.equal(pontos.includes('_wp_put_post_revision'), false);
 });
 
@@ -1003,20 +1004,20 @@ test('CA-10.2: com limite, a poda apaga as MAIS ANTIGAS, pela consulta crescente
   const { contexto, dados, exclusoes, pontos } = cenario({
     constante: 2,
     respostas: [
-      [linha()], // `:139`
-      [linha()], // `:657`
-      // `:690`, DESC — e o corpo da mais recente **difere** do do conteudo, ou a
+      [linha()], // `:140`
+      [linha()], // `:667`
+      // `:693`, DESC — e o corpo da mais recente **difere** do do conteudo, ou a
       // comparacao de `:189` desistiria antes da poda.
       [
         linhaDeVersao(92, { post_content: 'corpo antigo' }),
         linhaDeVersao(91),
         linhaDeVersao(90),
       ],
-      [linha()], // `:396`, o ouvinte do metadado
-      [linha()], // `:657` da segunda listagem
-      // `:690` com `ASC`: a recem-criada conta no total.
+      [linha()], // `:403`, o ouvinte do metadado
+      [linha()], // `:667` da segunda listagem
+      // `:693` com `ASC`: a recem-criada conta no total.
       [linhaDeVersao(90), linhaDeVersao(91), linhaDeVersao(92), linhaDeVersao(99)],
-      [linhaDeVersao(90)], // `:638` — a releitura de `wp_get_post_revision()`
+      [linhaDeVersao(90)], // `:632` — a releitura de `wp_get_post_revision()`
       [linhaDeVersao(91)],
     ],
   });
@@ -1070,14 +1071,16 @@ test('CA-10.2: a poda PULA salvamento automatico, e por isso guarda mais do que 
         linhaDeVersao(92),
         linhaDeVersao(99),
       ],
-      [linhaDeVersao(88, { post_name: nomeDaVersao(CONTEUDO, true) })],
+      // Nao ha releitura de versao aqui: a unica candidata a poda e o salvamento
+      // automatico, e o `continue` de `:254` desvia **antes** de
+      // `wp_delete_post_revision()`.
     ],
   });
 
   const resultado = guardarVersao(contexto, CONTEUDO);
 
   // Tres linhas, limite 2 → `$delete` e 1, e a primeira da lista e o salvamento
-  // automatico, que o `str_contains( ..., 'autosave' )` de `:253` PULA. Nada e
+  // automatico, que o `str_contains( ..., 'autosave' )` de `:254` PULA. Nada e
   // apagado, e ficam **tres** linhas com limite 2.
   assert.equal(resultado.desfecho, 'guardada');
   assert.deepEqual(exclusoes, []);
@@ -1095,12 +1098,12 @@ test('CA-10.2: o ponto da poda pode mudar QUAIS versoes somem, pela posicao na l
       [linha()],
       [linhaDeVersao(90), linhaDeVersao(92), linhaDeVersao(99)],
       // As releituras de `wp_get_post_revision()` dentro de
-      // `wp_delete_post_revision()` (`:638`), uma por versao apagada.
+      // `wp_delete_post_revision()` (`:632`), uma por versao apagada.
       [linhaDeVersao(99)],
       [linhaDeVersao(92)],
     ],
     ganchos: {
-      // Inverter a lista troca quem sai: o legado corta do inicio dela (`:250`).
+      // Inverter a lista troca quem sai: o legado corta do inicio dela (`:251`).
       filtrarVersoesAntesDaExclusao: (versoes) => [...versoes].reverse(),
     },
   });
@@ -1179,6 +1182,60 @@ test('CA-10.3: a versao NAO se apaga por capacidade — e a autorizacao que nega
   assert.deepEqual(autorizarExclusaoDeVersao(contexto, CONTEUDO, VERSAO), {
     codigo: 'rest_cannot_delete',
     mensagem: MENSAGEM_DE_RECUSA_DE_EXCLUSAO_DA_VERSAO,
+    codigoHttp: 403,
+  });
+});
+
+test('CA-10.3: sem `edit_post` no pai, a recusa de apagar e a de LER — a pergunta do meio', () => {
+  const VERSAO = 90;
+  // Um ator que pode apagar o conteudo de outra pessoa e **nao** pode edita-lo:
+  // a matriz do cenario nao tem `edit_others_posts`, e o conteudo e de outro.
+  const DE_OUTRA_PESSOA = 9;
+  const { contexto } = cenario({
+    atorDaRequisicao: ator('coveiro', 999),
+    conteudosNaAutorizacao: [
+      conteudoNaAutorizacao(CONTEUDO, { autorId: DE_OUTRA_PESSOA }),
+      conteudoNaAutorizacao(VERSAO, {
+        tipo: TIPO_DE_VERSAO,
+        paiId: CONTEUDO,
+        autorId: DE_OUTRA_PESSOA,
+      }),
+    ],
+  });
+  const comPoderDeApagar: ContextoDeVersao = {
+    ...contexto,
+    base: {
+      ...contexto.base,
+      matriz: [
+        {
+          identificador: 'coveiro',
+          capacidades: [
+            { capacidade: 'delete_others_posts', concedida: true },
+            { capacidade: 'delete_published_posts', concedida: true },
+          ],
+        },
+      ],
+    },
+  };
+
+  // Ele passa a pergunta 1 (`delete_post` do pai)...
+  assert.equal(
+    perguntarPermissao(
+      comAtor(comPoderDeApagar.base, comPoderDeApagar.ator),
+      CAPACIDADE_DE_APAGAR_CONTEUDO,
+      CONTEUDO,
+    ),
+    true,
+  );
+
+  // ...e e barrado na pergunta 2, que o legado nao escreve com
+  // `current_user_can`: ele reaproveita `get_items_permissions_check()`
+  // (`class-wp-rest-revisions-controller.php:480`), isto e, `edit_post` do pai.
+  // Logo a recusa que chega e a de LER, com o codigo e o texto dela — e nao a de
+  // apagar. E a pergunta que um porte perde ao ler a funcao procurando portoes.
+  assert.deepEqual(autorizarExclusaoDeVersao(comPoderDeApagar, CONTEUDO, VERSAO), {
+    codigo: 'rest_cannot_read',
+    mensagem: MENSAGEM_DE_RECUSA_DE_LEITURA_DE_VERSOES,
     codigoHttp: 403,
   });
 });
@@ -1265,7 +1322,7 @@ test('CA-10.3: a poda apaga versao SEM perguntar nada — e essa e a assimetria'
   });
 
   // Um assinante nao pode nada, e `apagarVersao()` nao pergunta: ela e o nucleo
-  // arrumando a propria casa, nao superficie (`revision.php:637`).
+  // arrumando a propria casa, nao superficie (`revision.php:631`).
   assert.equal(apagarVersao(contexto, VERSAO), true);
   assert.deepEqual(exclusoes, [VERSAO]);
 });
@@ -1307,7 +1364,7 @@ test('o 404 de conteudo inexistente vem ANTES do 403, como no legado', () => {
     respostas: [[]],
   });
 
-  // `class-wp-rest-revisions-controller.php:155` corre antes de `:185`. E
+  // `class-wp-rest-revisions-controller.php:152` corre antes de `:186`. E
   // enumeracao de identificador, e e comportamento do produto (P1).
   const resultado = listarVersoesDoConteudo(contexto, { conteudoId: CONTEUDO });
   assert.equal(resultado.desfecho, 'conteudo-inexistente');
@@ -1330,8 +1387,8 @@ test('CA-10.4: restaurar escreve os campos versionaveis no PAI, e nada mais', ()
       // `wp_is_post_autosave()` nao e chamada, logo nao ha releitura aqui.
       // ⚠️ Mas HA uma em `:71`: a tela passa `$revision->ID`, e nao o registro.
       [antiga], // `:477` — a releitura de `wp_restore_post_revision()`
-      [], // `:505` — o `valoresDe` de `update_post_meta( '_edit_last' )`
-      [], // `:505` — o `idsDe` dele
+      [], // `:507` — o `valoresDe` de `update_post_meta( '_edit_last' )`
+      [], // `:507` — o `idsDe` dele
       [linha()], // `:519` — o `get_post_type()` do ouvinte de metadado
     ],
   });
@@ -1341,7 +1398,7 @@ test('CA-10.4: restaurar escreve os campos versionaveis no PAI, e nada mais', ()
   assert.equal(resultado.desfecho, 'restaurado');
   assert.equal(resultado.conteudoId, CONTEUDO);
 
-  // O alvo e o PAI (`revision.php:498`), nunca a versao.
+  // O alvo e o PAI (`revision.php:496`), nunca a versao.
   assert.equal(atualizacoes.length, 1);
   const atualizacao = atualizacoes[0];
   assert.ok(atualizacao !== undefined);
@@ -1358,7 +1415,7 @@ test('CA-10.4: restaurar escreve os campos versionaveis no PAI, e nada mais', ()
   assert.equal(atualizacao.campos.corpo, 'corpo antigo');
   assert.equal(atualizacao.campos.titulo, 'titulo antigo');
 
-  // `:505`: `_edit_last` com quem restaurou, e e a UNICA escrita desta pasta —
+  // `:507`: `_edit_last` com quem restaurou, e e a UNICA escrita desta pasta —
   // a linha de `posts` e gravada pelo caminho de gravacao, que e T005.
   assert.equal(dados.escritas.length, 1);
   const gravacaoDoMetadado = dados.escritas[0];
@@ -1415,15 +1472,15 @@ test('CA-10.4: 🔴 a restauracao, sozinha, NAO cria versao nenhuma', () => {
 
 test('CA-10.4: 🔴 a versao que a gravacao cria depois da restauracao carrega o texto RESTAURADO', () => {
   // O ouvinte do ponto `wp_after_insert_post`, rodando sobre o conteudo **ja
-  // atualizado** — que e o que `wp_save_post_revision()` le (`revision.php:139`).
+  // atualizado** — que e o que `wp_save_post_revision()` le (`revision.php:140`).
   const { contexto, insercoes } = cenario({
     respostas: [
-      [linha({ post_content: 'corpo antigo' })], // `:139` — o conteudo JA restaurado
-      [linha({ post_content: 'corpo antigo' })], // `:657`
+      [linha({ post_content: 'corpo antigo' })], // `:140` — o conteudo JA restaurado
+      [linha({ post_content: 'corpo antigo' })], // `:667`
       // A versao mais recente ainda carrega o texto que a restauracao
       // sobrescreveu: e ela que preserva o `corpo`, e nao a versao nova.
-      [linhaDeVersao(90, { post_content: 'corpo' })], // `:690`
-      [linha({ post_content: 'corpo antigo' })], // `:396`
+      [linhaDeVersao(90, { post_content: 'corpo' })], // `:693`
+      [linha({ post_content: 'corpo antigo' })], // `:403`
     ],
   });
 
@@ -1436,14 +1493,14 @@ test('CA-10.4: 🔴 a versao que a gravacao cria depois da restauracao carrega o
   // nao o `corpo` que a restauracao sobrescreveu. O texto sobrescrito nao se
   // perde porque ja era a versao mais recente ANTES da restauracao, pela
   // invariante do legado de que *"the most recent revision always matches the
-  // current post"* (`revision.php:119`). A divergencia de redacao com CA-10.4
+  // current post"* (`revision.php:122`). A divergencia de redacao com CA-10.4
   // esta registrada em `restaurar-versao.ts` e em `contexto-de-versao.ts`, e
   // **nao foi resolvida** (P1).
   assert.equal(campos.corpo, 'corpo antigo');
 });
 
 test('CA-10.4: restaurar o que nao e versao, e restaurar sem o pai, sao desfechos diferentes', () => {
-  // `:479`: a linha nao e de versao.
+  // `:480`: a linha nao e de versao.
   const naoEVersao = cenario({ respostas: [[linha()]] });
   assert.equal(
     restaurarVersao(naoEVersao.contexto, { versaoId: CONTEUDO }).desfecho,
@@ -1532,7 +1589,7 @@ test('CA-10.4: a gravacao que devolve `0` para o fluxo antes de `_edit_last` e d
 
   const resultado = restaurarVersao(contexto, { versaoId: VERSAO });
 
-  // `:501`: com o `$wp_error` de fabrica, `wp_update_post()` devolve `0`.
+  // `:502`: com o `$wp_error` de fabrica, `wp_update_post()` devolve `0`.
   assert.equal(resultado.desfecho, 'gravacao-falhou');
   assert.equal(resultado.conteudoId, null);
   assert.deepEqual(dados.escritas, []);
@@ -1546,7 +1603,7 @@ test('CA-10.4: o ponto de campos vazio devolve o `false` do legado, sem gravar',
     ganchos: { filtrarCamposVersionaveis: () => [] },
   });
 
-  // `:494`: `if ( ! $update ) { return false; }` — nao e erro e nao e sucesso.
+  // `:493`: `if ( ! $update ) { return false; }` — nao e erro e nao e sucesso.
   assert.equal(
     restaurarVersao(contexto, { versaoId: VERSAO }).desfecho,
     'sem-campo-a-restaurar',
@@ -1575,10 +1632,10 @@ test('CA-10.1: o metadado versionado e copiado para a versao, valor por valor', 
   const { contexto, dados } = cenario({
     metadadosVersionados: ['footnotes'],
     respostas: [
-      [linha()], // `:139`
-      [linha()], // `:657`
-      [], // `:690`
-      [linha()], // `:396`
+      [linha()], // `:140`
+      [linha()], // `:667`
+      [], // `:693`
+      [linha()], // `:403`
       // `metadata_exists()` e `get_post_meta()` passam pela mesma leitura.
       [
         { post_id: CONTEUDO, meta_key: 'footnotes', meta_value: 'um' },
@@ -1613,12 +1670,12 @@ test('metadado versionado mudado grava versao nova, mesmo com o texto identico',
   const { contexto, insercoes, pontos } = cenario({
     metadadosVersionados: ['footnotes'],
     respostas: [
-      [linha()], // `:139`
-      [linha()], // `:657`
-      [linhaDeVersao(90)], // `:690` — o texto da versao e identico ao do conteudo
+      [linha()], // `:140`
+      [linha()], // `:667`
+      [linhaDeVersao(90)], // `:693` — o texto da versao e identico ao do conteudo
       [{ post_id: CONTEUDO, meta_key: 'footnotes', meta_value: 'novo' }], // do conteudo
       [{ post_id: 90, meta_key: 'footnotes', meta_value: 'velho' }], // da versao
-      [linha()], // `:396`
+      [linha()], // `:403`
       [{ post_id: CONTEUDO, meta_key: 'footnotes', meta_value: 'novo' }],
       [{ post_id: CONTEUDO, meta_key: 'footnotes', meta_value: 'novo' }],
     ],
@@ -1630,11 +1687,14 @@ test('metadado versionado mudado grava versao nova, mesmo com o texto identico',
   // transforma o `false` da comparacao de texto em `true`.
   assert.equal(resultado.desfecho, 'guardada');
   assert.equal(insercoes.length, 1);
-  // O ouvinte corre ANTES do interceptador de terceiro no mesmo ponto.
-  assert.ok(
-    pontos.indexOf('wp_post_revision_meta_keys') <
-      pontos.indexOf('wp_save_post_revision_post_has_changed'),
-  );
+  // O ouvinte corre ANTES do interceptador de terceiro no mesmo ponto. Os dois
+  // indices sao conferidos primeiro: com um ponto que nao dispare, `indexOf`
+  // devolve `-1` e a comparacao de ordem passaria sem ter visto nada.
+  const doOuvinte = pontos.indexOf('wp_post_revision_meta_keys');
+  const doInterceptador = pontos.indexOf('wp_save_post_revision_post_has_changed');
+  assert.ok(doOuvinte >= 0, 'o ponto das chaves de metadado disparou');
+  assert.ok(doInterceptador >= 0, 'o ponto de mudanca disparou');
+  assert.ok(doOuvinte < doInterceptador);
 });
 
 test('o ouvinte do metadado so sabe dizer "sim": ele nao desfaz a mudanca de texto', () => {
@@ -1666,8 +1726,8 @@ test('CA-10.4: restaurar APAGA o metadado versionado antes de copiar, e sem conf
       [linhaDeVersao(VERSAO)], // `:37`
       [linha()], // o pai
       [linhaDeVersao(VERSAO)], // `:477` — a releitura de `:71`
-      [], // `:505` — o `valoresDe` de `_edit_last`
-      [], // `:505` — o `idsDe` de `_edit_last`
+      [], // `:507` — o `valoresDe` de `_edit_last`
+      [], // `:507` — o `idsDe` de `_edit_last`
       [linha()], // `:519` — o `get_post_type()` do ouvinte
       [{ meta_id: 5 }], // o `SELECT meta_id` de `delete_post_meta( 'footnotes' )`
       [], // a versao NAO tem a chave: nada a copiar
@@ -1679,7 +1739,7 @@ test('CA-10.4: restaurar APAGA o metadado versionado antes de copiar, e sem conf
   assert.equal(resultado.desfecho, 'restaurado');
   // ⚠️ A chave e percorrida mesmo sem a versao te-la, e o `DELETE` sai: a
   // restauracao **apaga** o metadado versionado que a versao nao carrega
-  // (`revision.php:534`). Assimetrico com o lado de guardar, que confere antes.
+  // (`revision.php:540`). Assimetrico com o lado de guardar, que confere antes.
   assert.deepEqual(resultado.metadadosRestaurados, ['footnotes']);
   const exclusoesDeMetadado = dados.escritas.filter((pedida) =>
     pedida.texto.startsWith('DELETE FROM wp_postmeta'),
@@ -1725,6 +1785,55 @@ test('a comparacao de metadado e a do PHP: contagem, ordem e valor, sobre o valo
     ],
   });
   assert.equal(guardarVersao(trocado.contexto, CONTEUDO).desfecho, 'guardada');
+});
+
+test('a comparacao de metadado e sobre o valor DESSERIALIZADO, e nao sobre os bytes', () => {
+  // Duas cadeias **diferentes** que o `maybe_unserialize` do legado le como
+  // `false` — porque as duas parecem serializadas e nenhuma se le. Em PHP,
+  // `get_post_meta()` devolve `false` nos dois lados e o `!==` diz **iguais**;
+  // comparar os bytes crus diria o contrario, e e essa a divergencia que o
+  // cabecalho de `metadado-versionado.ts` declara como errada.
+  const quebradaA = 'a:1:{i:0;';
+  const quebradaB = 'a:5:{i:0;s:1:"x";}';
+  assert.notEqual(quebradaA, quebradaB);
+
+  const { contexto, insercoes } = cenario({
+    metadadosVersionados: ['chave'],
+    respostas: [
+      [linha()],
+      [linha()],
+      [linhaDeVersao(90)], // o texto e identico ao do conteudo
+      [{ post_id: CONTEUDO, meta_key: 'chave', meta_value: quebradaA }],
+      [{ post_id: 90, meta_key: 'chave', meta_value: quebradaB }],
+    ],
+  });
+
+  assert.equal(guardarVersao(contexto, CONTEUDO).desfecho, 'sem-mudanca');
+  assert.deepEqual(insercoes, []);
+});
+
+test('a comparacao de metadado conta os valores: listas de tamanhos diferentes mudaram', () => {
+  const { contexto, insercoes } = cenario({
+    metadadosVersionados: ['chave'],
+    respostas: [
+      [linha()],
+      [linha()],
+      [linhaDeVersao(90)], // o texto e identico: so a contagem decide
+      [
+        { post_id: CONTEUDO, meta_key: 'chave', meta_value: 'um' },
+        { post_id: CONTEUDO, meta_key: 'chave', meta_value: 'um' },
+      ],
+      [{ post_id: 90, meta_key: 'chave', meta_value: 'um' }],
+      [linha()],
+      [{ post_id: CONTEUDO, meta_key: 'chave', meta_value: 'um' }],
+      [{ post_id: CONTEUDO, meta_key: 'chave', meta_value: 'um' }],
+    ],
+  });
+
+  // Mesmos valores, contagens diferentes: o `!==` do PHP compara contagem antes
+  // de qualquer valor, logo a chave **mudou** e a versao e gravada.
+  assert.equal(guardarVersao(contexto, CONTEUDO).desfecho, 'guardada');
+  assert.equal(insercoes.length, 1);
 });
 
 /* ── AS INVARIANTES QUE ESTA PASTA NAO PODE QUEBRAR ───────────────────────── */

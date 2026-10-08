@@ -43,10 +43,10 @@
  *    rota de criacao ou de atualizacao
  *    (`class-wp-rest-revisions-controller.php:83`-`:140`);
  * 2. **`_wp_put_post_revision()` recusa versionar uma versao**, com texto:
- *    `Cannot create a revision of a revision` (`wp-includes/revision.php:367`).
+ *    `Cannot create a revision of a revision` (`wp-includes/revision.php:366`).
  *    Esta esta implementada em `guardar-versao.ts`;
  * 3. **a restauracao escreve no pai, nunca na versao**: `$update['ID'] =
- *    $revision['post_parent']` (`:498`). Esta esta em `restaurar-versao.ts`.
+ *    $revision['post_parent']` (`:496`). Esta esta em `restaurar-versao.ts`.
  *
  * **Esta tarefa nao escolhe entre as duas leituras de CA-10.3, e nao precisa**,
  * porque as duas levam ao mesmo lugar: a versao nao e editada. O que ela faz e
@@ -69,8 +69,8 @@
  *
  * | superficie | onde | o que pergunta |
  * |---|---|---|
- * | API REST, listar | `class-wp-rest-revisions-controller.php:185` | `edit_post` do **pai** |
- * | API REST, apagar | `:466` e `:485` | `delete_post` do **pai** *e* `delete_post` da **versao** |
+ * | API REST, listar | `class-wp-rest-revisions-controller.php:186` | `edit_post` do **pai** |
+ * | API REST, apagar | `:466` e `:484` | `delete_post` do **pai** *e* `delete_post` da **versao** |
  * | Painel, restaurar | `wp-admin/revision.php:42` | `edit_post` do **pai** |
  * | Painel, comparar | `wp-admin/revision.php:97` | `read_post` da **versao** *e* `edit_post` do **pai** |
  * | XML-RPC, listar | `class-wp-xmlrpc-server.php:4753` | `edit_post` do **pai** |
@@ -143,10 +143,10 @@ export interface RecusaDeVersao {
   oraculo (`ESC-ORACULO`, BR-MIGRAR-116).
 */
 
-/** `rest_cannot_read` (`class-wp-rest-revisions-controller.php:187`). */
+/** `rest_cannot_read` (`class-wp-rest-revisions-controller.php:188`). */
 export const CODIGO_DE_RECUSA_DE_LEITURA_DE_VERSOES = 'rest_cannot_read';
 
-/** O texto da recusa de listar versoes (`:188`). */
+/** O texto da recusa de listar versoes (`:189`). */
 export const MENSAGEM_DE_RECUSA_DE_LEITURA_DE_VERSOES =
   'Sorry, you are not allowed to view revisions of this post.';
 
@@ -219,7 +219,7 @@ export const CODIGO_HTTP_DE_RECUSA_DE_RESTAURACAO = 401;
  * pode **listar** as versoes de um conteudo.
  *
  * A pergunta e `current_user_can( 'edit_post', $parent->ID )` — do **pai**, e so
- * dela (`class-wp-rest-revisions-controller.php:185`). Ver versao de conteudo
+ * dela (`class-wp-rest-revisions-controller.php:186`). Ver versao de conteudo
  * exige poder **editar** o conteudo, e nao so le-lo: um visitante que ve o post
  * publicado nao ve o historico dele.
  *
@@ -274,11 +274,25 @@ export function autorizarRestauracaoDeVersao(
  * **CA-10.3**, a metade que a capacidade decide: *"uma versao (…) nao e apagavel
  * por permissao de conteudo"*.
  *
- * As **duas** perguntas de `delete_item_permissions_check()`, na ordem do legado
- * (`class-wp-rest-revisions-controller.php:460`-`:492`):
+ * As **tres** perguntas de `delete_item_permissions_check()`, na ordem do legado
+ * (`class-wp-rest-revisions-controller.php:460`-`:493`):
  *
- * 1. `delete_post` do **pai** — que um ator com poder de apagar o conteudo tem;
- * 2. `delete_post` da **versao** — que e `do_not_allow` para **todos**.
+ * 1. `delete_post` do **pai** (`:466`) — que um ator com poder de apagar o
+ *    conteudo tem;
+ * 2. **`edit_post` do pai** (`:479`), e ela nao esta escrita ali: o legado
+ *    reaproveita `get_items_permissions_check( $request )`, que e a guarda de
+ *    {@link autorizarLeituraDeVersoes}. E a pergunta que um porte perde ao ler a
+ *    funcao de cima para baixo procurando `current_user_can`, e ela **muda a
+ *    recusa que o ator recebe**: quem tem `delete_post` e nao tem `edit_post` no
+ *    pai e recusado com `rest_cannot_read` e *"…view revisions of this post."*,
+ *    e nao com a mensagem de exclusao;
+ * 3. `delete_post` da **versao** (`:484`) — que e `do_not_allow` para **todos**.
+ *
+ * ⚠️ **Entre a 1 e a 2 ha um quarto portao que nao e de capacidade**: `:474`
+ * resolve a versao e devolve `rest_post_invalid_id` com 404 quando o
+ * identificador nao e de versao (`:493`-`:502`). E da **rota**, nao desta
+ * operacao — o mesmo limite que `listar-versoes.ts` declara para a conferencia
+ * de tipo do pai —, e quem portar a API REST o poe ali.
  *
  * ⚠️ **Esta funcao nao crava a negacao: ela pergunta.** A regra mora em
  * `plataforma/autorizacao/traducao-de-conteudo.ts` (`PERM-5`, BR-MIGRAR-091), e
@@ -301,7 +315,7 @@ export function autorizarExclusaoDeVersao(
 ): RecusaDeVersao | null {
   const codigoHttp = codigoDeAutorizacaoExigida(contexto.ator);
 
-  // Pergunta 1 (`:466`): sobre o pai.
+  // Pergunta 1 (`:466`): `delete_post` sobre o pai.
   if (!podeApagar(contexto, conteudoPaiId)) {
     return {
       codigo: CODIGO_DE_RECUSA_DE_EXCLUSAO_DE_VERSAO,
@@ -310,7 +324,15 @@ export function autorizarExclusaoDeVersao(
     };
   }
 
-  // Pergunta 2 (`:485`): sobre a versao — `do_not_allow`, para todos.
+  // Pergunta 2 (`:479`): `edit_post` sobre o pai, reaproveitada da guarda de
+  // listar. E a recusa dela que chega, com o codigo e o texto dela.
+  const recusaDeLeitura = autorizarLeituraDeVersoes(contexto, conteudoPaiId);
+  if (recusaDeLeitura !== null) {
+    return recusaDeLeitura;
+  }
+
+  // Pergunta 3 (`:484`): `delete_post` sobre a versao — `do_not_allow`, para
+  // todos.
   if (!podeApagar(contexto, versaoId)) {
     return {
       codigo: CODIGO_DE_RECUSA_DE_EXCLUSAO_DE_VERSAO,

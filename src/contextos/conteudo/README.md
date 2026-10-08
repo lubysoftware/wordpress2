@@ -260,9 +260,9 @@ legado"*.
 1. 🔴 **A versão que o legado grava carrega o texto NOVO, não o antigo.**
    `wp_save_post_revision()` corre **depois** da escrita, lê `get_post(
    $post_id )` — logo o registro já atualizado — e versiona esse registro
-   (`wp-includes/revision.php:139` e `:217`). O docblock da própria função diz a
+   (`wp-includes/revision.php:140` e `:217`). O docblock da própria função diz a
    consequência: *"as every update is a revision, and **the most recent revision
-   always matches the current post**"* (`:119`). Criar conteúdo com o corpo `A` e
+   always matches the current post**"* (`:122`). Criar conteúdo com o corpo `A` e
    depois gravar `B` deixa **uma** versão, com `B` — e o corpo `A` não fica em
    versão nenhuma. Ver o item 6 de *O que ninguém decidiu*.
 2. **A instalação de fábrica versiona em `wp_after_insert_post`, não em
@@ -287,7 +287,7 @@ legado"*.
 5. **A poda guarda mais do que o limite quando há salvamento automático entre as
    mais antigas.** O `count( $revisions )` conta a linha de salvamento
    automático, e o `str_contains( …, 'autosave' )` a **pula** em vez de apagar
-   outra no lugar (`:245` e `:253`). E esse teste é a cadeia **nua**
+   outra no lugar (`:245` e `:254`). E esse teste é a cadeia **nua**
    `'autosave'`, não `"{$pai}-autosave"` como em `wp_is_post_autosave()`: são
    dois testes diferentes no mesmo arquivo do legado.
 
@@ -308,12 +308,22 @@ negado**: a pergunta é respondida como se fosse sobre o pai.
 `BR-MIGRAR-091` e a tabela de exceções de UC-07 registram **só** a metade de
 apagar; nada no pacote diz que editar é negado.
 
+E o endpoint de exclusão de versão faz **três** perguntas, não duas
+(`class-wp-rest-revisions-controller.php:460`-`:493`): `delete_post` do pai
+(`:466`), **`edit_post` do pai** (`:480`) — que o legado não escreve com
+`current_user_can`, porque reaproveita `get_items_permissions_check()` — e
+`delete_post` da versão (`:484`). A do meio decide **qual recusa o ator recebe**:
+quem pode apagar o conteúdo de outra pessoa e não pode editá-lo é barrado com
+`rest_cannot_read` e *"…view revisions of this post."*, e não com a mensagem de
+exclusão. É a pergunta que se perde ao ler a função procurando portões, e há
+teste de mutação por ela.
+
 *"Não é editável"* é verdade por outro caminho, e são três recusas
 independentes: a API REST de versões não registra rota de escrita
 (`class-wp-rest-revisions-controller.php:83`-`:140`);
 `_wp_put_post_revision()` recusa versionar uma versão, com texto
-(`revision.php:367`); e a restauração escreve no **pai**, nunca na versão
-(`:498`). T021 **não escolhe** entre as duas leituras, porque as duas levam ao
+(`revision.php:366`); e a restauração escreve no **pai**, nunca na versão
+(`:496`). T021 **não escolhe** entre as duas leituras, porque as duas levam ao
 mesmo lugar — a versão não é editada —, e o que ela faz é *perguntar*
 `delete_post` a `plataforma/autorizacao/` em vez de cravar a negação, **não**
 negar `edit_post` sobre a versão, e registrar a divergência de redação. A análise
@@ -509,7 +519,7 @@ disto se decide no meio da implementação.
 6. 🔴 **CA-10.1 e CA-10.4 descrevem "a versão anterior" e "guardar o corrente
    como versão nova", e o legado guarda o texto COMO ELE ACABOU DE SER
    GRAVADO.** A versão é criada depois da escrita, a partir da linha já
-   atualizada (`wp-includes/revision.php:139` e `:217`), e o docblock da função é
+   atualizada (`wp-includes/revision.php:140` e `:217`), e o docblock da função é
    literal: *"the most recent revision always matches the current post"*. As duas
    leituras coincidem no que os critérios cobram de verificável — uma linha de
    versão por gravação de conteúdo que já existia, ligada ao conteúdo, e texto

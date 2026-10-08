@@ -28,7 +28,7 @@
  *
  * *"(…) e guarda o corrente como versao nova"*. No legado, a versao nova **nao e
  * criada pela restauracao**: ela e criada pela **gravacao** que a restauracao
- * dispara. `wp_restore_post_revision()` chama `wp_update_post()` (`:499`), que
+ * dispara. `wp_restore_post_revision()` chama `wp_update_post()` (`:500`), que
  * chama `wp_insert_post()`, que emite o ponto `wp_after_insert_post`, onde
  * `wp_save_post_revision_on_insert()` esta registrado em prioridade 9 — e e ele
  * que grava a versao.
@@ -53,9 +53,9 @@
  *
  * | escreve | nao escreve |
  * |---|---|
- * | os campos versionaveis, no **conteudo pai** (`:489`-`:498`) | o estado, o tipo, o identificador na URL e as datas do conteudo |
- * | o metadado `_edit_last`, com quem restaurou (`:505`) | nada na linha da **versao** — ela e so lida |
- * | o metadado versionado, pelo ouvinte do nucleo (`:518`) | o autor do conteudo |
+ * | os campos versionaveis, no **conteudo pai** (`:488`-`:498`) | o estado, o tipo, o identificador na URL e as datas do conteudo |
+ * | o metadado `_edit_last`, com quem restaurou (`:507`) | nada na linha da **versao** — ela e so lida |
+ * | o metadado versionado, pelo ouvinte do nucleo (`:530`) | o autor do conteudo |
  *
  * Um porte que escrevesse a linha inteira da versao de volta no conteudo poria
  * o conteudo em `inherit` com tipo `revision`, e o tiraria do ar. A razao de so
@@ -99,7 +99,7 @@ import {
 
 /**
  * `_edit_last` — a chave de metadado em que a restauracao grava **quem
- * restaurou** (`wp-includes/revision.php:505`).
+ * restaurou** (`wp-includes/revision.php:507`).
  *
  * O nome e do legado e nao se traduz: o **P8** poe superficie publicada no
  * contrato publico, e esta chave e lida pela trava de edicao e pela coluna
@@ -128,9 +128,9 @@ export type DesfechoDaRestauracao =
    * (`wp-admin/revision.php:52`).
    */
   | 'versionamento-desligado'
-  /** Nenhum campo versionavel sobreviveu ao filtro: o `false` do legado (`:494`). */
+  /** Nenhum campo versionavel sobreviveu ao filtro: o `false` do legado (`:493`). */
   | 'sem-campo-a-restaurar'
-  /** `wp_update_post()` devolveu `0` (`:501`). */
+  /** `wp_update_post()` devolveu `0` (`:502`). */
   | 'gravacao-falhou';
 
 /** O que a restauracao devolve. */
@@ -138,7 +138,7 @@ export interface ResultadoDaRestauracao {
   readonly desfecho: DesfechoDaRestauracao;
   /**
    * `$post_id` — o identificador do **conteudo**, nao o da versao, porque e o
-   * que `wp_restore_post_revision()` devolve (`:520`). `null` nos desfechos em
+   * que `wp_restore_post_revision()` devolve (`:519`). `null` nos desfechos em
    * que o legado devolve `null`, `false` ou `0`.
    */
   readonly conteudoId: number | null;
@@ -261,7 +261,7 @@ export function restaurarVersao(
 
 /**
  * `wp_restore_post_revision( $revision )` — a restauracao, **sem portao de
- * capacidade** (`wp-includes/revision.php:476`-`:521`).
+ * capacidade** (`wp-includes/revision.php:476`-`:520`).
  *
  * Aceita o identificador **ou** a propria linha, como `wp_get_post_revision()`
  * aceita `int|WP_Post`: so a primeira forma consulta.
@@ -272,9 +272,9 @@ export function restaurarVersao(
  * |---|---|---|
  * | 1 | a linha tem de ser de versao | `:477`-`:481` |
  * | 2 | os campos a restaurar: os versionaveis da propria versao | `:483`-`:492` |
- * | 3 | lista vazia devolve `false` | `:494` |
- * | 4 | o alvo e o **pai**, e `wp_update_post()` grava | `:498`-`:503` |
- * | 5 | `_edit_last` com quem restaurou | `:505` |
+ * | 3 | lista vazia devolve `false` | `:493` |
+ * | 4 | o alvo e o **pai**, e `wp_update_post()` grava | `:496`-`:503` |
+ * | 5 | `_edit_last` com quem restaurou | `:507` |
  * | 6 | o ponto `wp_restore_post_revision` | `:517` |
  *
  * ⚠️ **O `$fields` opcional do legado nao viaja**, e a ausencia e deliberada: a
@@ -316,25 +316,25 @@ export function restaurarConteudoDaVersao(
     camposVersionaveis(contexto, versao),
   );
 
-  // Passo 3 (`:494`): o `false` do legado, que nao e erro e nao e sucesso.
+  // Passo 3 (`:493`): o `false` do legado, que nao e erro e nao e sucesso.
   if (Object.keys(atualizacao).length === 0) {
     return { desfecho: 'sem-campo-a-restaurar', ...SEM_RESTAURACAO };
   }
 
-  // Passo 4 (`:498`): o alvo e o PAI. O `wp_slash()` da linha seguinte do legado
+  // Passo 4 (`:496`): o alvo e o PAI. O `wp_slash()` da linha seguinte do legado
   // nao viaja — escapar e da camada de dados.
   const paiId =
     versao.vinculo.tipo === 'original-da-versao' ? versao.vinculo.id : 0;
   const conteudoId = contexto.gravacao.atualizar(paiId, atualizacao);
 
-  // `:501`: `if ( ! $post_id || is_wp_error( $post_id ) ) { return $post_id; }`.
+  // `:502`: `if ( ! $post_id || is_wp_error( $post_id ) ) { return $post_id; }`.
   // Com o `$wp_error` de fabrica, `wp_update_post()` devolve `0` na falha — e e
   // esse `0` que para o fluxo **antes** de `_edit_last` e antes do ponto.
   if (conteudoId === 0) {
     return { desfecho: 'gravacao-falhou', ...SEM_RESTAURACAO };
   }
 
-  // Passo 5 (`:505`): `update_post_meta( $post_id, '_edit_last',
+  // Passo 5 (`:507`): `update_post_meta( $post_id, '_edit_last',
   // get_current_user_id() )`.
   contexto.armazenamento.metadados.gravar(
     conteudoId,

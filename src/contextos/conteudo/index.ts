@@ -145,13 +145,21 @@ export interface ModuloDeConteudo {
    * `wp_save_post_revision()`.
    *
    * **Permissao exigida: nenhuma, e e assim no legado.** Esta nao e uma
-   * superficie: e o **ouvinte** que o nucleo registra em
-   * `wp_after_insert_post` com prioridade 9 e em `post_updated` com prioridade
-   * 10 (`versoes/contexto-de-versao.ts`, `OUVINTES_DE_FABRICA_DA_VERSAO`), e a
+   * superficie: e `wp_save_post_revision()`, o **ouvinte** que o nucleo registra
+   * em `post_updated` com prioridade 10 (`default-filters.php:446`), e a
    * capacidade de quem gravou o conteudo ja foi cobrada pelo caminho de
    * gravacao. O **P4** manda *"preservar o default de cada camada, inclusive
    * quando o default e permissivo"*, e dar portao a esta operacao impediria o
    * versionamento no unico lugar de onde ele e disparado.
+   *
+   * ⚠️ **O outro ouvinte do par NAO e esta funcao, e pendura-la no ponto dele
+   * versiona na insercao.** Quem a instalacao de fabrica dispara em
+   * `wp_after_insert_post`, prioridade 9, e `guardarVersaoNaInsercao()`, que sai
+   * pelo barril de `versoes/` e **nao** entra aqui: e ela que tem a guarda
+   * `! $update` (`wp-includes/revision.php:108`), e sem essa guarda a criacao de
+   * conteudo passaria a criar versao. As duas, com a guarda cruzada que as
+   * separa, estao em `OUVINTES_DE_FABRICA_DA_VERSAO`
+   * (`versoes/contexto-de-versao.ts`).
    *
    * ⚠️ **A versao guardada carrega o texto como ele acabou de ser gravado, e
    * nao o anterior** — a divergencia de redacao com CA-10.1 esta registrada no
@@ -166,7 +174,7 @@ export interface ModuloDeConteudo {
    * Lista as versoes de um conteudo (US-10, T021).
    *
    * **Permissao exigida: `edit_post` do conteudo** — e nao `read_post`
-   * (`class-wp-rest-revisions-controller.php:185`). Ver o historico exige poder
+   * (`class-wp-rest-revisions-controller.php:186`). Ver o historico exige poder
    * editar o conteudo.
    */
   listarVersoes(

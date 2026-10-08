@@ -1,7 +1,7 @@
 /**
  * O metadado versionado — os **tres ouvintes de fabrica** que o nucleo registra
  * nos pontos desta pasta, e a lista de chaves que eles percorrem
- * (`wp-includes/revision.php:572`-`:618`, `:395`-`:410`, `:518`-`:540`).
+ * (`wp-includes/revision.php:574`-`:619`, `:402`-`:412`, `:530`-`:544`).
  *
  * Entrega de **T021** da feature `002-autoria-e-publicacao` (US-10).
  *
@@ -44,9 +44,9 @@
  * # As tres armadilhas deste arquivo
  *
  * 1. **Guardar confere se existe; restaurar NAO.** `wp_save_revisioned_meta_fields()`
- *    so copia a chave que `metadata_exists()` encontra no conteudo (`:607`), e
+ *    so copia a chave que `metadata_exists()` encontra no conteudo (`:409`), e
  *    `wp_restore_post_revision_meta()` **apaga a chave do conteudo sem conferir
- *    nada** e so depois tenta copiar da versao (`:534`-`:538`). O efeito e
+ *    nada** e so depois tenta copiar da versao (`:539`-`:542`). O efeito e
  *    observavel e assimetrico: restaurar uma versao que **nao** tem a chave
  *    **apaga** a chave do conteudo. Um porte que pusesse a mesma guarda nos dois
  *    lados preservaria um metadado que o legado descarta.
@@ -58,7 +58,7 @@
  *    desfaria a deteccao de mudanca de texto quando o metadado nao mudou.
  * 3. **A copia nao e "mover": e `add_metadata` por valor, sem `unique`.**
  *    `_wp_copy_post_meta()` percorre **todos** os valores da chave e acrescenta
- *    um a um (`:555`-`:563`), com o comentario do legado explicando por que nao
+ *    um a um (`:555`-`:562`), com o comentario do legado explicando por que nao
  *    usa `add_post_meta` — *"to allow for a revision post target OR regular
  *    post"*. Chave repetida continua repetida na versao, e na mesma ordem de
  *    `meta_id`, que e a ordem que {@link RepositorioDeMetadadosDeConteudo.listar}
@@ -100,11 +100,11 @@ import type { ContextoDeVersao } from './contexto-de-versao.js';
 
 /**
  * `wp_post_revision_meta_keys( $post_type )` — as chaves de metadado que se
- * versionam, naquele tipo (`wp-includes/revision.php:572`-`:598`).
+ * versionam, naquele tipo (`wp-includes/revision.php:574`-`:599`).
  *
  * Os dois passos sao a consulta ao registro e o ponto de extensao
  * `wp_post_revision_meta_keys` (`:598`). A deduplicacao do legado — o
- * `$chaves[$nome] = true` seguido de `array_keys()` (`:583`-`:586`) — existe
+ * `$chaves[$nome] = true` seguido de `array_keys()` (`:584`-`:588`) — existe
  * porque o `array_merge` junta o registro **global** de `post` com o registro do
  * **subtipo**, e a mesma chave pode estar nos dois; esta funcao a reproduz
  * porque quem implementar {@link ContextoDeVersao.metadadosVersionados} vai
@@ -121,7 +121,7 @@ export function chavesDeMetadadoVersionado(
 
 /**
  * `_wp_copy_post_meta( $origem, $destino, $chave )`
- * (`wp-includes/revision.php:555`-`:563`).
+ * (`wp-includes/revision.php:555`-`:562`).
  *
  * Um `add_metadata` por valor, **sem `unique`** — logo sempre insere, inclusive
  * quando o destino ja tem a chave. Devolve quantos valores foram copiados, para
@@ -149,7 +149,7 @@ export function copiarMetadado(
 
 /**
  * `metadata_exists( 'post', $id, $chave )` — se a chave tem alguma linha
- * (`wp-includes/meta.php:1060`).
+ * (`wp-includes/meta.php:763`).
  *
  * No legado e a mesma leitura de `get_metadata_raw()`: carrega **todas** as
  * linhas do objeto e pergunta pela presenca da chave em memoria. T002 reproduz
@@ -167,10 +167,10 @@ function metadadoExiste(
 /**
  * **Ouvinte de fabrica**, prioridade 10 no ponto `_wp_put_post_revision`
  * (`default-filters.php:803`): `wp_save_revisioned_meta_fields( $revision_id,
- * $post_id )` (`wp-includes/revision.php:395`-`:410`).
+ * $post_id )` (`wp-includes/revision.php:402`-`:412`).
  *
- * O `get_post_type( $post_id )` que abre a funcao (`:396`) e uma leitura do
- * conteudo, e o `return` quando ele nao existe (`:398`) e silencio puro: a
+ * O `get_post_type( $post_id )` que abre a funcao (`:403`) e uma leitura do
+ * conteudo, e o `return` quando ele nao existe (`:405`) e silencio puro: a
  * versao fica gravada **sem** o metadado e ninguem e avisado (P7).
  *
  * Devolve as chaves copiadas, na ordem, para que CA-10.1 seja afirmavel por
@@ -201,9 +201,9 @@ export function guardarMetadadosVersionados(
 /**
  * **Ouvinte de fabrica**, prioridade 10 no ponto `wp_restore_post_revision`
  * (`default-filters.php:809`): `wp_restore_post_revision_meta( $post_id,
- * $revision_id )` (`wp-includes/revision.php:518`-`:540`).
+ * $revision_id )` (`wp-includes/revision.php:530`-`:544`).
  *
- * ⚠️ **Apaga antes de copiar, e sem conferir se havia o que copiar** (`:534`):
+ * ⚠️ **Apaga antes de copiar, e sem conferir se havia o que copiar** (`:539`):
  * *"Clear any existing meta"*. Restaurar uma versao gravada antes de a chave
  * existir **apaga** a chave do conteudo — e e esse o sentido de *"substitui"* em
  * CA-10.4 para o metadado versionado.
@@ -235,7 +235,7 @@ export function restaurarMetadadosVersionados(
  * **Ouvinte de fabrica**, prioridade 10 no filtro
  * `wp_save_post_revision_post_has_changed` (`default-filters.php:800`):
  * `wp_check_revisioned_meta_fields_have_changed()`
- * (`wp-includes/revision.php:610`-`:619`).
+ * (`wp-includes/revision.php:611`-`:619`).
  *
  * ⚠️ **So sabe dizer "sim"** (armadilha 2 do cabecalho): recebe o resultado da
  * comparacao dos campos de texto e, achando metadado diferente, o troca para
@@ -290,7 +290,12 @@ function listasIdenticas(
       // Inalcancavel: as duas listas tem o mesmo comprimento e o indice esta
       // dentro dele. O ramo existe porque `noUncheckedIndexedAccess` nao sabe
       // disso, e porque converter o tipo a mao esconderia um erro de verdade.
-      return aqui === la;
+      // **Nao devolve daqui**: sair da funcao com os dois ausentes afirmaria
+      // igualdade sem ter olhado os elementos seguintes.
+      if (aqui !== la) {
+        return false;
+      }
+      continue;
     }
     if (formaCanonica(aqui) !== formaCanonica(la)) {
       return false;

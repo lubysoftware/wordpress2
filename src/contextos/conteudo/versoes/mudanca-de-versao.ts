@@ -1,6 +1,6 @@
 /**
  * A comparacao que decide se vale a pena guardar versao — o laco de
- * `wp_save_post_revision()` (`wp-includes/revision.php:189`-`:196`), e a
+ * `wp_save_post_revision()` (`wp-includes/revision.php:189`-`:195`), e a
  * normalizacao que ele aplica antes de comparar.
  *
  * Entrega de **T021** da feature `002-autoria-e-publicacao` (US-10).
@@ -31,7 +31,7 @@
  * CA-10.2 passaria a descartar versoes de verdade mais cedo.
  *
  * `normalize_whitespace()` sao quatro operacoes, na ordem
- * (`wp-includes/formatting.php:5580`-`:5585`):
+ * (`wp-includes/formatting.php:5581`-`:5584`):
  *
  * | # | operacao | detalhe que decide |
  * |---|---|---|
@@ -101,7 +101,7 @@ export function aparar(valor: string): string {
 
 /**
  * `normalize_whitespace( $str )` — as quatro operacoes, na ordem
- * (`wp-includes/formatting.php:5580`-`:5585`).
+ * (`wp-includes/formatting.php:5581`-`:5584`).
  *
  * A ordem entre o passo 3 e o 4 e a razao de a funcao nao ser um
  * `replace(/\s+/g, ' ')`: o legado **preserva a quebra de linha unica** e
@@ -141,7 +141,7 @@ export function formaComparavel(valor: string | number): string {
 
 /**
  * O laco de comparacao de `wp_save_post_revision()`
- * (`wp-includes/revision.php:189`-`:196`): se algum campo versionavel mudou.
+ * (`wp-includes/revision.php:189`-`:195`): se algum campo versionavel mudou.
  *
  * ⚠️ **O `break` no primeiro campo diferente e observavel pela sequencia de
  * comandos**, e nao so por desempenho: no legado, o laco chama

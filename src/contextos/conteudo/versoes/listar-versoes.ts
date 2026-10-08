@@ -20,7 +20,7 @@
  * — inclusive de dentro de `wp_save_post_revision()`, onde nao ha ator. Esta e a
  * **superficie**, e e ela que pergunta a capacidade, exatamente como o
  * controlador REST de versoes faz
- * (`class-wp-rest-revisions-controller.php:180`-`:193`).
+ * (`class-wp-rest-revisions-controller.php:180`-`:195`).
  *
  * E a mesma razao pela qual T003 entregou `publicar()` e
  * `transitarParaPublicado()` em vez de uma funcao so: *"a operacao declara a
@@ -33,10 +33,10 @@
  * `plan.md` diz *"erros: versao inexistente"*. Nesta metade, o que pode nao
  * existir e o **conteudo**, e o legado nao trata isso como erro:
  * `wp_get_post_revisions()` devolve **lista vazia** para conteudo inexistente
- * (`wp-includes/revision.php:659`), e quem distingue os dois casos e a
+ * (`wp-includes/revision.php:669`), e quem distingue os dois casos e a
  * superficie, nao a leitura. O controlador REST o faz **antes** da capacidade,
  * com `rest_post_invalid_parent` e 404
- * (`class-wp-rest-revisions-controller.php:155`), e e por isso que
+ * (`class-wp-rest-revisions-controller.php:152`), e e por isso que
  * {@link listarVersoesDoConteudo} tem um desfecho proprio para conteudo
  * inexistente em vez de devolver lista vazia: sem ele, a operacao responderia
  * *"este conteudo nao tem versao"* a quem pediu versoes de um conteudo que nao
@@ -65,7 +65,7 @@ export interface PedidoDeListaDeVersoes {
    * As opcoes de `wp_get_post_revisions()`.
    *
    * ⚠️ O controlador REST **nao** informa nenhuma das duas: ele usa os defaults
-   * (`class-wp-rest-revisions-controller.php:262`), logo a ordem e decrescente e
+   * (`class-wp-rest-revisions-controller.php:260`), logo a ordem e decrescente e
    * o versionamento desligado devolve lista vazia. Viajam aqui porque sao
    * superficie publicada da funcao do legado (P8) e porque tres chamadores do
    * nucleo as informam — ver `OpcoesDaListaDeVersoes`.
@@ -87,7 +87,7 @@ export interface ResultadoDaListaDeVersoes {
  * capacidade de **editar** aquele conteudo.
  *
  * **Permissao exigida: `edit_post` do conteudo** — e nao `read_post`
- * (`class-wp-rest-revisions-controller.php:185`). Ver versao de conteudo exige
+ * (`class-wp-rest-revisions-controller.php:186`). Ver versao de conteudo exige
  * poder edita-lo: o visitante que le o post publicado nao ve o historico dele, e
  * um autor nao ve o historico do conteudo de outra pessoa.
  *
@@ -95,12 +95,12 @@ export interface ResultadoDaListaDeVersoes {
  *
  * | # | passo | linha |
  * |---|---|---|
- * | 1 | o conteudo tem de existir | `:155`-`:168` |
- * | 2 | `edit_post` do conteudo | `:185` |
- * | 3 | `wp_get_post_revisions()` | `:262` |
+ * | 1 | o conteudo tem de existir | `:152`-`:168` |
+ * | 2 | `edit_post` do conteudo | `:186` |
+ * | 3 | `wp_get_post_revisions()` | `:260` |
  *
  * ⚠️ **O passo 1 do legado confere tambem o TIPO do pai** — `$this->parent_post_type
- * !== $parent_post->post_type` (`:163`) —, porque a rota e registrada por tipo
+ * !== $parent_post->post_type` (`:164`) —, porque a rota e registrada por tipo
  * de conteudo: pedir versoes de uma pagina pela rota de posts devolve 404. Aqui
  * o tipo nao viaja no pedido porque esta pasta nao conhece roteamento, e
  * declarar o parametro sem a rota que o alimenta inventaria superficie. Fica
@@ -111,20 +111,20 @@ export function listarVersoesDoConteudo(
   contexto: ContextoDeVersao,
   pedido: PedidoDeListaDeVersoes,
 ): ResultadoDaListaDeVersoes {
-  // Passo 1 (`:155`): e ANTES da capacidade — ver a nota de enumeracao no
+  // Passo 1 (`:152`): e ANTES da capacidade — ver a nota de enumeracao no
   // cabecalho.
   const conteudo = contexto.armazenamento.conteudo.obterPorId(pedido.conteudoId);
   if (conteudo === null) {
     return { desfecho: 'conteudo-inexistente', versoes: [], recusa: null };
   }
 
-  // Passo 2 (`:185`).
+  // Passo 2 (`:186`).
   const recusa = autorizarLeituraDeVersoes(contexto, pedido.conteudoId);
   if (recusa !== null) {
     return { desfecho: 'recusado', versoes: [], recusa };
   }
 
-  // Passo 3 (`:262`): a leitura do legado, que torna a ler o conteudo. Ver a
+  // Passo 3 (`:260`): a leitura do legado, que torna a ler o conteudo. Ver a
   // nota de cache no cabecalho de `leitura-de-versoes.ts`.
   return {
     desfecho: 'listado',

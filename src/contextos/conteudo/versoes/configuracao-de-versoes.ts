@@ -25,7 +25,7 @@
  * ```
  *
  * e `wp_revisions_to_keep()` o traduz na primeira linha
- * (`wp-includes/revision.php:811`-`:816`):
+ * (`wp-includes/revision.php:813`-`:818`):
  *
  * ```php
  * $num = WP_POST_REVISIONS;
@@ -35,7 +35,7 @@
  * Logo o numero de fabrica e **`-1`**, e `-1` e *"guardar todas"* — e o
  * *"inclusive para guardar todas"* de CA-10.2 e, no legado, **o default**, nao
  * uma opcao. A poda desiste antes de consultar o banco quando o limite e
- * negativo (`:225`-`:227`), que e o que torna `-1` literalmente ilimitado em vez
+ * negativo (`:225`-`:226`), que e o que torna `-1` literalmente ilimitado em vez
  * de muito grande.
  *
  * A comparacao `true === $num` e **identica**, e e por isso que
@@ -110,8 +110,8 @@ export const VERSIONAMENTO_DESLIGADO = 0;
  * (`register_post_type`, `wp-includes/post.php:49`).
  *
  * E o nome que `post_type_supports()` recebe nas **duas** perguntas deste
- * caminho: a de `wp_save_post_revision()` (`:148`) e a de
- * `wp_revisions_to_keep()` (`:818`). Fica declarado porque e contrato publico —
+ * caminho: a de `wp_save_post_revision()` (`:146`) e a de
+ * `wp_revisions_to_keep()` (`:821`). Fica declarado porque e contrato publico —
  * uma extensao liga versionamento no tipo dela com esta cadeia.
  */
 export const SUPORTE_DE_VERSAO = 'revisions';
@@ -124,7 +124,7 @@ export interface ConstantesDeVersao {
 
 /**
  * `wp_{$post->post_type}_revisions_to_keep` — o nome do ponto de extensao
- * dinamico, montado (`wp-includes/revision.php:845`).
+ * dinamico, montado (`wp-includes/revision.php:855`).
  *
  * Existe como funcao, e nao como interpolacao solta, pela mesma razao de
  * `nomeDoPontoDeEstadoDoTipo()` em `../publicacao/transicao-de-estado.ts`: o
@@ -163,7 +163,7 @@ export function inteiroDoPhp(valor: ValorDeQuantasVersoesGuardar): number {
 
 /**
  * As duas primeiras linhas de `wp_revisions_to_keep()`
- * (`wp-includes/revision.php:811`-`:816`): a constante como numero.
+ * (`wp-includes/revision.php:813`-`:818`): a constante como numero.
  *
  * ⚠️ **A comparacao e identica**, e so o booleano `true` vira
  * {@link VERSOES_ILIMITADAS}. Qualquer outra coisa — inclusive a cadeia
@@ -180,16 +180,16 @@ export function limiteDaConstante(
 
 /**
  * `wp_revisions_to_keep( $post )` — quantas versoes daquele conteudo se guardam
- * (`wp-includes/revision.php:810`-`:850`).
+ * (`wp-includes/revision.php:812`-`:858`).
  *
  * **CA-10.2.** Os quatro passos, na ordem do legado, e a ordem e a regra:
  *
  * | # | passo | linha |
  * |---|---|---|
- * | 1 | a constante como numero, com `true` virando `-1` | `:811`-`:816` |
- * | 2 | o tipo que **nao** suporta versao zera o numero | `:818`-`:820` |
+ * | 1 | a constante como numero, com `true` virando `-1` | `:813`-`:818` |
+ * | 2 | o tipo que **nao** suporta versao zera o numero | `:821`-`:823` |
  * | 3 | o filtro `wp_revisions_to_keep` | `:835` |
- * | 4 | o filtro `wp_{tipo}_revisions_to_keep`, que sobrepoe os dois | `:845` |
+ * | 4 | o filtro `wp_{tipo}_revisions_to_keep`, que sobrepoe os dois | `:855` |
  *
  * ⚠️ **O passo 2 vem antes dos filtros, e isso e o que permite a uma extensao
  * ligar versionamento em tipo que nao o declara.** O legado zera e **depois**
@@ -198,17 +198,17 @@ export function limiteDaConstante(
  * ligou. Nenhuma das duas e defeito — as duas sao o que `ESC-FILTRAVEL` chama de
  * *default filtravel*, e o **P2** as poe no contrato publico.
  *
- * O `(int)` final (`:849`) e do legado e nao e decorativo: um filtro de terceiro
+ * O `(int)` final (`:857`) e do legado e nao e decorativo: um filtro de terceiro
  * pode devolver cadeia, e e o `(int)` que a transforma no numero que a poda usa.
  */
 export function quantasVersoesGuardar(
   contexto: ContextoDeVersao,
   conteudo: Conteudo,
 ): number {
-  // Passo 1 (`:811`).
+  // Passo 1 (`:813`).
   let quantas = limiteDaConstante(contexto.constantes?.quantasVersoesGuardar);
 
-  // Passo 2 (`:818`): e ANTES dos filtros.
+  // Passo 2 (`:821`): e ANTES dos filtros.
   if (!contexto.suportaVersao(conteudo.tipo)) {
     quantas = VERSIONAMENTO_DESLIGADO;
   }
@@ -217,7 +217,7 @@ export function quantasVersoesGuardar(
   const ganchos = contexto.ganchos;
   quantas = ganchos?.filtrarQuantasVersoesGuardar?.(quantas, conteudo) ?? quantas;
 
-  // Passo 4 (`:845`): sobrepoe os dois anteriores por POSICAO, nao por
+  // Passo 4 (`:855`): sobrepoe os dois anteriores por POSICAO, nao por
   // autoridade — e e isso que o docblock do legado chama de *"overrides both"*.
   quantas =
     ganchos?.filtrarQuantasVersoesGuardarDoTipo?.(

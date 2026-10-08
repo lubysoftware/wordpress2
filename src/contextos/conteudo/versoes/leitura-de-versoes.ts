@@ -9,17 +9,17 @@
  * | funcao desta pasta | o que e no legado |
  * |---|---|
  * | {@link versaoPorId} | `wp_get_post_revision()` (`wp-includes/revision.php:438`) |
- * | {@link paiDaVersao} | `wp_is_post_revision()` (`:303`) |
- * | {@link paiDoSalvamentoAutomaticoDaVersao} e {@link paiDoSalvamentoAutomatico} | `wp_is_post_autosave()` (`:325`), nas duas formas |
- * | {@link listarVersoes} | `wp_get_post_revisions()` (`:656`) |
- * | {@link ultimaVersaoQueNaoEAutomatica} | o laco de `wp_save_post_revision()` (`:163`-`:169`) |
+ * | {@link paiDaVersao} | `wp_is_post_revision()` (`:311`) |
+ * | {@link paiDoSalvamentoAutomaticoDaVersao} e {@link paiDoSalvamentoAutomatico} | `wp_is_post_autosave()` (`:329`), nas duas formas |
+ * | {@link listarVersoes} | `wp_get_post_revisions()` (`:666`) |
+ * | {@link ultimaVersaoQueNaoEAutomatica} | o laco de `wp_save_post_revision()` (`:163`-`:171`) |
  *
  * ---
  *
  * # As duas leituras que o legado repete, e a divergencia de cache que elas
  * carregam
  *
- * `wp_get_post_revisions()` abre com `$post = get_post( $post )` (`:657`)
+ * `wp_get_post_revisions()` abre com `$post = get_post( $post )` (`:667`)
  * **mesmo quando quem chama ja tem a linha em maos**, porque o legado a chama
  * com o identificador. Com o cache de objeto ligado essa segunda leitura acerta
  * o cache e nenhum comando sai; **sem cache, que e o estado desta arvore, sai um
@@ -37,7 +37,7 @@
  *
  * # O que esta pasta NAO tem, e de quem e
  *
- * - **`wp_get_latest_revision_id_and_total_count()`** (`:697`) devolve o
+ * - **`wp_get_latest_revision_id_and_total_count()`** (`:716`) devolve o
  *   identificador da mais recente **e a contagem total**, e a contagem sai de
  *   `$revision_query->found_posts` — isto e, do `SELECT FOUND_ROWS()` de
  *   `WP_Query`. Portar `WP_Query` e da feature 004 e da 015, e nenhum criterio
@@ -64,7 +64,7 @@ import type { ContextoDeVersao } from './contexto-de-versao.js';
 
 /**
  * `wp_get_post_revision( $post )` — a linha, **se** ela for de versao
- * (`wp-includes/revision.php:438`-`:463`).
+ * (`wp-includes/revision.php:438`-`:462`).
  *
  * Devolve `null` nos dois casos do legado, e eles sao diferentes entre si e
  * indistinguiveis no retorno: a linha nao existe, ou existe e **nao e** de
@@ -90,7 +90,7 @@ export function versaoPorId(
 
 /**
  * `wp_is_post_revision( $post )` — o identificador do conteudo original, ou
- * `false` (`wp-includes/revision.php:303`-`:311`).
+ * `false` (`wp-includes/revision.php:311`-`:319`).
  *
  * O `false` **nao** foi trocado por `null`: no legado ele e o valor que separa
  * *"nao e versao"* de *"e versao do conteudo 0"*, e o `0` acontece — e a versao
@@ -108,7 +108,7 @@ export function paiDaVersao(
 /**
  * `wp_is_post_autosave( $post )` com o **registro em maos** — o identificador do
  * original quando a linha e salvamento automatico, ou `false`
- * (`wp-includes/revision.php:325`-`:338`).
+ * (`wp-includes/revision.php:329`-`:341`).
  *
  * A pergunta e `str_contains( $post->post_name,
  * "{$post->post_parent}-autosave" )`, e e **conter** e nao **ser** — a razao
@@ -154,7 +154,7 @@ export interface OpcoesDaListaDeVersoes {
    */
   readonly ordem?: OrdemDasVersoes;
   /**
-   * `'check_enabled'` — de fabrica `true` (`wp-includes/revision.php:675`).
+   * `'check_enabled'` — de fabrica `true` (`wp-includes/revision.php:676`).
    *
    * ⚠️ **Com ele, a lista vem vazia SEM consultar o banco** quando o
    * versionamento esta desligado (`:680`). Tres chamadores do legado o pedem
@@ -170,16 +170,16 @@ export interface OpcoesDaListaDeVersoes {
 
 /**
  * `wp_get_post_revisions( $post, $args )` — as versoes de um conteudo
- * (`wp-includes/revision.php:656`-`:694`).
+ * (`wp-includes/revision.php:666`-`:700`).
  *
  * Os quatro passos, na ordem do legado:
  *
  * | # | passo | linha |
  * |---|---|---|
- * | 1 | ler o conteudo; sem linha, ou com `ID` vazio, **lista vazia** | `:657`-`:661` |
+ * | 1 | ler o conteudo; sem linha, ou com `ID` vazio, **lista vazia** | `:667`-`:671` |
  * | 2 | com `check_enabled`, versionamento desligado devolve **lista vazia sem consultar** | `:680` |
- * | 3 | `get_children()` com os tres criterios e os dois de ordem | `:690` |
- * | 4 | lista falsa vira lista vazia | `:692` |
+ * | 3 | `get_children()` com os tres criterios e os dois de ordem | `:693` |
+ * | 4 | lista falsa vira lista vazia | `:695` |
  *
  * O passo 4 nao tem efeito em TypeScript — a consulta devolve arranjo e nunca
  * `false` —, e esta anotado porque e a terceira vez que o legado normaliza o
@@ -192,7 +192,7 @@ export function listarVersoes(
   conteudoId: number,
   opcoes: OpcoesDaListaDeVersoes = {},
 ): readonly Conteudo[] {
-  // Passo 1 (`:657`): a leitura que o legado repete. Ver a nota de cache no
+  // Passo 1 (`:667`): a leitura que o legado repete. Ver a nota de cache no
   // cabecalho — com cache ligado, nenhum comando sai daqui.
   const conteudo = contexto.armazenamento.conteudo.obterPorId(conteudoId);
   if (conteudo === null) {
@@ -207,13 +207,13 @@ export function listarVersoes(
     return [];
   }
 
-  // Passo 3 (`:690`).
+  // Passo 3 (`:693`).
   return contexto.armazenamento.versoes.listar(conteudo.id, opcoes.ordem);
 }
 
 /**
  * A ultima versao que **nao** e salvamento automatico — o laco de
- * `wp_save_post_revision()` (`wp-includes/revision.php:163`-`:169`).
+ * `wp_save_post_revision()` (`wp-includes/revision.php:163`-`:171`).
  *
  * ```php
  * foreach ( $revisions as $revision ) {

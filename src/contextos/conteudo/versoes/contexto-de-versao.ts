@@ -20,17 +20,17 @@
  * 🔴 **A versao que o legado grava a cada gravacao carrega o texto NOVO, nao o
  * antigo.** `wp_save_post_revision()` corre **depois** da escrita, le
  * `get_post( $post_id )` — logo o registro ja atualizado — e manda esse registro
- * para `_wp_put_post_revision()` (`wp-includes/revision.php:139` e `:217`). O
+ * para `_wp_put_post_revision()` (`wp-includes/revision.php:140` e `:217`). O
  * docblock da propria funcao diz a consequencia em uma linha: *"as every update
  * is a revision, and **the most recent revision always matches the current
- * post**"* (`:119`-`:120`).
+ * post**"* (`:122`-`:123`).
  *
  * Em efeito no banco, com um conteudo criado com o corpo `A` e depois gravado
  * com `B` e com `C`:
  *
  * | # | acao | o que o legado deixa em `posts` |
  * |---|---|---|
- * | 1 | criar com `A` | o conteudo com `A`. **Nenhuma versao** — `wp_save_post_revision_on_insert()` desiste quando `$update` e falso (`:106`) |
+ * | 1 | criar com `A` | o conteudo com `A`. **Nenhuma versao** — `wp_save_post_revision_on_insert()` desiste quando `$update` e falso (`:108`) |
  * | 2 | gravar `B` | o conteudo com `B`, e **uma** versao, com `B` |
  * | 3 | gravar `C` | o conteudo com `C`, e **duas** versoes, com `B` e com `C` |
  *
@@ -66,7 +66,7 @@
  * | o que o legado chama | de quem e | como chega aqui |
  * |---|---|---|
  * | `wp_insert_post( $revisao, true )` (`:372`) | **T005** (US-2), o caminho de gravacao deste modulo | {@link GravacaoNaVersao.inserir} |
- * | `wp_update_post( $update )` (`:499`) | **T005** (US-2) | {@link GravacaoNaVersao.atualizar} |
+ * | `wp_update_post( $update )` (`:500`) | **T005** (US-2) | {@link GravacaoNaVersao.atualizar} |
  * | `wp_delete_post( $revision->ID )` (`:638`) | **feature 005** (`PT-003`), a exclusao em sete etapas | {@link GravacaoNaVersao.apagar} |
  * | `post_type_supports( $tipo, 'revisions' )` | `plataforma/tipos-de-conteudo/`, que **nao existe nesta arvore** | {@link ContextoDeVersao.suportaVersao} |
  * | `current_user_can( 'edit_post', $pai )` | `plataforma/autorizacao/` | {@link ContextoDeVersao.base} e {@link ContextoDeVersao.ator} |
@@ -169,14 +169,14 @@ export interface GravacaoNaVersao {
    *
    * Recebe os campos **parciais** da versao, e isso e do legado:
    * `_wp_post_revision_data()` devolve nove chaves de 21
-   * (`wp-includes/revision.php:75`-`:95`), e quem resolve as outras doze —
+   * (`wp-includes/revision.php:75`-`:94`), e quem resolve as outras doze —
    * `post_author` entre elas — e `wp_insert_post()`. Ver a armadilha do autor no
    * cabecalho de `../armazenamento/versao.ts`.
    */
   inserir(campos: CamposDeConteudo): ResultadoDaInsercaoDeVersao;
 
   /**
-   * `wp_update_post( $update )` (`wp-includes/revision.php:499`), com o
+   * `wp_update_post( $update )` (`wp-includes/revision.php:500`), com o
    * `$wp_error` **de fabrica**, que e `false`.
    *
    * Por isso o retorno e `number` e nao um resultado com erro: com
@@ -200,7 +200,7 @@ export interface GravacaoNaVersao {
    * ⚠️ **E `false` e a versao e apagada de verdade de qualquer forma**, porque o
    * desvio para a lixeira do legado cobre so dois tipos: `if ( ! $force_delete
    * && ( 'post' === $post->post_type || 'page' === $post->post_type ) ... )`
-   * (`wp-includes/post.php:3844`). `revision` nao esta ali, logo nao ha lixeira
+   * (`wp-includes/post.php:3851`). `revision` nao esta ali, logo nao ha lixeira
    * de versao — o que o controlador REST de versoes diz com a propria mensagem,
    * *"Revisions do not support trashing"*
    * (`class-wp-rest-revisions-controller.php:514`).
@@ -321,12 +321,12 @@ export const REGISTRO_DE_FABRICA_DA_VERSAO: RegistroDeOuvintesDaVersao =
 
 /**
  * Um campo versionavel como o legado o declara: **nome de coluna** e rotulo
- * traduzivel (`wp-includes/revision.php:30`-`:35`).
+ * traduzivel (`wp-includes/revision.php:31`-`:35`).
  *
  * O rotulo viaja porque ele faz parte do valor que o ponto de extensao
  * `_wp_post_revision_fields` recebe e devolve — e e o que a tela de comparacao
  * do painel usa como titulo de cada bloco
- * (`wp-admin/includes/revision.php:107`). Nenhuma decisao deste caminho le o
+ * (`wp-admin/includes/revision.php:69`). Nenhuma decisao deste caminho le o
  * rotulo; retirar o campo da forma do ponto estreitaria o contrato publico (P2).
  */
 export interface CampoVersionavel {
@@ -348,12 +348,12 @@ export interface CampoVersionavel {
  *
  * | # | ponto | tipo | onde dispara |
  * |---|---|---|---|
- * | 1 | `_wp_post_revision_fields` | **filtro** | antes de os nove nomes protegidos serem removidos (`:53`) |
+ * | 1 | `_wp_post_revision_fields` | **filtro** | antes de os nove nomes protegidos serem removidos (`:54`) |
  * | 2 | `wp_save_post_revision_check_for_changes` | **filtro** | decide se a comparacao de mudanca acontece (`:186`) |
  * | 3 | `wp_save_post_revision_post_has_changed` | **filtro** | decide se a versao e gravada (`:208`) |
  * | 4 | `wp_revisions_to_keep` | **filtro** | sobre o valor da constante (`:835`) |
- * | 5 | `wp_{tipo}_revisions_to_keep` | **filtro** | depois do 4, e sobrepoe os dois (`:845`) |
- * | 6 | `wp_post_revision_meta_keys` | **filtro** | a lista de metadados versionados (`:588`) |
+ * | 5 | `wp_{tipo}_revisions_to_keep` | **filtro** | depois do 4, e sobrepoe os dois (`:855`) |
+ * | 6 | `wp_post_revision_meta_keys` | **filtro** | a lista de metadados versionados (`:598`) |
  * | 7 | `_wp_put_post_revision` | acao | depois de a versao existir (`:387`) |
  * | 8 | `wp_save_post_revision_revisions_before_deletion` | **filtro** | sobre a lista que a poda vai cortar (`:240`) |
  * | 9 | `wp_delete_post_revision` | acao | depois de a versao ser apagada (`:649`) |
@@ -362,7 +362,7 @@ export interface CampoVersionavel {
 export interface GanchosDaVersao {
   /**
    * `_wp_post_revision_fields` — **filtro**, dois argumentos (`$fields`,
-   * `$post`) (`wp-includes/revision.php:53`).
+   * `$post`) (`wp-includes/revision.php:54`).
    *
    * ⚠️ **A ordem e a regra, e ela derrota o interceptador em nove nomes.** O
    * legado aplica este filtro e **depois** remove `ID`, `post_name`,
@@ -373,7 +373,7 @@ export interface GanchosDaVersao {
    * `COLUNAS_NAO_VERSIONAVEIS`, em `../armazenamento/versao.ts`.
    *
    * ⚠️ **No legado a lista de fabrica e `static`**, montada uma vez por
-   * requisicao e **reatribuida com o valor filtrado** (`:23` e `:53`): a partir
+   * requisicao e **reatribuida com o valor filtrado** (`:23` e `:54`): a partir
    * da segunda chamada, o ponto recebe o que ele mesmo devolveu antes. Nao e
    * reproduzido aqui porque estado de modulo e exatamente o que `EXT-CONTEXTO`
    * (BR-MIGRAR-105) proibe, e porque um filtro idempotente — que e o caso de
@@ -438,7 +438,7 @@ export interface GanchosDaVersao {
 
   /**
    * `wp_{$post->post_type}_revisions_to_keep` — **filtro**, dois argumentos,
-   * **nome dinamico** (`wp-includes/revision.php:845`).
+   * **nome dinamico** (`wp-includes/revision.php:855`).
    *
    * *"Overrides both the value of WP_POST_REVISIONS and the
    * `wp_revisions_to_keep` filter"*, e nao por autoridade: por **posicao**,
@@ -453,7 +453,7 @@ export interface GanchosDaVersao {
 
   /**
    * `wp_post_revision_meta_keys` — **filtro**, dois argumentos (`$keys`,
-   * `$post_type`) (`wp-includes/revision.php:588`).
+   * `$post_type`) (`wp-includes/revision.php:598`).
    */
   readonly filtrarChavesDeMetadadoVersionado?: (
     chaves: readonly string[],
@@ -523,7 +523,7 @@ export interface ContextoDeVersao {
    * `wp_insert_post()` resolve com `get_current_user_id()` porque `post_author`
    * e um dos nove nomes que o legado **se recusa** a copiar do original (ver o
    * cabecalho de `../armazenamento/versao.ts`); e o metadado `_edit_last`, que a
-   * restauracao grava (`wp-includes/revision.php:505`).
+   * restauracao grava (`wp-includes/revision.php:507`).
    */
   readonly ator: AtorDeAutorizacao;
 
@@ -574,7 +574,7 @@ export interface ContextoDeVersao {
   /**
    * `defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE` — a constante que o
    * salvamento automatico define na requisicao
-   * (`wp-admin/includes/post.php:1990`).
+   * (`wp-admin/includes/post.php:2155`).
    *
    * ⚠️ **E a primeira guarda de `wp_save_post_revision()`** (`:131`): durante um
    * salvamento automatico nenhuma versao comum e gravada. O rascunho automatico
