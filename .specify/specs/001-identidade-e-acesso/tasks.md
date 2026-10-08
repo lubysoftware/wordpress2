@@ -85,7 +85,7 @@
       *entrega:* o comportamento de US-10 existe e os critérios CA-10.1, CA-10.2, CA-10.3, CA-10.4, CA-10.5 passam contra o sistema novo
       *satisfaz:* CA-10.1, CA-10.2, CA-10.3, CA-10.4, CA-10.5
       *depende de:* T001, T002, T019
-- [ ] **T022** [P] Testes de US-10
+- [x] **T022** [P] Testes de US-10
       *entrega:* 6 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-011-1, UT-011-2, UT-011-3, UT-011-4, UT-011-5, UT-011-6), com o mesmo dado de entrada, ação e resultado esperado. O teste de regra de negócio (UT-011-6) entra na mesma suíte.
       *satisfaz:* CA-10.1, CA-10.2, CA-10.3, CA-10.4, CA-10.5
       *depende de:* T021
