@@ -81,6 +81,30 @@ import {
   type ResultadoDaRevogacao,
 } from './senha-de-aplicacao/revogar-credencial.js';
 import type { ContextoDeSenhaDeAplicacao } from './senha-de-aplicacao/contexto-de-senha-de-aplicacao.js';
+import type { ContextoDaAdministracaoDeContas } from './administracao-de-contas/contexto-de-administracao.js';
+import {
+  promoverContas,
+  type PedidoDePromocaoDeContas,
+  type ResultadoDaPromocaoDeContas,
+} from './administracao-de-contas/promover-contas.js';
+import {
+  apagarContas,
+  type PedidoDeExclusaoDeContas,
+  type ResultadoDaExclusaoDeContas,
+} from './administracao-de-contas/apagar-contas.js';
+import {
+  removerContasDoSite,
+  type PedidoDeRemocaoDeContas,
+  type ResultadoDaRemocaoDeContas,
+} from './administracao-de-contas/remover-contas-do-site.js';
+import {
+  alterarContaPorAdministrador,
+  criarContaPorAdministrador,
+  type AlteracoesDaConta,
+  type DadosDaContaNovaPorAdministrador,
+  type ResultadoDaAlteracaoDeConta,
+  type ResultadoDaCriacaoPorAdministrador,
+} from './administracao-de-contas/conta-por-administrador.js';
 
 export * from './portas/index.js';
 export * from './armazenamento/index.js';
@@ -184,6 +208,16 @@ export * from './senha-de-aplicacao/emitir-credencial.js';
 export * from './senha-de-aplicacao/erro-de-senha-de-aplicacao.js';
 export * from './senha-de-aplicacao/geracao-de-credencial.js';
 export * from './senha-de-aplicacao/revogar-credencial.js';
+/*
+  T023 (US-11) sai pelo barril E pela composicao, e a diferenca com T015 e o
+  motivo: ali o que BC-05 acrescentava era **leitura de dado** para uma decisao
+  que mora na plataforma; aqui sao **cinco operacoes de fluxo**, com escrita, com
+  cascata e com envio de e-mail — exatamente a forma das outras seis operacoes
+  desta interface. A decisao de capacidade continua fora: o que entrou em
+  `plataforma/autorizacao/` foi so a traducao dos `case` de conta, que e decisao e
+  por isso ficou la.
+*/
+export * from './administracao-de-contas/index.js';
 
 /*
   ── DOIS NOMES QUE COLIDEM NO BARRIL, E NENHUM DOS DOIS SOME ────────────────
@@ -229,6 +263,16 @@ export interface PortasDeIdentidadeEAcesso {
  * | `cadastrar` | US-6 | T013 | **nenhuma capacidade**, declarada (ver abaixo) |
  * | `emitirCredencialDeAplicacao` | US-10 | T021 | **`edit_user` daquela conta** (CA-10.4) |
  * | `revogarCredencialDeAplicacao` | US-10 | T021 | **`edit_user` daquela conta** (CA-10.4) |
+ * | `promoverContas` | US-11 | T023 | `promote_users`, e `promote_user` por conta alvo |
+ * | `apagarContas` | US-11 | T023 | `delete_users`, e `delete_user` por conta alvo |
+ * | `removerContasDoSite` | US-11 | T023 | `remove_users`, e `remove_user` por conta alvo |
+ * | `criarContaPorAdministrador` | US-11 | T023 | `create_users`, mais `promote_users` so para o papel |
+ * | `alterarContaPorAdministrador` | US-11 | T023 | `edit_user` sobre aquela conta |
+ *
+ * As cinco de T023 sao as **primeiras** operacoes desta interface que exigem
+ * capacidade, e as cinco exigem **duas** — a da acao e a da conta alvo, uma a uma
+ * (CA-11.1). As seis anteriores declaram *"nenhuma capacidade"* porque o legado
+ * nao exige nenhuma nelas; estas declaram as duas porque ele exige as duas.
  */
 export interface ModuloDeIdentidadeEAcesso {
   readonly nome: 'identidade-e-acesso';
@@ -411,6 +455,92 @@ export interface ModuloDeIdentidadeEAcesso {
     pedido: PedidoDeRevogacao,
     contexto: ContextoDeSenhaDeAplicacao,
   ): ResultadoDaRevogacao;
+  /**
+   * Promove, rebaixa ou tira o papel das contas escolhidas (US-11, T023).
+   *
+   * **Permissao exigida: `promote_users` para a acao e `promote_user` para cada
+   * conta alvo**, nessa ordem (CA-11.1, e os passos 3 e 4 de UC-24). E a primeira
+   * operacao desta interface cuja declaracao de permissao nao e *"nenhuma"*.
+   *
+   * O contexto chega por argumento pelo mesmo motivo de `autenticar` — AD-02 e
+   * BR-MIGRAR-105 —, e aqui com um peso extra: a permissao e perguntada **uma
+   * vez por conta alvo**, e um ator guardado em estado de modulo trocaria de
+   * identidade no meio do lote.
+   *
+   * ⚠️ O nonce `bulk-users` do passo 3 de UC-24 **nao** e deste pacote; ver
+   * `administracao-de-contas/permissao-sobre-conta.ts`.
+   */
+  promoverContas(
+    pedido: PedidoDePromocaoDeContas,
+    contexto: ContextoDaAdministracaoDeContas,
+  ): ResultadoDaPromocaoDeContas;
+
+  /**
+   * Apaga as contas escolhidas, com a cascata de cada uma (US-11, T023).
+   *
+   * **Permissao exigida: `delete_users` para a acao e `delete_user` para cada
+   * conta alvo** — e, **antes das duas**, a escolha entre reatribuir e apagar o
+   * conteudo (CA-11.3). A inversao de ordem e do legado e esta declarada em
+   * `administracao-de-contas/apagar-contas.ts`.
+   *
+   * O que desaparece e o que fica **orfao** esta no contrato observavel pelo
+   * **P5**, e a cascata inteira esta declarada naquele arquivo, com teste.
+   */
+  apagarContas(
+    pedido: PedidoDeExclusaoDeContas,
+    contexto: ContextoDaAdministracaoDeContas,
+  ): ResultadoDaExclusaoDeContas;
+
+  /**
+   * Desvincula as contas escolhidas deste site (US-11, T023).
+   *
+   * **Permissao exigida: `remove_users` para a acao e `remove_user` para cada
+   * conta alvo** — e aqui, e **so** aqui, a conta sem permissao e **saltada** e
+   * as demais prosseguem (CA-11.2). A diferenca entre as tres acoes em lote esta
+   * declarada em `administracao-de-contas/promover-contas.ts`.
+   *
+   * Existe **somente** em instalacao de rede: fora dela a operacao recusa com
+   * 400, porque desvincular identidade global de um site e conceito de rede.
+   */
+  removerContasDoSite(
+    pedido: PedidoDeRemocaoDeContas,
+    contexto: ContextoDaAdministracaoDeContas,
+  ): ResultadoDaRemocaoDeContas;
+
+  /**
+   * Cria conta pelo painel, e notifica (US-11, T023 — CA-11.7).
+   *
+   * **Permissao exigida: `create_users`**. O papel escolhido exige
+   * `promote_users` **em separado**, e quem nao a tem nao recebe recusa: o papel
+   * e ignorado e vale o padrao da instalacao. Reproduzido do legado, e declarado
+   * em `administracao-de-contas/conta-por-administrador.ts`.
+   *
+   * ⚠️ `create_users` **nao** e primitiva em rede: `N6` (BR-MIGRAR-066) a faz
+   * depender de ser super administrador ou da opcao de rede `add_new_users`, e a
+   * traducao esta em `plataforma/autorizacao/traducao-de-conta.ts`.
+   */
+  criarContaPorAdministrador(
+    dados: DadosDaContaNovaPorAdministrador,
+    contexto: ContextoDaAdministracaoDeContas,
+  ): ResultadoDaCriacaoPorAdministrador;
+
+  /**
+   * Altera senha, e-mail e papel de uma conta pelo painel (US-11, T023).
+   *
+   * **Permissao exigida: `edit_user` sobre aquela conta** — e e a capacidade que
+   * a traducao resolve com **lista vazia** quando a conta e a propria, o que e
+   * *permitido*: *"qualquer conta edita o proprio perfil, inclusive um
+   * assinante"* (UC-24).
+   *
+   * As duas mensagens de CA-11.7 saem daqui, para o endereco **anterior**.
+   * Trocar o **papel** nao envia nada, e a razao esta em
+   * `administracao-de-contas/notificacoes-da-administracao.ts`.
+   */
+  alterarContaPorAdministrador(
+    contaId: number,
+    alteracoes: AlteracoesDaConta,
+    contexto: ContextoDaAdministracaoDeContas,
+  ): ResultadoDaAlteracaoDeConta;
 }
 
 /** O que a instalacao informa ao modulo. Ver `armazenamento/index.ts`. */
@@ -450,5 +580,10 @@ export function criarModuloDeIdentidadeEAcesso(
     cadastrar,
     emitirCredencialDeAplicacao,
     revogarCredencialDeAplicacao,
+    promoverContas,
+    apagarContas,
+    removerContasDoSite,
+    criarContaPorAdministrador,
+    alterarContaPorAdministrador,
   };
 }

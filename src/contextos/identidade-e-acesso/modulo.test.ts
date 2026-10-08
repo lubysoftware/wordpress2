@@ -116,19 +116,36 @@ test('a superficie do modulo tem exatamente as operacoes das tarefas fechadas', 
   // `cadastrar`, tambem sem capacidade — quem autoriza e a OPCAO
   // `users_can_register`, que nasce desligada (`U1`), e o ator e o visitante,
   // que por definicao nao tem papel.
+  //
   // T021 (US-10): `emitirCredencialDeAplicacao` e
   // `revogarCredencialDeAplicacao`, as duas com `edit_user` da conta alvo
   // declarado na interface do modulo — e sao as PRIMEIRAS operacoes desta lista
   // que exigem capacidade. As quatro anteriores declaram "nenhuma"; estas
   // declaram a de UC-22, e CA-10.4 e o critério que a cobra.
+  //
+  // T023 (US-11): mais CINCO que exigem capacidade — `promoverContas`,
+  // `apagarContas`, `removerContasDoSite`, `criarContaPorAdministrador` e
+  // `alterarContaPorAdministrador` —, e cada uma exige DUAS: a da acao e a da
+  // conta alvo, uma a uma (CA-11.1, e os passos 3 e 4 de UC-24). A declaracao
+  // de cada uma esta na interface do modulo.
+  //
+  // T015 (US-7) e T019 (US-9) **nao** entram nesta lista, e continuam fora de
+  // proposito: "perguntar permissao" e operacao da plataforma, que fica abaixo
+  // de todo contexto, e o que BC-05 acrescenta ali e leitura de dado. Ver o
+  // comentario do `index.ts` onde aqueles exports entram.
   assert.deepEqual(Object.keys(modulo).sort(), [
+    'alterarContaPorAdministrador',
+    'apagarContas',
     'armazenamento',
     'autenticar',
     'cadastrar',
+    'criarContaPorAdministrador',
     'emitirCredencialDeAplicacao',
     'nome',
     'portas',
+    'promoverContas',
     'redefinirSenha',
+    'removerContasDoSite',
     'revogarCredencialDeAplicacao',
     'sair',
     'sessaoDaRequisicao',

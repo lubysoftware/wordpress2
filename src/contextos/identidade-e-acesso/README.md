@@ -1,32 +1,20 @@
 # Modulo de identidade e acesso — BC-05
 
-Feature `001-identidade-e-acesso`. Tarefas fechadas: **T001** (esqueleto e
-portas), **T002** (forma de armazenamento), **T003** (US-1, autenticar),
-**T005** (US-2, saida), **T007** (US-3, prazo da sessao) e **T011** (US-5,
-falha de envio do e-mail de redefinicao). Este arquivo e a leitura obrigatoria
-de quem pegar a tarefa seguinte: ele diz o que ja esta decidido, o que esta
-decidido **em outro lugar**, e o que ninguem decidiu.
+Feature `001-identidade-e-acesso`. Tarefas fechadas com nota de entrega neste
+arquivo: **T001** (esqueleto e portas), **T002** (forma de armazenamento),
+**T003** (US-1, autenticar), **T005** (US-2, saida), **T007** (US-3, prazo da
+sessao), **T011** (US-5, falha de envio do e-mail de redefinicao), **T013**
+(US-6, cadastro aberto), **T015** (US-7, autorizacao por capacidade — cuja
+**decisao** mora em `plataforma/autorizacao/`, e nao aqui), **T019** (US-9, as
+quatro capacidades que entram so por ponto de extensao) e **T023** (US-11,
+administrar contas verificando a permissao sobre cada conta alvo). Este arquivo e
+a leitura obrigatoria de quem pegar a tarefa seguinte: ele diz o que ja esta
+decidido, o que esta decidido **em outro lugar**, e o que ninguem decidiu.
 
-> *(Este paragrafo vinha duplicado e cortado ao meio por um merge anterior, com
-> duas listas de tarefas fechadas que se contradiziam. Ficou uma, com as seis.)*
-portas), **T002** (forma de armazenamento), **T003** (US-1, autenticar), **T005**
-(US-2, saida), **T007** (US-3, prazo da sessao) e **T013** (US-6, cadastro
-aberto). Este arquivo e a leitura obrigatoria de quem pegar a tarefa seguinte:
-ele diz o que ja esta decidido, o que esta decidido **em outro lugar**, e o que
-ninguem decidiu.
-
-> As duas linhas acima estavam duplicadas, uma listando T005 e outra T007, por um
-> merge que juntou duas worktrees que escreveram o mesmo paragrafo. T013 as
-> fundiu numa so, sem tirar nenhuma tarefa da lista.
-portas), **T002** (forma de armazenamento), **T003** (US-1, entrada), **T005**
-(US-2, saida) e **T015** (US-7, autorizacao por capacidade — cuja decisao mora em
-`plataforma/autorizacao/`, e nao aqui). Este arquivo e a leitura obrigatoria de
-quem pegar a proxima tarefa: ele diz o que ja esta decidido, o que esta decidido
-**em outro lugar**, e o que ninguem decidiu.
-portas), **T002** (forma de armazenamento), **T003** (US-1, autenticar) e
-**T007** (US-3, prazo da sessao). Este arquivo e a leitura obrigatoria de quem
-pegar a tarefa seguinte: ele diz o que ja esta decidido, o que esta decidido
-**em outro lugar**, e o que ninguem decidiu.
+> *(Este paragrafo vinha **quatro** vezes, cortado ao meio e com quatro listas de
+> tarefas fechadas que se contradiziam, por merges que juntaram worktrees que
+> escreveram o mesmo texto. T023 as fundiu numa so, sem tirar nenhuma tarefa de
+> nenhuma das quatro listas.)*
 
 > 🔴 **Antes de qualquer coisa, se a sua tarefa toca a matriz de papeis:** o
 > conflito entre `REQ-017` e a resposta 5 **continua aberto**, T002 esbarrou
@@ -52,6 +40,15 @@ pegar a tarefa seguinte: ele diz o que ja esta decidido, o que esta decidido
 > os dois lados implementados e testados. A explicacao inteira esta em
 > `recuperacao-de-senha/envio-do-email-de-redefinicao.ts` e o resumo esta na
 > secao *O conflito que T011 encontrou* deste arquivo.
+
+> 🔴 **E se a sua tarefa toca a administracao de contas:** tres criterios de
+> US-11 dizem mais do que o legado faz, e T023 esbarrou nos tres e **nao
+> escolheu** — reproduziu o legado, pelo **P1**, e deixou a redacao para quem
+> decide. Sao CA-11.2 (*"uma conta sem permissao e saltada"*, que vale em **uma**
+> das tres acoes em lote), CA-11.6 (*"continua havendo ao menos uma conta capaz
+> de promover"*, que no legado e **consequencia** de uma trava de tela e nao uma
+> contagem) e CA-11.7 (*"quem foi promovido e notificado"*, que o legado **nao**
+> notifica). O resumo esta na secao *O que T023 encontrou aberto* deste arquivo.
 
 ## O que T001 entrega, e so isso
 
@@ -774,6 +771,139 @@ que o fluxo emite e **nao** escolheu entre o pacote e o legado — ver o cabecal
 tabela conta, volta como **motivo** e nao como codigo, porque no legado quem a
 emite e a camada de rota.
 
+## O que T023 entrega, e so isso
+
+> *o comportamento de US-11 existe e os critérios CA-11.1, CA-11.2, CA-11.3,
+> CA-11.4, CA-11.5, CA-11.6, CA-11.7 passam contra o sistema novo*
+> — `.specify/specs/001-identidade-e-acesso/tasks.md`, T023
+
+E UC-24 inteiro menos o que pertence a outras features. A entrega esta dividida
+pela mesma linha que T015 e T017 seguiram: a **decisao** de capacidade fica em
+`plataforma/autorizacao/`, o **dado** e o **fluxo de tela** ficam aqui.
+
+Do lado da plataforma, dois arquivos:
+
+| arquivo | o que e |
+|---|---|
+| `conta-na-autorizacao.ts` | as **tres** leituras que os `case` de conta fazem, como porta |
+| `traducao-de-conta.ts` | os **cinco** `case` de conta de `map_meta_cap()` (`capabilities.php:49`, `:57`, `:70`, `:673`, `:682`) |
+
+Deste lado, a pasta `administracao-de-contas/`, com o `index.ts` explicando
+arquivo por arquivo. As cinco operacoes entraram **tambem na interface do modulo
+composto**, e a diferenca com T015 e o motivo: ali o que BC-05 acrescentava era
+leitura de dado para uma decisao da plataforma; aqui sao cinco operacoes de fluxo,
+com escrita, com cascata e com envio de e-mail.
+
+**Sao as primeiras operacoes deste modulo que exigem capacidade**, e cada uma
+exige **duas** — a da acao e a da conta alvo, uma a uma (CA-11.1). As seis
+anteriores declaram *"nenhuma capacidade"* porque o legado nao exige nenhuma
+nelas.
+
+**Seis coisas que um porte perde sem o teste notar**, as seis com teste nomeado:
+
+1. **`edit_user` sobre si mesmo devolve lista VAZIA, e lista vazia e permitido.**
+   BR-MIGRAR-092 avisa que tratar lista vazia como negacao *"tranca todo mundo
+   fora do proprio perfil"*, e UC-24 diz a consequencia: *"qualquer conta edita o
+   proprio perfil, inclusive um assinante"*.
+2. **O ator NUNCA tem o proprio papel trocado pelo lote de promocao.** Os dois
+   ramos do bloco de si mesmo terminam em `continue` (`users.php:153` e `:157`), e
+   `set_role` esta depois deles — o bilhete da tela confirma por extenso: *"Your
+   role was not changed."* Muda so o aviso: `promote` quando o papel novo promove,
+   `err_admin_role` quando nao.
+3. **`set_role` com o papel que a conta ja tem NAO emite comando nenhum**, e
+   preserva as capacidades **individuais** — inclusive a negacao explicita de
+   ADR-0009. O nivel sai do mapa **fundido**, nao do papel.
+4. **A escolha de exclusao e conferida ANTES da permissao** (`users.php:192` vem
+   antes de `:199`). Quem agrupa as guardas de permissao no topo — o instinto de
+   qualquer um — troca a resposta de uma requisicao.
+5. **Opcao de exclusao desconhecida conta como apagada e nao apaga nada**:
+   `++$delete_count` esta fora do `switch` interno.
+6. **A cascata nao toca comentario.** `target_data_model.md` poe a razao entre os
+   tres motivos pelos quais a integridade referencial esta desativada —
+   *"comentario orfao e estado normal... de proposito, para preservar o historico
+   da discussao"* — e o **P5** cobra o teste que afirma o que **permaneceu
+   orfao**.
+
+**Tres arquivos de fora mudaram**, e os tres por adicao:
+`armazenamento/conta.ts` ganhou `apagar` (a linha de `users`, e so ela),
+`armazenamento/perfil.ts` ganhou `apagarPorId` (a primitiva por **linha**, que e
+a que `wp_delete_user()` usa), e `cadastro/atribuicao-de-papel.ts` passou a
+reproduzir o ramo `else` de `set_role()` para papel vazio — a nota de 🟢 daquele
+arquivo ja dizia que o caso geral era desta tarefa.
+
+### 🔴 O que T023 encontrou aberto, e NAO resolveu
+
+**1. CA-11.2 descreve uma das tres acoes em lote, e a spec nao diz qual.** O
+criterio e *"numa acao em lote, uma conta sem permissao e saltada e as demais
+prosseguem"*. No legado:
+
+| acao | conta sem permissao | linha |
+|---|---|---|
+| `doremove` | `$update = 'err_admin_remove'; continue;` — **saltada** | `users.php:509` |
+| `promote` | `wp_die( …, 403 )` — **o lote inteiro para** | `users.php:142` |
+| `dodelete` | `wp_die( …, 403 )` — **o lote inteiro para** | `users.php:207` |
+| `resetpassword` | `wp_die( … )` — **o lote inteiro para** | `users.php:260` |
+
+O que **e** saltado nas outras tres e a **propria conta do ator**, e os bilhetes
+da tela confirmam a leitura. Saltar nas quatro tornaria o sistema **mais aberto**
+que o legado — um lote parcialmente autorizado passaria a ser parcialmente
+aplicado. O **P1** exige decisao humana registrada para divergir e nenhuma
+existe, logo T023 reproduziu acao por acao e deixou a redacao para quem decide.
+Nomeado no cabecalho de `administracao-de-contas/promover-contas.ts`, com teste
+fixando os dois comportamentos.
+
+**2. CA-11.6 e consequencia, nao verificacao — e nao foi transformado em
+verificacao.** O criterio e *"ao fim de qualquer operacao continua havendo ao
+menos uma conta capaz de promover outras"*. **O legado nao tem contagem alguma**:
+o que ele tem sao duas travas de tela — o ator nao troca o proprio papel para um
+sem `promote_users`, e o ator nao se apaga —, e UC-24 chama isso de *"a unica
+trava contra travar o site e um comentario de uma linha"*. Acrescentar a contagem
+seria introduzir numero que o legado nao tem, que o **P6** proibe e que a tabela
+*Nao negociavel* poe fora do alcance de quem codifica. Note o que a trava **nao**
+protege, e isso tambem esta por teste: nada impede o ator de rebaixar **todos os
+outros** administradores.
+
+**3. CA-11.7 inclui "promovido", e o legado nao notifica promocao.** O legado
+manda tres mensagens: conta criada (ao administrador do site, e opcionalmente ao
+titular), senha trocada e e-mail trocado — as duas ultimas ao endereco
+**anterior**, e so quando o valor mudou de fato. `set_role()` dispara tres acoes e
+**nenhum** e-mail. UC-24 registra o mesmo achado pelo outro lado: *"🟡 Promover
+alguem nao deixa rastro. Nenhuma trilha registra quem mudou o papel de quem, nem
+quando."* O passo 6 do proprio caso de uso tambem e mais estreito que o criterio:
+*"notifica quem foi criado **ou teve a conta alterada**"*. Acrescentar o aviso
+inventaria uma mensagem com um texto que nao existe. Nomeado no cabecalho de
+`administracao-de-contas/notificacoes-da-administracao.ts`, com teste fixando a
+ausencia.
+
+**4. O comentario de `remove_user` no legado diz "em multisite", e a condicao que
+ele comenta nao tem a guarda de rede.** UC-24 repete o comentario na tabela de
+excecoes. `capabilities.php:49`-`:54` nao consulta `is_multisite()`, logo fora da
+rede remover a propria conta tambem exige ser super administrador — que fora da
+rede e *quem tem `delete_users`*. Como `remove_users` nao esta em papel algum fora
+da rede, o caso e inalcancavel na pratica, e e por isso que a divergencia nunca
+aparece numa tela. Reproduzido o **codigo**, nao o comentario (**P1**), nomeado em
+`plataforma/autorizacao/traducao-de-conta.ts` e fechando contra o oraculo.
+
+**5. O bloco de campos de perfil que `edit_user()` grava NAO entrou.** Mesma
+lacuna e mesmo precedente de `cadastro/criacao-de-conta.ts`: o pacote nao nomeia
+nenhuma dessas chaves de `usermeta`, e inventar nome e valor inventaria bytes
+gravados. Nenhum criterio de US-11 as nomeia. Consequencia declarada: o ramo de
+validacao *"apelido de exibicao vazio"* (`includes/user.php:162`) fica
+inalcancavel neste porte, e esta marcado no lugar certo da ordem, dentro de
+`administracao-de-contas/conta-por-administrador.ts`.
+
+**6. Tres escritas de `remove_user_from_blog` ficaram de fora, por escopo de
+rede:** `primary_blog`, `source_domain` e a varredura de `get_blogs_of_user()`.
+Os cards de rede estao em `do-not-rewrite.md` (`REQ-129` a `REQ-135`) e nenhuma
+tarefa deste pacote entrega a tabela de sites. Consequencia declarada em
+`administracao-de-contas/remover-contas-do-site.ts`.
+
+**7. A acao `resetpassword` do lote ficou nomeada e nao construida.** Ela nao esta
+em UC-24 — nem no fluxo principal, nem na sequencia, nem nas excecoes —, nenhum
+criterio de US-11 a nomeia, e o que ela faz por conta e `retrieve_password()`, que
+e T009. O custo de constru-ila depois e um laco sobre a operacao que ja existe,
+mais dois avisos. Nomeada no `index.ts` da pasta.
+
 ## Por que estas tres portas, e nao outras
 
 `target_architecture.md` **AD-08** conta cinco portas no sistema todo — dados,
@@ -889,9 +1019,19 @@ e sem nenhum chamador**, como estao hoje: BR-MIGRAR-111 cita a resposta 7 —
 4. **Qual oraculo vale** se a instalacao executavel de referencia mostrar matriz
    diferente da derivada.
 
-Os quatro estao em `spec.md`, secao *Perguntas em aberto*. A tabela *Nao
-negociavel* da constituicao poe cada um deles fora do alcance do agente de
-codificacao.
+5. **Tres criterios de US-11 dizem mais do que o legado faz** — CA-11.2 (saltar
+   contra parar no lote), CA-11.6 (a invariante de quem promove) e CA-11.7
+   (notificar quem foi promovido). **T023 nao escolheu:** reproduziu o legado,
+   pelo **P1**, e fixou os tres por teste para que ninguem os "conserte" sem
+   decisao humana. A explicacao de cada um esta na secao *O que T023 encontrou
+   aberto* deste arquivo, e nos cabecalhos de
+   `administracao-de-contas/promover-contas.ts` e
+   `administracao-de-contas/notificacoes-da-administracao.ts`.
+
+Os quatro primeiros estao em `spec.md`, secao *Perguntas em aberto*; o quinto nao
+esta em documento nenhum do pacote, e foi encontrado por T023 ao ler as ancoras
+que UC-24 aponta. A tabela *Nao negociavel* da constituicao poe cada um deles
+fora do alcance do agente de codificacao.
 
 ### O que T005 topou, e nao decidiu
 
@@ -932,6 +1072,7 @@ tres:
 | valor devolvido pelos pontos de filtro | byte a byte no valor |
 | efeito de escrita no banco, inclusive o acumulo de token em `usermeta` | efeito no banco |
 | as telas de login, redefinicao e registro | caso de uso, mais `@paridade-visual` das telas em modo literal |
+| a cascata de apagar conta, e o que fica **orfao** | efeito no banco, com o conjunto exato do que sumiu e do que ficou (**P5**) |
 
 O cenario *"As duas operacoes de encerramento de sessao existem sem caminho de
 uso"* de `parity_tests/06-autenticacao-e-sessao.feature` e o que confere a

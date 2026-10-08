@@ -61,6 +61,24 @@ export interface RepositorioDeMetadadosDeConta {
   /** `delete_user_meta`: apaga todas as linhas daquela chave. */
   apagar(contaId: number, chave: string): number;
   /**
+   * `delete_metadata_by_mid( 'user', $mid )`: apaga **uma** linha, pelo
+   * identificador dela.
+   *
+   * Acrescentado em **T023**, que e a tarefa que a nota do cabecalho deste
+   * arquivo nomeia: *"o que some e o que fica orfao quando uma conta e apagada e
+   * decisao da tarefa que administra contas (T023)"*. E a primitiva por **linha**
+   * e nao por chave de proposito — `wp_delete_user()`
+   * (`wp-admin/includes/user.php:444`) percorre os `umeta_id` da conta e apaga um
+   * por um, e e esse o numero de comandos que sai. Apagar por chave emitiria
+   * menos comandos e, numa conta com chave repetida (item 1 do cabecalho),
+   * esconderia a repeticao.
+   *
+   * O que esta funcao **nao** e: `apagarTudoDaConta`. A cascata continua em
+   * `../administracao-de-contas/apagar-contas.ts`, declarada passo a passo, como
+   * o **P5** exige.
+   */
+  apagarPorId(metadadoId: number): number;
+  /**
    * As contas cuja chave guarda um trecho de texto.
    *
    * E assim, e so assim, que se pergunta "quem e administrador deste site": a
@@ -144,6 +162,13 @@ export function criarRepositorioDeMetadadosDeConta(
       return dados.escrever({
         texto: `DELETE FROM ${tabela} WHERE user_id = ? AND meta_key = ?`,
         parametros: [contaId, chave],
+      }).linhasAfetadas;
+    },
+
+    apagarPorId(metadadoId) {
+      return dados.escrever({
+        texto: `DELETE FROM ${tabela} WHERE umeta_id = ?`,
+        parametros: [metadadoId],
       }).linhasAfetadas;
     },
 

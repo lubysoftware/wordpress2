@@ -145,6 +145,16 @@ function usermetaEmMemoria(): {
       }
       return alvos.length;
     },
+    // `apagarPorId` entrou na interface pela T023, que rodou em PARALELO com a
+    // T021 e não estava nesta árvore — o dublê desta suíte nasceu sem ela e o
+    // merge das duas só acusou no `tsc`. A primitiva é por LINHA: apaga aquele
+    // metadado e devolve quantas linhas saíram.
+    apagarPorId(metadadoId) {
+      const alvo = tabela.find((linha) => linha.id === metadadoId);
+      if (!alvo) return 0;
+      tabela.splice(tabela.indexOf(alvo), 1);
+      return 1;
+    },
     idsDeContasComValorContendo(chave, trecho) {
       return tabela
         .filter(

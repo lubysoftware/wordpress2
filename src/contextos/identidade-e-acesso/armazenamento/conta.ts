@@ -120,6 +120,23 @@ export interface RepositorioDeContas {
   obterPorApelido(apelido: string): Conta | null;
   atualizar(id: number, campos: CamposDeConta): number;
   /**
+   * Apaga a linha de `users`.
+   *
+   * Acrescentado em **T023** (US-11), que e a tarefa da cascata: aqui ha **so** a
+   * linha de `users`, e o resto da cascata — `usermeta`, `posts`, `links`, e o
+   * comentario que fica **orfao** — esta declarado passo a passo em
+   * `../administracao-de-contas/apagar-contas.ts`, como o **P5** exige. Um
+   * `apagarContaEmCascata` nascido aqui esconderia justamente o que o P5 manda
+   * afirmar por teste.
+   *
+   * ⚠️ **So existe na variante de site unico.** Em rede, `wp_delete_user()`
+   * desvia para `remove_user_from_blog()` e a linha de `users` **nao** e apagada:
+   * a identidade e global (UC-24, tabela de excecoes). Quem decide o desvio e a
+   * operacao de apagar, nao este repositorio — o metodo continua chamavel, como
+   * `wpmu_delete_user()` e no legado.
+   */
+  apagar(id: number): number;
+  /**
    * As duas colunas de supervisao da variante de rede.
    *
    * Lanca na variante de site unico, onde as colunas **nao existem**: escrever
@@ -221,6 +238,13 @@ export function criarRepositorioDeContas(
       return dados.escrever({
         texto: `UPDATE ${tabela} SET ${atribuicoes.texto} WHERE ID = ?`,
         parametros: [...atribuicoes.parametros, id],
+      }).linhasAfetadas;
+    },
+
+    apagar(id) {
+      return dados.escrever({
+        texto: `DELETE FROM ${tabela} WHERE ID = ?`,
+        parametros: [id],
       }).linhasAfetadas;
     },
 
