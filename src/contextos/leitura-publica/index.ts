@@ -1,14 +1,14 @@
 /**
  * Modulo de leitura publica — feature `004-leitura-publica`, epico EP-4.
  *
- * Esqueleto da tarefa T001. O que existe aqui e o que T001 entrega: o modulo
- * carrega com a porta de dados declarada, resolve o endereco pedido para um
- * conjunto vazio de criterios e devolve a resposta de endereco inexistente. A
- * tabela de regras de traducao (T002), a consulta de conteudo (T003), a
- * hierarquia de modelos (T005), a paginacao (T007), o portao de `post_status`
- * (T009), o 404 do tema (T011), a senha de conteudo (T013), a pre-busca (T015) e
- * a macro textual (T017) entram nas tarefas delas. A leitura obrigatoria de quem
- * pegar a tarefa seguinte e `./README.md`.
+ * Tarefas fechadas aqui: **T001** (o esqueleto — a porta de dados, a ordem das
+ * etapas do atendimento e a resposta de endereco inexistente) e **T002** (a
+ * tabela de regras de traducao como dado, o casamento do endereco contra ela e a
+ * coleta dos criterios diretos, em `./traducao-de-endereco/`). A consulta de
+ * conteudo (T003), a hierarquia de modelos (T005), a paginacao (T007), o portao
+ * de `post_status` (T009), o 404 do tema (T011), a senha de conteudo (T013), a
+ * pre-busca (T015) e a macro textual (T017) entram nas tarefas delas. A leitura
+ * obrigatoria de quem pegar a tarefa seguinte e `./README.md`.
  *
  * **Onde este modulo mora, e por que nao numa pasta de `bounded context`.** Esta
  * feature nao e um contexto do desenho: ela atravessa `BC-01` (a consulta e a
@@ -57,6 +57,7 @@ import {
 } from './requisicao/situacao-da-resposta.js';
 
 export * from './portas/index.js';
+export * from './traducao-de-endereco/index.js';
 export * from './requisicao/endereco-pedido.js';
 export * from './requisicao/resolver-endereco.js';
 export * from './requisicao/situacao-da-resposta.js';
@@ -101,6 +102,11 @@ export interface ModuloDeLeituraPublica {
    *
    * O endereco chega por argumento, e nao pela composicao, porque a requisicao
    * corrente e escopo de REQUISICAO (BR-MIGRAR-105).
+   *
+   * T002 **nao acrescentou operacao** a esta superficie: ela acrescentou a
+   * tabela de regras e o `extra_query_vars` as opcoes desta, porque no legado as
+   * duas coisas sao argumento e leitura de `parse_request`, e nao funcao
+   * separada. A tabela acima cresce na tarefa de cada historia, nunca antes.
    */
   resolverEndereco(
     pedido: EnderecoPedido,

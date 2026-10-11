@@ -3,46 +3,58 @@
  * `WP::parse_request()` do legado (`wp-includes/class-wp.php:136`), que e o
  * passo 2 de UC-01.
  *
- * **Por que o conjunto vazio desta tarefa e o legado, e nao um esboco.** No
- * legado, todo o trabalho que recorta o caminho pedido, procura regra de
- * traducao, marca `error = '404'` e liga `did_permalink` esta dentro de um
- * `if ( ! empty( $rewrite ) )` (`wp-includes/class-wp.php:165`), e a tabela de
- * regras e lida logo antes (`:163`). **Sem tabela de regras, o legado nao deriva
- * criterio nenhum do caminho pedido e nao marca erro nenhum** — e e esse o
- * estado desta arvore, porque portar a tabela e T002, e coletar os criterios
- * diretos tambem.
+ * **O que esta funcao e, depois de T002.** Ela e a ORDEM das seis etapas do
+ * `parse_request`, e nada mais: cada etapa mora no arquivo dela, em
+ * `../traducao-de-endereco/`, e esta funcao as chama na posicao do legado.
  *
- * E e tambem o que `UT-038-2` vai cobrar — *"recusa inventar criterio para
- * endereco que nao casa com nenhuma regra"*: a resolucao nao adivinha
- * identificador a partir do texto do endereco. Nunca.
+ * | # | etapa | onde | legado |
+ * |---|---|---|---|
+ * | 1 | o ponto de extensao que pode recusar a resolucao | aqui | `:148` |
+ * | 2 | o `extra_query_vars`, arranjo ou texto | aqui, com `analisarCadeiaDeConsulta` | `:153-159` |
+ * | 3 | a tabela de regras de traducao | `tabela-de-regras.ts`, pela fonte recebida | `:163` |
+ * | 4 | o casamento do caminho pedido contra a tabela | `casar-endereco.ts` | `:165-298` |
+ * | 5 | o ponto de extensao sobre a lista de nomes aceitos | `nomes-de-criterio.ts` | `:311` |
+ * | 6 | a coleta das quatro fontes de criterio | `criterios-diretos.ts` | `:319-400` |
  *
- * **O que falta, nomeado, para quem pega T002 e T003:**
+ * Depois delas, os dois pontos de extensao do fim: `request`, que substitui os
+ * criterios (`:409`), e `parse_request`, que so observa (`:418`).
  *
- * | o que entra | onde esta no legado | tarefa |
+ * ---
+ *
+ * ## O que esta funcao deliberadamente NAO faz com o texto do endereco
+ *
+ * Ela **nao** analisa a parte de consulta da URI pedida. No legado, `$_GET` e
+ * `$_POST` chegam prontos — o interpretador os monta antes de a primeira linha
+ * rodar —, e `parse_request` so os **le** (`:322-333`). Por isso `/?p=42` nao
+ * deriva criterio nenhum aqui se a borda HTTP nao tiver preenchido
+ * `parametrosDeConsulta`: quem traduz texto de requisicao em arranjo e a borda, e
+ * um porte que o fizesse aqui teria duas analises da mesma coisa, que divergem no
+ * primeiro caractere escapado.
+ *
+ * ## O que falta, nomeado, para quem pega T003
+ *
+ * | o que entra | onde esta no legado | onde entra aqui |
  * |---|---|---|
- * | a tabela de regras como dado, e o casamento do caminho contra ela | `class-wp.php:163-298` | T002 |
- * | `error = '404'` como criterio quando ha tabela e nenhuma regra casa | `class-wp.php:167` e `:398-400` | T002 |
- * | a coleta dos criterios diretos, com a recusa 400 da divergencia | `class-wp.php:319-336` | T002 |
- * | o ponto de extensao `query_vars`, sobre a lista de nomes publicos | `class-wp.php:311` | T002 |
- * | os 25 nomes privados, que so entram por `extra_query_vars` | `class-wp.php:392-396` | T002 |
- * | os criterios de tipo de conteudo e de taxonomia, e os dois filtros de visibilidade | `class-wp.php:313-317` e `:356-389` | T003 |
+ * | os criterios de tipo de conteudo | `:313-317` e `:349-352` | dentro do laco de `coletarCriterios` |
+ * | o espaco de volta para `+` no criterio de taxonomia | `:356-362` | depois do laco |
+ * | os dois filtros de visibilidade (taxonomia e tipo de conteudo) | `:364-389` | depois do laco |
+ * | a colisao de identificador numerico com arquivo de data | `:390` | depois dos filtros |
+ * | a consulta principal, que le estes criterios | `class-wp-query.php:811` | etapa 3 de `atender-leitura-publica.ts` |
  *
- * A tabela de regras **nao** e parametro desta funcao hoje, de proposito: a
- * forma dela e a entrega de T002 (*"as regras de traducao do legado estao
- * declaradas como dado, nao como codigo"*), e declarar a forma aqui, sem nada
- * que a leia, seria decidir a entrega da outra tarefa. O que o legado guarda e
- * um arranjo ordenado de padrao para consulta, e **a ordem e a regra**: ele para
- * na primeira que casa (`class-wp.php:261-263`).
+ * As quatro primeiras tem a posicao marcada em comentario no corpo de
+ * `criterios-diretos.ts`, e nao no fim: BR-MIGRAR-106 (`EXT-ORDEM`) poe a ordem no
+ * contrato publico.
  *
- * **Os pontos de extensao desta funcao sao contrato publico (P2), e tres deles
- * passam por aqui.** O barramento de ganchos (`plataforma/barramento/`) nao
- * existe nesta arvore, e inventa-lo em T001 seria decidir no lugar da feature
- * 015. Entao os interceptadores chegam por argumento, com o nome do legado, na
- * posicao do legado e com o retorno valendo — que e justamente o que o P2 manda
- * poder conferir: *"que ele dispara, com os argumentos declarados, na posicao
- * declarada do fluxo, e que um interceptador consegue alterar o resultado onde o
- * legado permite"*. Quando o barramento existir, e ele que passa a alimenta-los;
- * a forma do ponto nao muda.
+ * ## Os pontos de extensao desta funcao sao contrato publico (P2)
+ *
+ * Sao quatro, agora com o `query_vars` que T001 registrou como ainda sem lugar. O
+ * barramento de ganchos (`plataforma/barramento/`) nao existe nesta arvore, e
+ * inventa-lo aqui seria decidir no lugar da feature 015. Entao os interceptadores
+ * chegam por argumento, com o nome do legado, na posicao do legado e com o
+ * retorno valendo — que e o que o P2 manda poder conferir: *"que ele dispara, com
+ * os argumentos declarados, na posicao declarada do fluxo, e que um interceptador
+ * consegue alterar o resultado onde o legado permite"*. Quando o barramento
+ * existir, e ele que passa a alimenta-los; a forma do ponto nao muda.
  *
  * ⚠️ **A prioridade inteira nao esta aqui, e e lacuna declarada e nao decisao.**
  * AD-03 poe a ordem por prioridade no contrato, e o inventario de pontos de
@@ -52,6 +64,17 @@
  * por prioridade e de quem construir o barramento.
  */
 
+import {
+  casarEndereco,
+  coletarCriterios,
+  fonteFixaDeRegras,
+  nomesPublicosFiltrados,
+  analisarCadeiaDeConsulta,
+  TABELA_SEM_REGRAS,
+  vazioNoLegado,
+  type FonteDeRegrasDeTraducao,
+  type IntercepcaoDeNomesDeCriterio,
+} from '../traducao-de-endereco/index.js';
 import {
   CRITERIOS_VAZIOS,
   type CriteriosDeConsulta,
@@ -97,6 +120,11 @@ export type ObservadorDaResolucao = (resolucao: ResolucaoDeEndereco) => void;
 export interface PontosDeExtensaoDaResolucao {
   /** `do_parse_request`, antes de tudo. */
   readonly antesDeResolver?: readonly IntercepcaoDeResolucao[];
+  /**
+   * `query_vars`, sobre a **lista de nomes** aceitos, depois do casamento de
+   * regra e antes da coleta (`class-wp.php:311`).
+   */
+  readonly sobreOsNomesDeCriterio?: readonly IntercepcaoDeNomesDeCriterio[];
   /** `request`, depois da coleta e antes de a resolucao ficar pronta. */
   readonly sobreOsCriterios?: readonly IntercepcaoDeCriterios[];
   /** `parse_request`, por ultimo. */
@@ -105,6 +133,27 @@ export interface PontosDeExtensaoDaResolucao {
 
 /** O que a resolucao recebe alem do endereco. */
 export interface OpcoesDaResolucao {
+  /**
+   * O `$extra_query_vars` de `parse_request( $extra_query_vars = '' )`
+   * (`class-wp.php:136`), que no legado chega de `WP::main( $query_args )`
+   * (`:819` e `:822`).
+   *
+   * Arranjo ou texto, como no legado (`:153-159`): texto e analisado com
+   * `parse_str`, e texto vazio vale como arranjo vazio. E a **unica** fonte dos
+   * 26 nomes privados de criterio (`:392-396`), logo e por aqui que o nucleo
+   * monta consulta que o visitante nao consegue pedir.
+   */
+  readonly criteriosExtras?: CriteriosDeConsulta | string;
+  /**
+   * De onde vem a tabela de regras de traducao — o
+   * `$wp_rewrite->wp_rewrite_rules()` de `class-wp.php:163`.
+   *
+   * Ausente, a tabela e vazia, que e o estado de fabrica de uma instalacao nova
+   * de site unico (`wp-admin/includes/schema.php:443`): o bloco de casamento nao
+   * roda e todo criterio vem dos parametros da requisicao. Ver
+   * `../traducao-de-endereco/tabela-de-regras.ts`.
+   */
+  readonly fonteDeRegras?: FonteDeRegrasDeTraducao;
   readonly pontosDeExtensao?: PontosDeExtensaoDaResolucao;
 }
 
@@ -115,8 +164,7 @@ export interface OpcoesDaResolucao {
  * publicada**: `WP::$query_vars`, `$request`, `$matched_rule`, `$matched_query`
  * e `$did_permalink` sao propriedades publicas que extensao de terceiro le, e o
  * retorno booleano de `parse_request` existe desde a versao 6.0.0. O P8 proibe
- * sumir com qualquer um deles, e e por isso que os cinco estao declarados antes
- * de existir quem os preencha com outra coisa.
+ * sumir com qualquer um deles.
  */
 export interface ResolucaoDeEndereco {
   /**
@@ -127,10 +175,10 @@ export interface ResolucaoDeEndereco {
   /** `WP::$query_vars`. */
   readonly criterios: CriteriosDeConsulta;
   /**
-   * `WP::$request` — o caminho pedido, depois do recorte.
+   * `WP::$request` — o caminho pedido, depois do recorte (`class-wp.php:217`).
    *
    * Vazio sem tabela de regras: o legado so o preenche dentro do bloco de
-   * casamento (`class-wp.php:217`).
+   * casamento.
    */
   readonly caminhoDaRequisicao: string;
   /** `WP::$matched_rule` — o padrao que casou, vazio quando nenhum casou. */
@@ -159,6 +207,26 @@ const RESOLUCAO_RECUSADA: ResolucaoDeEndereco = Object.freeze({
 });
 
 /**
+ * `:153-159` — o `extra_query_vars` chega como arranjo ou como texto.
+ *
+ * O legado so analisa o texto quando ele **nao e vazio** no sentido do
+ * interpretador, e `empty()` ali tambem cobre o digito zero.
+ */
+function criteriosExtrasDe(
+  informados: CriteriosDeConsulta | string | undefined,
+): CriteriosDeConsulta {
+  if (informados === undefined) {
+    return CRITERIOS_VAZIOS;
+  }
+  if (typeof informados !== 'string') {
+    return informados;
+  }
+  return vazioNoLegado(informados)
+    ? CRITERIOS_VAZIOS
+    : analisarCadeiaDeConsulta(informados);
+}
+
+/**
  * Resolve o endereco pedido em criterios de consulta.
  *
  * **Permissao exigida: nenhuma, e a declaracao e o ponto.** O P4 manda declarar
@@ -167,6 +235,10 @@ const RESOLUCAO_RECUSADA: ResolucaoDeEndereco = Object.freeze({
  * verificacao de capacidade. O portao e o `post_status`"* — e o portao do
  * `post_status` e US-4, em T009. Quem puser verificacao de capacidade aqui fecha
  * a cara publica do produto, que e o que esta feature existe para entregar.
+ *
+ * @throws {RecusaDeVariavelDivergente} quando o mesmo nome de criterio chega
+ * pelo corpo e pela consulta da requisicao com valores diferentes: o legado
+ * encerra a requisicao com `wp_die( ..., 400 )` (`class-wp.php:322-329`).
  */
 export function resolverEndereco(
   pedido: EnderecoPedido,
@@ -174,8 +246,8 @@ export function resolverEndereco(
 ): ResolucaoDeEndereco {
   const pontos = opcoes.pontosDeExtensao ?? {};
 
-  // `do_parse_request`: cada interceptador recebe o valor corrente, e o retorno
-  // do ultimo e o que vale — como em `apply_filters` (`class-wp.php:148`).
+  // Etapa 1 — `do_parse_request`: cada interceptador recebe o valor corrente, e
+  // o retorno do ultimo e o que vale, como em `apply_filters` (`:148`).
   let resolver = true;
   for (const intercepcao of pontos.antesDeResolver ?? []) {
     resolver = intercepcao(resolver, pedido);
@@ -184,12 +256,35 @@ export function resolverEndereco(
     return RESOLUCAO_RECUSADA;
   }
 
-  // Aqui entra T002: o recorte do caminho, o casamento contra a tabela de regras
-  // e, quando a tabela existe e nenhuma regra casa, o criterio `error` em
-  // `'404'`. Sem tabela, o legado chega ao fim da funcao com o conjunto vazio.
-  let criterios: CriteriosDeConsulta = CRITERIOS_VAZIOS;
+  // Etapa 2 (`:153-159`).
+  const criteriosExtras = criteriosExtrasDe(opcoes.criteriosExtras);
 
-  // `request`: o retorno substitui o conjunto (`class-wp.php:409`).
+  // Etapa 3 (`:163`) — uma chamada por requisicao, nesta posicao. A fonte pode
+  // reconstruir e gravar a tabela, e e por isso que ela e funcao e nao valor.
+  const fonte = opcoes.fonteDeRegras ?? fonteFixaDeRegras(TABELA_SEM_REGRAS);
+  const tabela = fonte();
+
+  // Etapa 4 (`:165-298`).
+  const casamento = casarEndereco(pedido, tabela);
+
+  // Etapa 5 (`:311`).
+  const nomesPublicos = nomesPublicosFiltrados(
+    pontos.sobreOsNomesDeCriterio ?? [],
+  );
+
+  // Etapa 6 (`:319-400`) — as quatro fontes, na precedencia do legado.
+  let criterios = coletarCriterios({
+    nomesPublicos,
+    criteriosExtras,
+    parametrosDeCorpo: pedido.parametrosDeCorpo ?? CRITERIOS_VAZIOS,
+    parametrosDeConsulta: casamento.parametrosDeConsulta,
+    ...(casamento.criteriosDaRegra === undefined
+      ? {}
+      : { criteriosDaRegra: casamento.criteriosDaRegra }),
+    ...(casamento.erro === undefined ? {} : { erro: casamento.erro }),
+  });
+
+  // `request`: o retorno substitui o conjunto (`:409`).
   for (const intercepcao of pontos.sobreOsCriterios ?? []) {
     criterios = intercepcao(criterios);
   }
@@ -197,13 +292,13 @@ export function resolverEndereco(
   const resolucao: ResolucaoDeEndereco = Object.freeze({
     resolvida: true,
     criterios,
-    caminhoDaRequisicao: '',
-    regraCasada: '',
-    consultaCasada: '',
-    permalinkResolvido: false,
+    caminhoDaRequisicao: casamento.caminhoDaRequisicao,
+    regraCasada: casamento.regraCasada,
+    consultaCasada: casamento.consultaCasada,
+    permalinkResolvido: casamento.permalinkResolvido,
   });
 
-  // `parse_request`: ponto de acao, por ultimo e sem retorno (`class-wp.php:418`).
+  // `parse_request`: ponto de acao, por ultimo e sem retorno (`:418`).
   for (const observador of pontos.depoisDeResolver ?? []) {
     observador(resolucao);
   }
