@@ -1,10 +1,10 @@
 # Modulo de midia — BC-04
 
 Feature `006-biblioteca-de-midia`. Tarefas fechadas com nota de entrega neste
-arquivo: **T001** (esqueleto, as tres portas e os tamanhos de fabrica). Este
-arquivo e a leitura obrigatoria de quem pegar a tarefa seguinte: ele diz o que ja
-esta decidido, o que esta decidido **em outro lugar**, e o que **ninguem**
-decidiu.
+arquivo: **T001** (esqueleto, as tres portas e os tamanhos de fabrica) e **T002**
+(a forma de armazenamento do anexo e das derivadas). Este arquivo e a leitura
+obrigatoria de quem pegar a tarefa seguinte: ele diz o que ja esta decidido, o
+que esta decidido **em outro lugar**, e o que **ninguem** decidiu.
 
 A pasta e `contextos/midia/` porque e assim que `target_architecture.md` nomeia
 BC-04 no esboco de arvore. BC-04 e a fusao de `midia-e-anexos` com
@@ -49,6 +49,91 @@ regra de dependencia 4 de `target_architecture.md`: *"`contextos/` ou
 escolhidos para este no — driver MySQL em protocolo nativo, sistema de arquivos
 do runtime com SSH2 e FTP, biblioteca nativa de processamento de imagem — sao
 implementacao de `adaptadores/`, e T001 nao escreve adaptador.
+
+---
+
+## O que T002 entrega, e so isso
+
+A linha da tarefa: *"o anexo existe como registro de conteudo com estado
+herdado, e o metadado que descreve as derivadas e gravado e lido pela porta de
+dados com a mesma forma do legado"*. `satisfaz: — (infraestrutura)`: T002 nao
+fecha criterio de aceite nenhum e **nao implementa regra de negocio nenhuma**.
+
+| arquivo | o que e |
+|---|---|
+| `armazenamento/chaves-e-tabelas.ts` | os dois nomes de tabela e as **cinco** chaves de metadado do anexo |
+| `armazenamento/anexo.ts` | a linha de `posts` lida como anexo, o vocabulario de `P2` e as duas consultas que o caminho do anexo emite sobre `posts` |
+| `armazenamento/derivadas.ts` | a forma do valor de `_wp_attachment_metadata`, com a **ordem das chaves** e os construtores dela |
+| `armazenamento/metadado.ts` | as primitivas de `postmeta`, com os cinco comportamentos de efeito no banco |
+| `armazenamento/metadado-de-anexo.ts` | as cinco chaves como operacao nomeada, mais a guarda da miniatura compartilhada |
+| `armazenamento/verdade-de-php.ts` | o `if ( $valor )` que decide entre gravar e **apagar** |
+| `armazenamento/porta-falsa.ts` | o duplo que **registra comando** — e o que T003 em diante vai usar |
+| `armazenamento/armazenamento.test.ts` | os 22 testes da entrega, todos sobre efeito no banco |
+
+### As quatro decisoes de T002 que a proxima tarefa precisa conhecer
+
+1. **O anexo nao tem tabela, e nao ha `inserir` neste armazenamento.** O unico
+   caminho de escrita da linha no legado e `wp_insert_attachment()` →
+   `wp_insert_post()` (`wp-includes/post.php:6778`, `:6790`), que e **de BC-01**
+   e leva com ele quatro pontos de extensao, a reescrita de `P2`, a unicidade do
+   identificador na URL e a gravacao do `guid`. Um `inserir` nascido aqui
+   emitiria um comando que o legado nao emite. Como a chamada BC para BC e
+   **ligacao tardia** (AD-10), **quem declara essa ligacao e T003**, do mesmo
+   jeito que `ClassificacaoNaPublicacao` e declarada no contexto da operacao em
+   BC-01. As duas consultas que estao aqui — o `SELECT *` e o `DELETE` — sao as
+   duas que `wp_delete_attachment()` emite por conta propria, sem passar por
+   `wp_delete_post()`.
+2. **A verdade do metadado e o arranjo; a projecao tipada e so leitura.**
+   `MetadadoDeAnexo` nomeia em portugues as chaves que o legado le, e `gravar`
+   recebe **`ValorPhp`**, nunca a projecao: a estrutura e aberta (a anotacao do
+   proprio legado termina em `...` nos dois niveis), a ordem das chaves e byte, e
+   inteiro e texto sao bytes diferentes para a mesma largura. Quem grava a partir
+   de uma projecao apaga chave de extensao — e chave de extensao e contrato
+   publico (P2). O teste *"chave de extensao sobrevive a volta"* fixa isso.
+3. **A ordem das chaves esta declarada, e a atribuicao do PHP tem regra de
+   posicao.** `atribuirChave()` substitui **no lugar** a chave que existe e poe
+   no **fim** a que nao existe, que e o que faz o metadado de uma imagem reduzida
+   sair como `width, height, file, filesize, sizes, original_image`
+   (`wp-admin/includes/image.php:213` a `:223`). Um porte que apagasse e
+   reinserisse produziria os mesmos dados com outros bytes.
+4. **O caminho do arquivo nao e resolvido aqui.** O que este armazenamento le e
+   grava e o **valor da coluna** — o caminho relativo. A absolutizacao de
+   `get_attached_file()` (`post.php:848` a `:854`) e a relativizacao de
+   `_wp_relative_upload_path()` (`:900`) precisam da raiz da area de envios, que
+   e a **porta de sistema de arquivos**, e tocam **endereco publico** — que e a
+   pergunta em aberto do sufixo. Quem resolve caminho e o fluxo que tem as duas
+   portas na mao (T003).
+
+### O que T002 encontrou, e que a `spec.md` nao diz
+
+Nenhum conflito novo: nos dois casos abaixo a `spec.md` **diz menos** do que a
+arvore, e o P1 poe a arvore como a especificacao. Ficam registrados porque sao
+exatamente onde um porte guiado so pela spec perde paridade.
+
+1. **O caminho relativo do arquivo mora em DUAS chaves, nao numa.** A secao
+   *Modelo de dados* do `plan.md` tem uma linha so — *"o metadado do anexo [...]
+   e o caminho do arquivo relativo a area de envios"* —, e na arvore o caminho
+   esta em `_wp_attachment_metadata['file']` **e** em `_wp_attached_file`, duas
+   linhas de `postmeta` diferentes, as duas atualizadas pelo mesmo
+   `_wp_image_meta_replace_original()` (`image.php:210` e `:217`) e as duas lidas
+   pelo caminho de exclusao de arquivo. Quem grava so uma deixa o anexo
+   apontando para dois arquivos diferentes.
+2. **O metadado tem seis nomes de arquivo alem de `sizes`, e cinco deles a spec
+   nao menciona.** Alem de `file` e `original_image`, o caminho de exclusao le
+   `thumb` (o formato anterior a 2.5, que ninguem escreve e dois leem),
+   `source_image`, `animated_video` e `animated_video_poster`, mais o
+   `_wp_attachment_backup_sizes`. Todos estao representados em `derivadas.ts`,
+   por P8: um porte que nao os represente deixa em disco arquivo que o legado
+   apaga, e o cenario `@cascata` do teste de paridade compara *"o conjunto de
+   arquivos restante no disco"*.
+
+⚠️ E uma assimetria que vale repetir, porque ela e do produto e nao defeito: a
+reescrita de `P2` acontece no caminho de **aplicacao**
+(`wp-includes/post.php:4705`), e o DDL da coluna tem `default 'publish'`
+(`wp-admin/includes/schema.php:167`). Logo uma linha de `attachment` inserida
+direto na tabela, sem informar estado, nasce no estado que `P2` diz que o anexo
+nunca tem. Nenhum caminho deste modulo insere linha direto, e a leitura **nao
+corrige** o que ja esta assim no banco.
 
 ---
 
@@ -244,6 +329,28 @@ O que T001 ja torna conferivel por ali:
 - O cenario **`@divida-herdada`** da falha silenciosa exige que o chamador possa
   **ignorar** a falha. As duas portas devolvem falha como **valor** e nenhuma
   escreve registro; os dois ultimos testes do modulo afirmam isso nas duas.
+
+O que **T002** acrescenta a essa lista:
+
+- O cenario dos **quatro tamanhos** cobra que *"o metadado de cada derivada e
+  identico campo por campo nas duas"*. A forma que se compara campo por campo e
+  `derivadas.ts`, e o teste afirma os bytes dela: `file`, `width`, `height`,
+  `mime-type`, `filesize`, nessa ordem, com `filesize` ausente quando a derivada
+  nao o tem.
+- O cenario **`@divida-herdada`** cobra que *"o metadado gravado omite o tamanho
+  que falhou"*. Isso so e representavel porque `sizes` e lista ordenada de
+  entradas gravadas, e nao um conjunto fixo de tamanhos: a derivada que falhou
+  simplesmente nao entra, e nenhuma escrita acontece por ela.
+- O cenario **`@invariante`** de `P2` cobra que *"as duas reescrevem o estado
+  para o de heranca"* e que *"nenhuma das duas o reescreve"* quando o estado ja e
+  aceito. O vocabulario que a reescrita de T005 vai usar esta em `anexo.ts`, com
+  os quatro estados na ordem do legado, e o teste afirma que `publish` nao esta
+  entre eles.
+- O cenario **`@cascata`** cobra *"o conjunto de linhas de metadado restante"* e
+  *"a ordem das operacoes em disco"*. As duas consultas que T017 vai usar para a
+  primeira metade — `SELECT meta_id ... WHERE post_id = ? ` e o par
+  `SELECT * ... WHERE meta_id = ?` / `DELETE` — estao em `metadado.ts`, com o
+  espaco final da cadeia do legado preservado.
 
 ⚠️ `parity_specs.md` registra que a suite de *characterization tests* **nao
 existe** nesta arvore, e que a paridade de tela tem de ser derivada secao por

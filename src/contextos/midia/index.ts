@@ -1,15 +1,17 @@
 /**
  * Modulo de midia — BC-04 de `target_architecture.md`.
  *
- * Esqueleto da feature `006-biblioteca-de-midia`, tarefa **T001**. O que existe
- * aqui e o que T001 entrega: *"o modulo carrega com as portas de dados, de
- * sistema de arquivos e de processamento de imagem declaradas, e os tamanhos de
- * fabrica do legado registrados como dado"*. **Nenhuma regra de negocio esta
- * implementada.** O envio com validacao de tipo, a heranca de visibilidade, a
- * geracao de derivadas, a reducao na ingestao, o relato de falha, a escolha da
- * derivada, a transformacao, o descarte do arquivo e o contorno do filtro entram
- * nas tarefas delas (T002 em diante), e a leitura obrigatoria de cada uma esta
- * em `./README.md`.
+ * Feature `006-biblioteca-de-midia`, tarefas fechadas **T001** e **T002**. O que
+ * existe aqui e o que as duas entregam: T001, *"o modulo carrega com as portas
+ * de dados, de sistema de arquivos e de processamento de imagem declaradas, e os
+ * tamanhos de fabrica do legado registrados como dado"*; T002, *"o anexo existe
+ * como registro de conteudo com estado herdado, e o metadado que descreve as
+ * derivadas e gravado e lido pela porta de dados com a mesma forma do legado"*.
+ * **Nenhuma regra de negocio esta implementada.** O envio com validacao de tipo,
+ * a heranca de visibilidade, a geracao de derivadas, a reducao na ingestao, o
+ * relato de falha, a escolha da derivada, a transformacao, o descarte do arquivo
+ * e o contorno do filtro entram nas tarefas delas (T003 em diante), e a leitura
+ * obrigatoria de cada uma esta em `./README.md`.
  *
  * A pasta e `contextos/midia/` porque e assim que `target_architecture.md`
  * nomeia BC-04 no esboco de arvore; a feature se chama `006-biblioteca-de-midia`
@@ -21,14 +23,20 @@
  * - **Nao guarda estado de modulo.** BR-MIGRAR-105 (`EXT-CONTEXTO`) poe
  *   identidade, consulta corrente e conexao no escopo da REQUISICAO. Por isso as
  *   portas chegam por argumento e nao existe instancia compartilhada neste
- *   arquivo: duas composicoes nao se enxergam. O unico dado compartilhado e a
- *   lista de tamanhos de fabrica, que e congelada.
+ *   arquivo: duas composicoes nao se enxergam, e o armazenamento de cada uma
+ *   nasce da porta dela. O unico dado compartilhado e a lista de tamanhos de
+ *   fabrica, que e congelada.
  * - **Nao resolve nada no carregamento.** O modulo nao consulta dados, nao toca
- *   disco e nao abre imagem ao ser criado. A ordem de arranque e contrato
- *   publico (BR-MIGRAR-106, `EXT-ORDEM`), e trabalho feito na importacao e
- *   trabalho fora da ordem. `modulo.test.ts` afirma as duas coisas.
+ *   disco e nao abre imagem ao ser criado: compor o armazenamento monta nome de
+ *   tabela e nada mais. A ordem de arranque e contrato publico (BR-MIGRAR-106,
+ *   `EXT-ORDEM`), e trabalho feito na importacao e trabalho fora da ordem.
+ *   `modulo.test.ts` afirma as duas coisas.
  */
 
+import {
+  criarArmazenamentoDeMidia,
+  type ArmazenamentoDeMidia,
+} from './armazenamento/index.js';
 import type {
   PortaDeDados,
   PortaDeProcessamentoDeImagem,
@@ -39,6 +47,7 @@ import {
   type TamanhoDeImagemDeFabrica,
 } from './tamanhos/index.js';
 
+export * from './armazenamento/index.js';
 export * from './portas/index.js';
 export * from './tamanhos/index.js';
 
@@ -54,7 +63,8 @@ export interface PortasDeMidia {
  *
  * Cada historia acrescenta aqui a sua operacao, com a declaracao explicita de
  * permissao que o P4 da constituicao exige, e nenhuma antes da propria tarefa.
- * Hoje ha duas coisas, as duas de T001: as portas e os tamanhos de fabrica.
+ * Hoje ha tres coisas, e nenhuma e operacao: as portas e os tamanhos de
+ * fabrica, de T001, e o armazenamento, de T002.
  *
  * A tabela abaixo e o que a secao *Contratos* de `plan.md` lista, com a
  * capacidade que a `spec.md` cobra em cada uma. Ela esta aqui como **pauta**, e
@@ -74,6 +84,16 @@ export interface PortasDeMidia {
 export interface ModuloDeMidia {
   readonly nome: 'midia';
   readonly portas: PortasDeMidia;
+
+  /**
+   * A forma de armazenamento do anexo e das derivadas (T002). Le e grava
+   * **somente** pela porta de dados.
+   *
+   * **Nao e operacao, e por isso nao declara permissao:** ele nao decide nada,
+   * nao recusa nada e nao autoriza nada. A linha de `tasks.md` e literal —
+   * `satisfaz: — (infraestrutura)`.
+   */
+  readonly armazenamento: ArmazenamentoDeMidia;
 
   /**
    * Os seis tamanhos de fabrica do legado, na ordem dele (`M2`,
@@ -105,6 +125,9 @@ export function criarModuloDeMidia(portas: PortasDeMidia): ModuloDeMidia {
   return {
     nome: 'midia',
     portas,
+    // Compor o armazenamento monta nome de tabela e nada mais: nenhuma consulta
+    // sai daqui (`EXT-ORDEM`, BR-MIGRAR-106).
+    armazenamento: criarArmazenamentoDeMidia(portas.dados),
     tamanhosDeFabrica: TAMANHOS_DE_IMAGEM_DE_FABRICA,
   };
 }

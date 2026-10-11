@@ -5,7 +5,7 @@
 - [x] **T001** Preparar o esqueleto do módulo de mídia
       *entrega:* o módulo carrega com as portas de dados, de sistema de arquivos e de processamento de imagem declaradas, e os tamanhos de fábrica do legado registrados como dado
       *satisfaz:* — (infraestrutura)
-- [ ] **T002** Portar a forma de armazenamento de anexo e das derivadas
+- [x] **T002** Portar a forma de armazenamento de anexo e das derivadas
       *entrega:* o anexo existe como registro de conteúdo com estado herdado, e o metadado que descreve as derivadas é gravado e lido pela porta de dados com a mesma forma do legado
       *satisfaz:* — (infraestrutura)
       *depende de:* T001
