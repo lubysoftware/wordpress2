@@ -2,7 +2,7 @@
 
 > Ordem de dependência. `[P]` marca tarefa que não disputa arquivo com nenhuma outra desta feature e portanto pode rodar em paralelo com as demais, uma vez satisfeita a dependência dela: toda tarefa de teste, que toca só a própria suíte, e a tarefa de implementação cuja história não compartilha módulo com nenhuma outra história daqui.
 
-- [ ] **T001** Levantar a instalação executável do legado como oráculo de paridade
+- [x] **T001** Levantar a instalação executável do legado como oráculo de paridade
       *entrega:* o legado, na mesma versão, roda em ambiente isolado e responde às consultas que os testes de paridade comparam, conforme a resposta 16 de `questions.md`
       *satisfaz:* — (infraestrutura)
 - [ ] **T002** Preparar o esqueleto da camada transversal
