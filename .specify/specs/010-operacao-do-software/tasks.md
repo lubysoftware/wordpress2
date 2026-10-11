@@ -2,7 +2,7 @@
 
 > Ordem de dependência. `[P]` marca tarefa que não disputa arquivo com nenhuma outra desta feature e portanto pode rodar em paralelo com as demais, uma vez satisfeita a dependência dela: toda tarefa de teste, que toca só a própria suíte, e a tarefa de implementação cuja história não compartilha módulo com nenhuma outra história daqui.
 
-- [ ] **T001** Preparar o esqueleto do módulo de operação do software
+- [x] **T001** Preparar o esqueleto do módulo de operação do software
       *entrega:* o módulo carrega com as portas de sistema de arquivos, de cliente externo, de dados e de envio de e-mail declaradas, e nenhuma delas implementada além da variante local
       *satisfaz:* — (infraestrutura)
 - [ ] **T002** Portar o estado de atualização e de recuperação como configuração nomeada
