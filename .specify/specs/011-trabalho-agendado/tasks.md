@@ -4,7 +4,7 @@
 
 > **Antes de começar:** três das histórias desta feature (REQ-122, REQ-124 e REQ-125) estão em conflito aberto com a resposta 10 de `questions.md`, registrado na seção Perguntas em aberto da spec. Enquanto o conflito não for decidido por uma pessoa, as tarefas delas não começam: construir qualquer um dos dois lados cria trabalho que o outro lado joga fora.
 
-- [ ] **T001** Preparar o esqueleto do módulo de fila agendada
+- [x] **T001** Preparar o esqueleto do módulo de fila agendada
       *entrega:* o módulo carrega com as portas de dados, de relógio, de cache e de cliente externo declaradas, e a fila existe como dado inspecionável e vazio
       *satisfaz:* — (infraestrutura)
 - [ ] **T002** Portar a fila como lista em configuração nomeada, com a trava de tempo do legado
