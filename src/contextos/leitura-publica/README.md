@@ -4,9 +4,11 @@ Epico EP-4 do backlog: *"entregar o conteudo publicado a quem nao tem conta"*.
 Tarefas fechadas com nota de entrega neste arquivo: **T001** (esqueleto, a porta
 de dados, a resolucao de endereco e a resposta de endereco inexistente),
 **T002** (a tabela de regras de traducao como dado, o casamento do endereco
-contra ela e a coleta dos criterios diretos) e **T003** (US-1: a resolucao do
+contra ela e a coleta dos criterios diretos), **T003** (US-1: a resolucao do
 endereco numa consulta de conteudo, com os predicados de tipo de consulta e os
-tres ramos de excecao do `handle_404`).
+tres ramos de excecao do `handle_404`) e **T013** (US-6: o portao de senha de
+conteudo, o atestado de dez dias, o formulario `SCR-011` como dado e a recusa do
+comentario em conteudo protegido).
 
 Este arquivo e a leitura obrigatoria de quem pegar a tarefa seguinte: ele diz o
 que ja esta decidido, o que esta decidido **em outro lugar**, e o que ninguem
@@ -14,7 +16,7 @@ decidiu.
 
 ---
 
-## 🔴 O que quem pega T005, T007, T009 ou T013 precisa saber antes de escrever a primeira linha
+## 🔴 O que quem pega T005, T007 ou T009 precisa saber antes de escrever a primeira linha
 
 ### 0. Numa instalacao nova a tabela de regras esta VAZIA, e isso muda como se le o resto
 
@@ -207,13 +209,17 @@ A superficie do modulo, com a permissao de cada operacao declarada na interface
 | `situacaoDaResposta` | T001 | **nenhuma capacidade**, declarada |
 | `atender` | T001 | **nenhuma capacidade**, declarada |
 | `consultarConteudo` | T003 | **nenhuma capacidade**, declarada |
+| `senhaDoConteudoExigida` | T013 | **nenhuma capacidade**, e aqui isso e a regra |
+| `liberarCorpoProtegido` | T013 | idem |
+| `gravarAtestadoDeSenha` | T013 | idem |
+| `recusarComentarioEmConteudoProtegido` | T013 | idem |
 
-As quatro declaram "nenhuma" porque UC-01 e literal: *"nao ha verificacao de
+As oito declaram "nenhuma" porque UC-01 e literal: *"nao ha verificacao de
 capacidade. O portao e o `post_status`"*. As duas portas de autorizacao desta
-feature chegam depois, e nenhuma delas e uma capacidade perguntada na entrada: o
-portao de `post_status` em **T009** (US-4) e o atestado de senha de conteudo em
-**T013** (US-6) — que BR-MIGRAR-098 (`PERM-12`) registra como um dos cinco pontos
-que decidem acesso **sem consultar o modelo de capacidades**.
+feature sao o portao de `post_status` em **T009** (US-4), que ainda nao entrou, e
+o atestado de senha de conteudo, que **T013 trouxe** — e que BR-MIGRAR-098
+(`PERM-12`) registra como um dos cinco pontos que decidem acesso **sem consultar
+o modelo de capacidades**.
 
 ## O que T002 entregou
 
@@ -319,14 +325,147 @@ registros —, o primeiro responde `is_single` e `/?cat=5` responde `is_archive`
 | `tag_id` em arranjo salta a clausula, e no legado `absint( array )` **derruba a requisicao** com erro de tipo | `consulta/consulta-de-taxonomia.ts` | do oraculo executavel (`ESC-ORACULO`): nenhuma regra do nucleo produz `tag_id` em arranjo, so `?tag_id[]=` |
 | `page` resolvido pela colisao de identificador numerico e gravado como **texto**, e no legado e inteiro | `traducao-de-endereco/colisao-de-identificador-numerico.ts` | de quem precisar alargar `ValorDeCriterio`, que e contrato mesclado de T001. As tres leituras de `page` no nucleo convertem antes de comparar, logo nenhuma decisao muda; o que muda e o tipo do global que `register_globals()` publica |
 
-### O que T005, T007, T009 e T013 recebem pronto
+### O que T005, T007 e T009 recebem pronto
 
 | tarefa | o que ela acrescenta, e onde |
 |---|---|
 | **T005** (US-2) | a etapa 5 do atendimento, na posicao marcada em `requisicao/atender-leitura-publica.ts`. Os 30 predicados que a hierarquia de modelos le ja existem, em `consulta/tipo-de-consulta.ts`, com a tabela de nome publico para nome daqui — e ela le o estado **depois** do `set_404()`, que e o que o legado publica |
 | **T007** (US-3) | o total encontrado e o numero de paginas em `ResultadoDaConsulta` (`set_found_posts`, `class-wp-query.php:3692`), e o tamanho de pagina, que nasce em 10 (`schema.php:434`). O ramo 3 de `handle_404` ja 404a a pagina de listagem fora de faixa, que e CA-3.3 |
 | **T009** (US-4) | o estado e o autor em `ConteudoConsultado`, e o recorte por estado nos criterios que vao ao repositorio. ⚠️ **Enquanto T009 nao entrar, o repositorio decide sozinho o que e publico** — e e por isso que `REPOSITORIO_SEM_CONTEUDO` e o default, e nao um repositorio que devolve tudo |
-| **T013** (US-6) | a senha em `ConteudoConsultado` e o atestado. A protecao e do **corpo**, nao da existencia: o conteudo protegido continua saindo nesta consulta |
+| ✅ **T013** (US-6) | **fechada**: a senha entrou em `ConteudoConsultado` e o atestado esta em `senha-de-conteudo/`. A protecao e do **corpo**, nao da existencia: o conteudo protegido continua saindo nesta consulta, e o teste que afirma isso esta em `senha-de-conteudo/us-6-liberar-corpo-protegido.test.ts` |
+
+## O que T013 entregou
+
+```
+leitura-publica/senha-de-conteudo/
+├── hash-do-atestado.ts                 `PasswordHash( 8, true )`: encode64, gensalt_private, crypt_private, HashPassword, CheckPassword
+├── contexto-de-senha-de-conteudo.ts    as colaboracoes tardias, e o cookie que chegou
+├── senha-exigida.ts                    `post_password_required`, e os dois interceptadores do pedido REST
+├── atestado-de-senha.ts                o cookie: nome, dez dias, marca de cifrado, e a gravacao SEM conferencia
+├── formulario-de-senha.ts              `SCR-011` como DADO: campos, mensagens, classes e a deteccao de senha errada
+├── corpo-protegido.ts                  o corpo, o resumo, o titulo e as classes
+├── recusa-de-comentario.ts             CA-6.5, e a unica peca cujo chamador e de BC-07
+└── index.ts                            o barril da area
+```
+
+Fora da pasta nova, T013 mexeu em **tres** arquivos, e so neles:
+`consulta/conteudo-consultado.ts` (o campo `senha`, que T003 havia anunciado),
+`index.ts` (as quatro operacoes novas e a area no barril) e `modulo.test.ts` (a
+lista da superficie). Mais uma linha em
+`consulta/us-1-resolver-endereco-em-consulta.test.ts`: o default `senha: ''` no
+montador de conteudo daquela suite, que e o valor da coluna numa instalacao nova
+(`post_password varchar(255) NOT NULL default ''`, `schema.php:170`).
+
+A entrega em uma frase conferivel: um conteudo com senha devolve **formulario** em
+lugar do corpo enquanto nao ha atestado; o envio da senha certa produz um cookie
+`wp-postpass_<md5 do endereco do site>` com hash `$P$B…` e vencimento de
+**864.000 segundos**, e com esse cookie o **mesmo** conteudo devolve o corpo; a
+senha errada produz cookie igualmente, o corpo continua oculto, e o formulario
+volta com *"Invalid password."*; e em nenhum desses caminhos o portao pergunta
+uma capacidade.
+
+### 🔴 CA-6.4 nao acontece na pagina publica, e isso e leitura do oraculo
+
+*"Quem pode editar o conteudo ve o corpo sem informar a senha"* existe no legado
+em **um** mecanismo, e nao e um ramo de capacidade dentro do portao:
+`post_password_required()` (`wp-includes/post-template.php:882-915`) **nao tem uma
+unica chamada de `current_user_can()`**. Quem produz o comportamento de CA-6.4 e
+a superficie REST, que instala `check_password_required()` como filtro do ponto
+`post_password_required` (`class-wp-rest-posts-controller.php:455`, `:607` e
+`:1994`), depois de `can_access_password_content()` decidir por duas portas:
+contexto `edit` mais `edit_post`, ou a senha informada **no proprio pedido** e
+comparada com `hash_equals` contra a coluna em texto claro (`:629-653`).
+
+Consequencia observavel, reproduzida de proposito: **na pagina publica, um editor
+autenticado tambem ve o formulario de senha.** Os dois interceptadores estao
+portados em `senha-de-conteudo/senha-exigida.ts` — junto do ponto que eles
+interceptam, porque o P2 poe nome, argumento, posicao e capacidade de alterar o
+resultado no contrato do ponto, e porque a superficie REST nao existe nesta
+arvore. Unificar as duas superficies num ramo de capacidade dentro do portao
+mudaria a saida publica de toda instalacao com editor autenticado, e divergir do
+observavel exige decisao humana registrada e citada no codigo (P1). Nao ha
+nenhuma.
+
+### Os tres fatos do atestado, e onde cada um esta afirmado
+
+A resposta 8 de `questions.md` manda preservar os tres, e REQ-044 — o card que
+pediria prazo, limite de tentativa e janela — esta em `do-not-rewrite.md`, logo e
+escopo **recusado** e nao trabalho pendente (P6, e a tabela *Nao negociavel*).
+
+| fato | onde esta | como esta afirmado |
+|---|---|---|
+| **dez dias** no navegador | `PRAZO_DO_ATESTADO_EM_SEGUNDOS`, de `wp-login.php:781` | o vencimento e `agora + 864000`, e o filtro `post_password_expires` o troca |
+| **sem verificacao de idade no servidor** | a leitura nao recebe relogio | o contexto resolvido nao tem campo de tempo, e um atestado com vencimento no passado continua valendo |
+| **sem limite de tentativa** | nao ha contador em lugar nenhum | a decima tentativa errada responde como a primeira |
+
+### Tres achados de T013 que nao estavam em nenhum documento do pacote
+
+1. **O atestado e gravado sem conferir a senha** (`wp-login.php:789`), e e essa
+   presenca que o formulario le para dizer *"Invalid password."*
+   (`post-template.php:1789`). A deteccao de senha errada e indireta — *"se o
+   remetente e o proprio endereco e existe cookie, a senha falhou"* — e olha so a
+   **presenca** do cookie, nunca o conteudo dele. Quem acertou a senha de outro
+   conteudo e chega neste por um link interno ve o aviso sem ter digitado nada.
+2. **A unica listagem do legado em que o protegido nao aparece e a busca.**
+   `parse_search()` acrescenta `AND post_password = ''` quando o visitante nao
+   esta autenticado (`class-wp-query.php:1534-1537`). E clausula de SQL, logo e
+   do repositorio (BC-01) e **nao** deste modulo; esta registrada em
+   `consulta/conteudo-consultado.ts` porque e a ressalva de CA-6.6 que um porte
+   descobre tarde. Fora dela, nada no caminho publico recorta por senha:
+   `has_password` e `post_password` sao criterios de `get_posts()`
+   (`class-wp-query.php:2594-2600`) e nenhum dos dois esta nas listas de nome
+   publico ou privado de `class-wp.php:18` e `:28`, logo nenhum vem da rede.
+3. **Sair do sistema derruba o atestado.** `wp_clear_auth_cookie()` limpa
+   `wp-postpass_` junto das credenciais de sessao, com o comentario *"Post
+   password cookie"* (`wp-includes/pluggable.php:1245-1246`). Isso preenche, do
+   outro lado, a lacuna que a feature 001 declarou em
+   `contextos/identidade-e-acesso/sessao/saida.ts` — *"quais cookies exatamente a
+   limpeza cobre... nao esta registrado em nenhum documento deste pacote"*. A
+   linha fica aqui porque a regra de dependencia 3 proibe este contexto alcancar
+   aquele; o nome esta em `nomeDoCookieDoAtestado`.
+
+### As duas divergencias entre documento gerado e oraculo, registradas e nao escolhidas
+
+As duas sao sobre a tela `SCR-011`, as duas tem ancora, e nenhuma delas e decisao
+de agente — estao aqui para quem revisar:
+
+| # | o que o documento diz | o que o oraculo tem | o que este porte fez |
+|---|---|---|---|
+| 1 | o comentario de `PTS-004` afirma *"Nenhum deles tem atributo de obrigatoriedade no HTML do legado"* | `post-template.php:1828` emite `required` no campo `post_password`, e § 3 de `target_screens.md` registra *"Obrigatorio no HTML: sim"*, com *"1 de 3 campos com `required`"* em § 6 | emite o `required` do legado. O **passo executavel** do cenario nao contradiz nada: ele diz *"nenhum campo recebeu atributo de obrigatoriedade que o legado nao tem"* |
+| 2 | § 2 de `target_screens.md` registra o `action` do formulario como *"(vazio: posta na propria URL)"* | `post-template.php:1826` tem `site_url( 'wp-login.php?action=postpass', 'login_post' )`; o analisador estatico nao resolveu a expressao, e o `spec.route` do mesmo documento diz o certo | segue o oraculo e o `spec.route` (P1) |
+
+### As quatro lacunas que T013 declarou, e por que nenhuma delas e decisao
+
+| lacuna | onde | de quem e |
+|---|---|---|
+| a **montagem do HTML** do formulario, e com ela `esc_url()`, `esc_attr()` e `esc_attr_x()` | `senha-de-conteudo/formulario-de-senha.ts` | da borda e de `plataforma/formatacao` (feature 015). Esta arvore nao monta marcacao — `identidade-e-acesso/administracao-de-contas/mensagens-da-administracao.ts` ja registrou a mesma regra —, e `esc_attr()` roda `_wp_specialchars()` com `$double_encode = false`, que um escape ingenuo nao reproduz |
+| o ponto de filtro `the_password_form` | idem | dispara sobre o **HTML montado** (`post-template.php:1847`), logo mora na montagem. Nome, argumentos e posicao estao declarados no tipo, como o P2 exige |
+| os quatro ramos de `class-phpass.php` que o atestado nao percorre (`bcrypt`, `gensalt_blowfish`, o recuo para `crypt()` e o recuo de entropia) | `senha-de-conteudo/hash-do-atestado.ts` | da feature 015, no slot de hash — e e la que este arquivo deve ser consolidado com o `hashPortavel` que a feature 001 declarou e deixou ausente. **Nao sao remocao de superficie** (P8): sao ramos inalcancaveis com `portable_hashes = true`, que e como as duas pontas do atestado instanciam a classe |
+| o **vetor de conformidade** do hash | `senha-de-conteudo/us-6-liberar-corpo-protegido.test.ts` | do oraculo executavel (`ESC-ORACULO`, BR-MIGRAR-116). Os quatro vetores transcritos saem da leitura do algoritmo, conferidos contra uma segunda implementacao independente da mesma leitura — **nao** de uma execucao do legado, que nao ha nesta maquina. Eles fixam o algoritmo contra regressao, e nada mais |
+
+### O que T013 nao portou de `post-template.php`, e de quem e
+
+`get_the_content()` tem 80 linhas e so as tres do portao sao de US-6. O resto —
+`generate_postdata()`, a divisao do corpo pelo `<!--nextpage-->`, a correcao da
+pagina pedida, o `<!--more-->` e o texto do link de continuacao — e **T007** (a
+paginacao) e **T005** (o que o tema le). `liberarCorpoProtegido` ocupa exatamente
+a posicao do portao, que no legado e a primeira decisao depois do texto default
+do link (`:318-321`): quem acrescentar o resto acrescenta **depois** dela, porque
+o legado devolve o formulario sem nunca olhar a pagina pedida.
+
+⚠️ E o filtro `the_content` roda **sobre o formulario tambem** (`:246-258`, sem
+ramo para o caso protegido): a expansao de macro textual de US-8 (T017) acontece
+dentro do formulario de senha, e curto-circuitar o filtro no caminho protegido
+mudaria a pagina.
+
+⚠️ `plan.md` pede *"a restricao de leitura (REQ-041) antes da senha de conteudo
+(REQ-043)"*, e **T009 nao entrou**. Isso nao bloqueou T013 — e `tasks.md` declara
+`T013` dependendo so de T001, T002 e T003 — porque o portao de senha nao le
+`post_status` em nenhum dos seus quatro ramos: as duas decisoes sao
+independentes no legado. Onde elas se encontram e a **ordem** da cadeia de
+`wp_handle_comment_submission()`, que esta declarada em
+`senha-de-conteudo/recusa-de-comentario.ts`: um rascunho **com** senha e recusado
+por `comment_on_draft`, e nao por `comment_on_password_protected`.
 
 ## O que esta decidido em outro lugar
 
@@ -369,7 +508,17 @@ registros —, o primeiro responde `is_single` e `/?cat=5` responde `is_archive`
 - **O prazo e o limite de tentativa do atestado de senha de conteudo**: REQ-044
   esta em `do-not-rewrite.md`, e a resposta 8 manda preservar os tres fatos do
   legado (dez dias no navegador, sem verificacao de idade no servidor, sem limite
-  de tentativa). Quem fizer T013 nao inventa numero (P6).
+  de tentativa). ✅ T013 nao inventou numero nenhum (P6) — ver a tabela dos tres
+  fatos na nota de entrega. O card continua **recusado**, e nao pendente.
+- **Se a senha de conteudo continua em texto claro**: `BR-HUMANA-009` esta
+  **PENDENTE** em `target_business_rules.md` e pergunta exatamente isso — texto
+  claro, hash, ou cifrado com chave da instalacao. T013 **nao** resolveu a
+  pergunta: reproduziu o observavel, que e a opcao (a), porque e o que o P1 manda
+  fazer na ausencia de decisao humana, e as opcoes (b) e (c) mudam o produto (a
+  (b) tira a exibicao a quem edita, que BR-MIGRAR-044 / `D6` poe como desenho).
+  A pergunta esta citada em `senha-de-conteudo/senha-exigida.ts` e em
+  `consulta/conteudo-consultado.ts`, no campo `senha`. Quem a responder mexe nos
+  dois.
 
 ## Onde esta pasta mora no desenho
 
@@ -408,7 +557,14 @@ caminho do arquivo.
   quatro criterios de aceite de US-1, os tres ramos de excecao de `handle_404`,
   os tres pontos de extensao novos e o isolamento entre duas leituras
   concorrentes (`EXT-CONTEXTO`).
+- `senha-de-conteudo/us-6-liberar-corpo-protegido.test.ts` — os testes de T013:
+  os seis criterios de aceite de US-6, os tres fatos do atestado, os quatro
+  pontos de extensao que o fluxo atravessa, os quirks que um porte "limpo" apaga
+  (a senha literal `0` que nao protege nada, o cookie gravado tambem com a senha
+  errada, o atestado que vale para todo conteudo de mesma senha, o teto de 4096
+  **bytes**), os vetores do hash portavel e o isolamento entre dois visitantes
+  concorrentes.
 
-Nenhum caso `UT-0xx` de `backlog/tests.md` e afirmado nas tres: esses sao das
+Nenhum caso `UT-0xx` de `backlog/tests.md` e afirmado nas quatro: esses sao das
 tarefas de teste de cada historia (T004, T006, T008, T010, T012, T014, T016,
 T018).

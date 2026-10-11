@@ -82,15 +82,27 @@ test('a superficie do modulo tem exatamente as operacoes das tarefas fechadas', 
   // decidir a situacao da resposta (`handle_404`) e o atendimento que as poe na
   // ordem do legado (`WP::main`). T003 acrescentou a quarta, a consulta de
   // conteudo (`WP_Query::query`), que e a etapa 3 do atendimento e a entrega de
-  // US-1. As quatro declaram "nenhuma capacidade" na interface do modulo,
-  // porque UC-01 registra que a leitura publica nao verifica capacidade
-  // nenhuma: o portao e o `post_status`, e ele chega em T009.
+  // US-1. T013 acrescentou as quatro de US-6: o portao de senha
+  // (`post_password_required`), a liberacao do corpo (`get_the_content` no ponto
+  // do portao), a gravacao do atestado (`case 'postpass'`) e a recusa do
+  // comentario em conteudo protegido.
+  //
+  // As oito declaram "nenhuma capacidade" na interface do modulo, porque UC-01
+  // registra que a leitura publica nao verifica capacidade nenhuma: o portao de
+  // estado e o `post_status`, e ele chega em T009. As quatro de T013 declaram o
+  // mesmo por outro motivo, e mais forte: a senha de conteudo e um dos cinco
+  // atestados que BR-MIGRAR-098 (`PERM-12`) registra como decidindo acesso **sem
+  // consultar o modelo de capacidades**.
   assert.deepEqual(Object.keys(modulo).sort(), [
     'atender',
     'consultarConteudo',
+    'gravarAtestadoDeSenha',
+    'liberarCorpoProtegido',
     'nome',
     'portas',
+    'recusarComentarioEmConteudoProtegido',
     'resolverEndereco',
+    'senhaDoConteudoExigida',
     'situacaoDaResposta',
   ]);
 });

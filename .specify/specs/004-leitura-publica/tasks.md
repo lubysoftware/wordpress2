@@ -49,7 +49,7 @@
       *entrega:* 3 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-042-1, UT-042-2, UT-042-3), com o mesmo dado de entrada, ação e resultado esperado.
       *satisfaz:* CA-5.1, CA-5.2, CA-5.3
       *depende de:* T011
-- [ ] **T013** Liberar o corpo de conteúdo protegido por senha a quem informa a senha (US-6)
+- [x] **T013** Liberar o corpo de conteúdo protegido por senha a quem informa a senha (US-6)
       *entrega:* o comportamento de US-6 existe e os critérios CA-6.1, CA-6.2, CA-6.3, CA-6.4, CA-6.5, CA-6.6 passam contra o sistema novo
       *satisfaz:* CA-6.1, CA-6.2, CA-6.3, CA-6.4, CA-6.5, CA-6.6
       *depende de:* T001, T002, T003

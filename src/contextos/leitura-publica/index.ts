@@ -6,11 +6,12 @@
  * tabela de regras de traducao como dado, o casamento do endereco contra ela e a
  * coleta dos criterios diretos, em `./traducao-de-endereco/`) e **T003** (US-1:
  * a resolucao do endereco numa consulta de conteudo, em `./consulta/`, com os
- * tres ramos de excecao do `handle_404`). A hierarquia de modelos (T005), a
- * paginacao (T007), o portao de `post_status` (T009), o 404 do tema (T011), a
- * senha de conteudo (T013), a pre-busca (T015) e a macro textual (T017) entram
- * nas tarefas delas. A leitura obrigatoria de quem pegar a tarefa seguinte e
- * `./README.md`.
+ * tres ramos de excecao do `handle_404`) e **T013** (US-6: o portao de senha de
+ * conteudo, o atestado de dez dias, o formulario e a recusa do comentario, em
+ * `./senha-de-conteudo/`). A hierarquia de modelos (T005), a paginacao (T007), o
+ * portao de `post_status` (T009), o 404 do tema (T011), a pre-busca (T015) e a
+ * macro textual (T017) entram nas tarefas delas. A leitura obrigatoria de quem
+ * pegar a tarefa seguinte e `./README.md`.
  *
  * **Onde este modulo mora, e por que nao numa pasta de `bounded context`.** Esta
  * feature nao e um contexto do desenho: ela atravessa `BC-01` (a consulta e a
@@ -63,10 +64,33 @@ import {
   type OpcoesDaSituacao,
   type RespostaDaLeitura,
 } from './requisicao/situacao-da-resposta.js';
+import {
+  gravarAtestadoDeSenha,
+  type EnvioDeSenhaDeConteudo,
+  type OpcoesDaGravacaoDoAtestado,
+  type ResultadoDaGravacaoDoAtestado,
+} from './senha-de-conteudo/atestado-de-senha.js';
+import {
+  corpoOuFormulario,
+  type ConteudoComCorpo,
+  type CorpoOuFormulario,
+  type OpcoesDaLiberacaoDoCorpo,
+} from './senha-de-conteudo/corpo-protegido.js';
+import {
+  recusaDeComentarioEmConteudoProtegido,
+  type OpcoesDaRecusaDeComentario,
+  type RecusaDeComentarioProtegido,
+} from './senha-de-conteudo/recusa-de-comentario.js';
+import {
+  senhaDoConteudoExigida,
+  type ConteudoProtegido,
+  type OpcoesDoPortaoDeSenha,
+} from './senha-de-conteudo/senha-exigida.js';
 
 export * from './portas/index.js';
 export * from './traducao-de-endereco/index.js';
 export * from './consulta/index.js';
+export * from './senha-de-conteudo/index.js';
 export * from './requisicao/endereco-pedido.js';
 export * from './requisicao/resolver-endereco.js';
 export * from './requisicao/situacao-da-resposta.js';
@@ -89,16 +113,22 @@ export interface PortasDeLeituraPublica {
  * | `situacaoDaResposta` | — (infraestrutura) | T001 | **nenhuma capacidade**, declarada |
  * | `atender` | — (infraestrutura) | T001 | **nenhuma capacidade**, declarada |
  * | `consultarConteudo` | **US-1** | T003 | **nenhuma capacidade**, declarada |
+ * | `senhaDoConteudoExigida` | **US-6** | T013 | **nenhuma capacidade**, e aqui isso e a regra |
+ * | `liberarCorpoProtegido` | **US-6** | T013 | **nenhuma capacidade**, e aqui isso e a regra |
+ * | `gravarAtestadoDeSenha` | **US-6** | T013 | **nenhuma capacidade**, e aqui isso e a regra |
+ * | `recusarComentarioEmConteudoProtegido` | **US-6** | T013 | **nenhuma capacidade**, e aqui isso e a regra |
  *
- * **As quatro declaram "nenhuma", e nesta feature isso e a regra e nao a
- * ausencia dela.** UC-01 e literal: *"nao ha verificacao de capacidade. O portao
- * e o `post_status`"* — o ator e o visitante, que por definicao nao tem papel. As
- * duas unicas portas de autorizacao desta feature chegam depois, e nenhuma delas
- * e uma capacidade perguntada aqui: o portao de `post_status` em T009 (US-4), que
- * pergunta `read_private_posts` ou a capacidade de edicao **sobre o conteudo**, e
- * o atestado de senha de conteudo em T013 (US-6), que e um dos cinco pontos que
- * BR-MIGRAR-098 (`PERM-12`) registra como decidindo acesso **sem consultar o
- * modelo de capacidades**.
+ * **As oito declaram "nenhuma", e nesta feature isso e a regra e nao a ausencia
+ * dela.** UC-01 e literal: *"nao ha verificacao de capacidade. O portao e o
+ * `post_status`"* — o ator e o visitante, que por definicao nao tem papel. As
+ * duas unicas portas de autorizacao desta feature sao o portao de `post_status`
+ * em T009 (US-4), que pergunta `read_private_posts` ou a capacidade de edicao
+ * **sobre o conteudo**, e o atestado de senha de conteudo, que **T013 trouxe** e
+ * que e um dos cinco pontos que BR-MIGRAR-098 (`PERM-12`) registra como decidindo
+ * acesso **sem consultar o modelo de capacidades** — por isso as quatro operacoes
+ * novas continuam declarando "nenhuma", e a declaracao delas e mais do que
+ * formalidade: um porte que acrescentasse capacidade ali fecharia a cara publica
+ * do produto.
  */
 export interface ModuloDeLeituraPublica {
   readonly nome: 'leitura-publica';
@@ -172,6 +202,67 @@ export interface ModuloDeLeituraPublica {
     pedido: EnderecoPedido,
     opcoes?: OpcoesDoAtendimento,
   ): AtendimentoDaLeitura;
+
+  /**
+   * `post_password_required()` — o portao de senha de conteudo, entrega de
+   * **US-6**.
+   *
+   * **Permissao exigida: nenhuma capacidade, e aqui a declaracao e o ponto**
+   * (P4). E um dos cinco atestados de BR-MIGRAR-098 (`PERM-12`): decide acesso
+   * **sem** consultar o modelo de capacidades, e a razao inteira esta em
+   * `senha-de-conteudo/senha-exigida.ts`.
+   *
+   * Esta na superficie porque dois contextos de fora a consultam por ligacao
+   * tardia: BC-07 recusa o comentario (CA-6.5) e BC-08 monta feed e mapa do
+   * site. A regra de dependencia 3 proibe os dois de importar esta pasta.
+   */
+  senhaDoConteudoExigida(
+    conteudo: ConteudoProtegido,
+    opcoes?: OpcoesDoPortaoDeSenha,
+  ): boolean;
+
+  /**
+   * O corpo, ou o formulario de senha em lugar dele — `get_the_content()` no
+   * ponto do portao (`wp-includes/post-template.php:318-321`), entrega de
+   * **US-6** (CA-6.1, CA-6.2 e CA-6.3).
+   *
+   * **Permissao exigida: nenhuma capacidade** (P4).
+   */
+  liberarCorpoProtegido(
+    conteudo: ConteudoComCorpo,
+    opcoes?: OpcoesDaLiberacaoDoCorpo,
+  ): CorpoOuFormulario;
+
+  /**
+   * Grava o atestado de senha — `case 'postpass'` de `wp-login.php:760-792`,
+   * entrega de **US-6** (CA-6.2).
+   *
+   * **Permissao exigida: nenhuma capacidade** (P4): nao ha conta envolvida.
+   *
+   * ⚠️ O relogio e argumento, e e o **unico** desta area: a leitura do atestado
+   * nao recebe relogio nenhum, porque o servidor nunca confere a idade dele
+   * (resposta 8 de `questions.md`).
+   */
+  gravarAtestadoDeSenha(
+    envio: EnvioDeSenhaDeConteudo,
+    opcoes: OpcoesDaGravacaoDoAtestado,
+  ): ResultadoDaGravacaoDoAtestado;
+
+  /**
+   * A recusa do comentario em conteudo protegido — `comment.php:4053` e
+   * `:4064`, entrega de **US-6** (CA-6.5).
+   *
+   * **Permissao exigida: nenhuma capacidade** (P4) — as recusas vizinhas da
+   * cadeia perguntam `read_post`, esta nao pergunta nada.
+   *
+   * ⚠️ A **posicao** desta recusa na cadeia de `wp_handle_comment_submission()`
+   * e de BC-07, e e contrato: ela e a oitava, depois do ramo de estado. A tabela
+   * esta em `senha-de-conteudo/recusa-de-comentario.ts`.
+   */
+  recusarComentarioEmConteudoProtegido(
+    conteudo: ConteudoProtegido,
+    opcoes?: OpcoesDaRecusaDeComentario,
+  ): RecusaDeComentarioProtegido | undefined;
 }
 
 /**
@@ -189,5 +280,9 @@ export function criarModuloDeLeituraPublica(
     situacaoDaResposta,
     consultarConteudo,
     atender: atenderLeituraPublica,
+    senhaDoConteudoExigida,
+    liberarCorpoProtegido: corpoOuFormulario,
+    gravarAtestadoDeSenha,
+    recusarComentarioEmConteudoProtegido: recusaDeComentarioEmConteudoProtegido,
   };
 }

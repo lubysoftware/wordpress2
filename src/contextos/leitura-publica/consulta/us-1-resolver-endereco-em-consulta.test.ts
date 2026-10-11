@@ -61,7 +61,14 @@ function portasDeTeste(): PortasDeLeituraPublica {
   };
 }
 
-/** Um conteudo gravado, nos cinco campos que T003 le. */
+/**
+ * Um conteudo gravado, nos campos que a leitura publica le.
+ *
+ * O default de `senha` e o texto vazio porque e o valor da coluna numa
+ * instalacao nova (`post_password varchar(255) NOT NULL default ''`,
+ * `wp-admin/includes/schema.php:170`). O campo entrou em **T013**; nenhum teste
+ * de T003 depende dele.
+ */
 function conteudo(
   parcial: Partial<ConteudoConsultado> & { readonly id: number },
 ): ConteudoConsultado {
@@ -70,6 +77,7 @@ function conteudo(
     tipo: 'post',
     corpo: '',
     data: '2026-10-11 09:00:00',
+    senha: '',
     ...parcial,
   };
 }
