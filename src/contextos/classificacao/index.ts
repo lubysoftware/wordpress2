@@ -1,17 +1,18 @@
 /**
  * Modulo de classificacao — BC-02 de `target_architecture.md`.
  *
- * Feature `003-classificacao-do-conteudo`, tarefas T001, T002, T003, T005, T007 e
- * T009. O que existe aqui e o que as seis entregam: o modulo carrega com a porta
- * de dados declarada, com os oito contextos de classificacao do nucleo
+ * Feature `003-classificacao-do-conteudo`, tarefas T001, T002, T003, T005, T007,
+ * T009 e T011. O que existe aqui e o que as sete entregam: o modulo carrega com a
+ * porta de dados declarada, com os oito contextos de classificacao do nucleo
  * registrados, com a forma de armazenamento de rotulo, contexto e juncao, com **a
  * separacao entre rotulo e contexto** (US-1, em `./rotulo-e-contexto/`), com **a
  * classificacao do conteudo** (US-2, em `./vinculo-de-objeto/`), que e a
  * primeira historia desta feature a escrever na juncao, com **o termo padrao do
- * contexto** (US-3, em `./termo-padrao/`), que e a regra `P3`, e com **a
+ * contexto** (US-3, em `./termo-padrao/`), que e a regra `P3`, com **a
  * manutencao da lista** (US-4, em `./manutencao-da-lista/`), que fecha os sete
- * comandos de `AGG-Termo`. A proibicao de apagar o padrao (US-5) entra em T011. A
- * leitura obrigatoria de cada uma esta em `./README.md`.
+ * comandos de `AGG-Termo`, e com **a protecao do termo padrao** (US-5, em
+ * `./protecao-do-termo-padrao/`), que e a ultima historia da feature. A leitura
+ * obrigatoria de cada uma esta em `./README.md`.
  *
  * BC-02 e a fusao de `taxonomias-e-termos` com `links-e-bookmarks`, e
  * `target_architecture.md` chama a fusao de *"contraintuitiva e necessaria"*:
@@ -82,17 +83,28 @@ import {
   type ResultadoDoVinculo,
 } from './vinculo-de-objeto/index.js';
 import {
+  apagarRotuloDoContexto,
   criarRotuloNoContexto,
   permissaoDeCriarRotulo,
   permissaoDeGerenciarRotulos,
   reposicionarRotuloNaHierarquia,
+  type ColaboracaoDaExclusaoDeRotulo,
   type ColaboracaoDaGestaoDaLista,
   type PedidoDeCriacaoDeRotulo,
+  type PedidoDeExclusaoDeRotulo,
   type PedidoDeReposicionamento,
   type ResultadoDaCriacaoDeRotulo,
+  type ResultadoDaExclusaoDeRotulo,
   type ResultadoDaGestaoDaLista,
   type ResultadoDoReposicionamento,
 } from './manutencao-da-lista/index.js';
+import {
+  permissaoDeApagarRotulo,
+  permissaoDeApagarRotulosEmLote,
+  permissaoDeEditarRotulo,
+  type ColaboracaoDaProtecaoDoTermoPadrao,
+  type ResultadoSobreORotulo,
+} from './protecao-do-termo-padrao/index.js';
 
 export * from './portas/index.js';
 export * from './registro/index.js';
@@ -101,6 +113,7 @@ export * from './rotulo-e-contexto/index.js';
 export * from './vinculo-de-objeto/index.js';
 export * from './termo-padrao/index.js';
 export * from './manutencao-da-lista/index.js';
+export * from './protecao-do-termo-padrao/index.js';
 
 /**
  * A porta de que este modulo depende, na forma em que ele a recebe.
@@ -165,27 +178,26 @@ export interface PortasDeClassificacao {
  * O armazenamento **nao e operacao**, e por isso nao declara permissao: ele nao
  * decide nada. Quem decide e a historia que o chama.
  *
- * ⚠️ **DUAS pecas da cascata de exclusao ficam de fora desta superficie de
- * proposito**, e as duas pelo mesmo motivo:
+ * Com **T011** entraram **quatro** de US-5 — tres portoes de tela, que
+ * **verificam**, e a exclusao de rotulo, que nao verifica e **recusa** por conta
+ * propria.
  *
- * - `removerRotuloDoContexto()` (T003), que e o **trecho final** de
- *   `wp_delete_term()` (`wp-includes/taxonomy.php:2200`-`:2216`) e e onde
- *   **CA-1.3** se decide;
- * - `apagarRotuloDoContexto()` (**T009**), que e a **cascata inteira** —
- *   `DB-TRG3`, `DB-TRG4` e as contagens, onde **CA-4.3**, **CA-4.4** e metade de
- *   **CA-4.5** se decidem.
+ * ⚠️ **`apagarRotuloDoContexto()` ENTROU com T011, e `removerRotuloDoContexto()`
+ * continua fora.** T003 escreveu a razao da ausencia das duas em duas partes —
+ * *"sem a protecao do termo padrao (US-5, T011) e sem a cascata (US-4, T009),
+ * publica-la criaria um caminho de apagar dado que o legado **nao expoe**"* —,
+ * T009 fechou a cascata e T011 fechou a protecao. Mas as duas pecas nao sao a
+ * mesma coisa:
  *
- * As duas sao exportadas pelo modulo e **nenhuma e operacao**. T003 escreveu a
- * razao em duas partes — *"sem a protecao do termo padrao (US-5, T011) e sem a
- * cascata (US-4, T009), publica-la criaria um caminho de apagar dado que o legado
- * **nao expoe**"* —, e **T009 fechou a segunda parte e nao a primeira**: a
- * protecao do termo padrao e `CA-5.1` e `CA-5.2`, criterios de **T011**, cuja
- * linha em `tasks.md` depende desta. Publicar agora exporia um caminho que destroi
- * a categoria padrao, e a tabela *Nao negociavel* da constituicao poe *"apagar
- * dado"* fora do alcance do agente. As razoes inteiras estao nos blocos 🔴 de
- * `rotulo-e-contexto/remover-rotulo-do-contexto.ts` e de
- * `manutencao-da-lista/apagar-rotulo-do-contexto.ts` — o segundo com a
- * consequencia concreta que T011 fecha com um `if`.
+ * - `apagarRotuloDoContexto()` **e** `wp_delete_term()`, funcao publica do legado
+ *   e a linha *"apagar rotulo"* da tabela *Contratos* de `plan.md`. Com o passo 2
+ *   no lugar, ela recusa apagar o termo padrao de qualquer contexto, **para
+ *   qualquer chamador**, e por isso entra: nao publicar uma funcao publica do
+ *   legado seria remover superficie (P8);
+ * - `removerRotuloDoContexto()` (T003) e o **trecho final** dela
+ *   (`wp-includes/taxonomy.php:2200`-`:2216`), onde **CA-1.3** se decide, e **o
+ *   legado nao o expoe**: chamado sozinho ele deixa vinculo orfao, porque pula a
+ *   cascata. Continua exportado pelo modulo e **nao** e operacao.
  */
 export interface ModuloDeClassificacao {
   readonly nome: 'classificacao';
@@ -480,6 +492,86 @@ export interface ModuloDeClassificacao {
   reposicionarRotuloNaHierarquia(
     pedido: PedidoDeReposicionamento,
   ): ResultadoDoReposicionamento;
+
+  /**
+   * O portao de **apagar um termo** pela tela — a checagem de
+   * `wp-admin/edit-tags.php:114`, com o `msgid` de `:117` (US-5, T011,
+   * **CA-5.1** e **CA-5.2**).
+   *
+   * **Permissao exigida: `delete_term` sobre aquele termo, e ela E verificada.**
+   * E a capacidade no **singular**, logo ela passa pelo `case` de `map_meta_cap()`
+   * que carrega *"o termo padrao da taxonomia e indestrutivel"*
+   * (`capabilities.php:738`-`:744`, ADR 0009) — e e por isso que **nem o
+   * administrador nem o super administrador da rede** passam por aqui quando o
+   * termo e o padrao do contexto dele.
+   *
+   * ⚠️ **Le o termo, e portanto toca o banco**, ao contrario dos portoes de
+   * contexto de T009: capacidade sobre objeto nao se decide sem o objeto. E **o
+   * contexto nao e argumento**: o `case` resolve a taxonomia a partir do termo.
+   */
+  permissaoDeApagarRotulo(
+    colaboracao: ColaboracaoDaProtecaoDoTermoPadrao,
+    rotuloId: number,
+  ): ResultadoSobreORotulo;
+
+  /**
+   * O portao de **editar um termo** pela tela — o `msgid` de
+   * `wp-admin/edit-tags.php:173` (US-5, T011).
+   *
+   * **Permissao exigida: `edit_term` sobre aquele termo, e ela E verificada.**
+   * Passa pelo **mesmo** `case` do portao de apagar, e e por isso que ele entra
+   * com esta tarefa — mas **nao** carrega a protecao do termo padrao: o ramo de
+   * `:738`-`:744` e so de `delete_term`. Editar e renomear o termo padrao e
+   * permitido, e a pos-condicao de UC-08 e que ele *"continua existindo"*.
+   */
+  permissaoDeEditarRotulo(
+    colaboracao: ColaboracaoDaProtecaoDoTermoPadrao,
+    rotuloId: number,
+  ): ResultadoSobreORotulo;
+
+  /**
+   * O portao da **acao em lote** da tela de termos — o `msgid` de
+   * `wp-admin/edit-tags.php:137` (US-5, T011).
+   *
+   * **Permissao exigida: `$tax->cap->delete_terms`
+   * (`capacidades.apagarRotulos`), e ela E verificada.** E a capacidade no
+   * **plural**, sobre o contexto e **sem termo em maos** — UC-08 a nomeia assim na
+   * tabela de *Excecoes* (*"Ator sem `delete_terms`"*). **Nao toca o banco e nao
+   * le a opcao do termo padrao**, e e literalmente a recusa *"antes de tocar
+   * qualquer registro"* de UC-08.
+   *
+   * ⚠️ **Passar este portao nao apaga o termo padrao**: quem o protege no caminho
+   * do lote e o `0` de {@link ModuloDeClassificacao.apagarRotuloDoContexto}, item
+   * por item. No legado o lote e um `foreach` de `wp_delete_term()`, e os outros
+   * termos do lote **sao** apagados.
+   */
+  permissaoDeApagarRotulosEmLote(
+    colaboracao: ColaboracaoDaGestaoDaLista,
+    contexto: string,
+  ): ResultadoSobreORotulo;
+
+  /**
+   * Apaga um rotulo de um contexto, com a cascata inteira — `wp_delete_term()`
+   * (`wp-includes/taxonomy.php:2060`) (US-4, T009: **CA-4.3**, **CA-4.4** e
+   * metade de **CA-4.5**; US-5, T011: **CA-5.1**).
+   *
+   * **Permissao declarada: `$tax->cap->delete_terms`
+   * (`capacidades.apagarRotulos`), e ela NAO e verificada aqui** — porque
+   * `wp_delete_term()` tambem nao a verifica, e o nucleo a chama **sem ator** (a
+   * fila agendada, o lote da tela, a API). Quem cobra sao
+   * {@link ModuloDeClassificacao.permissaoDeApagarRotulo} e
+   * {@link ModuloDeClassificacao.permissaoDeApagarRotulosEmLote}.
+   *
+   * ⚠️ **Devolve tres coisas, e `0` nao e `false`:** `true` apagou, `false` o par
+   * nao existe, e `0` (`RECUSA_DO_TERMO_PADRAO`) **o rotulo e o termo padrao do
+   * contexto** — a recusa de `CA-5.1`, que nao consulta ator nenhum e sai **antes
+   * de qualquer comando**. Colapsar `0` em `false` apagaria uma distincao que o
+   * legado devolve (P8).
+   */
+  apagarRotuloDoContexto(
+    colaboracao: ColaboracaoDaExclusaoDeRotulo,
+    pedido: PedidoDeExclusaoDeRotulo,
+  ): ResultadoDaExclusaoDeRotulo;
 }
 
 /**
@@ -589,5 +681,22 @@ export function criarModuloDeClassificacao(
       criarRotuloNoContexto(escopoDoVinculo, pedido),
     reposicionarRotuloNaHierarquia: (pedido) =>
       reposicionarRotuloNaHierarquia(escopoDoVinculo, pedido),
+    /*
+     * US-5 (T011) reusa o escopo de US-2 pela terceira vez, e a ausencia de um
+     * escopo proprio e afirmacao: o `case` de capacidade sobre o termo le o
+     * **mesmo** registro e a **mesma** leitura fundida de T003, e a recusa da
+     * exclusao e um passo de dentro da cascata de US-4. O que US-5 acrescenta — a
+     * decisao de capacidade e a leitura da opcao do termo padrao — **nao** e
+     * desta composicao: chega por argumento em cada chamada (AD-10). Ver
+     * `protecao-do-termo-padrao/escopo-de-protecao-do-termo-padrao.ts`.
+     */
+    permissaoDeApagarRotulo: (colaboracao, rotuloId) =>
+      permissaoDeApagarRotulo(escopoDoVinculo, colaboracao, rotuloId),
+    permissaoDeEditarRotulo: (colaboracao, rotuloId) =>
+      permissaoDeEditarRotulo(escopoDoVinculo, colaboracao, rotuloId),
+    permissaoDeApagarRotulosEmLote: (colaboracao, contexto) =>
+      permissaoDeApagarRotulosEmLote(escopoDoVinculo, colaboracao, contexto),
+    apagarRotuloDoContexto: (colaboracao, pedido) =>
+      apagarRotuloDoContexto(escopoDoVinculo, colaboracao, pedido),
   };
 }

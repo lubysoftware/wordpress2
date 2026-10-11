@@ -41,7 +41,7 @@
       *entrega:* 7 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-036-1, UT-036-2, UT-036-3, UT-036-4, UT-036-5, UT-036-6, UT-036-7), com o mesmo dado de entrada, ação e resultado esperado. Os 2 testes de regra de negócio (UT-036-6, UT-036-7) entram na mesma suíte.
       *satisfaz:* CA-4.1, CA-4.2, CA-4.3, CA-4.4, CA-4.5
       *depende de:* T009
-- [ ] **T011** Impedir a remoção do termo padrão de um contexto (US-5)
+- [x] **T011** Impedir a remoção do termo padrão de um contexto (US-5)
       *entrega:* o comportamento de US-5 existe e os critérios CA-5.1, CA-5.2, CA-5.3 passam contra o sistema novo
       *satisfaz:* CA-5.1, CA-5.2, CA-5.3
       *depende de:* T001, T002, T009
