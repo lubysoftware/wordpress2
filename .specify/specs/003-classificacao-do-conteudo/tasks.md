@@ -45,7 +45,7 @@
       *entrega:* o comportamento de US-5 existe e os critérios CA-5.1, CA-5.2, CA-5.3 passam contra o sistema novo
       *satisfaz:* CA-5.1, CA-5.2, CA-5.3
       *depende de:* T001, T002, T009
-- [ ] **T012** [P] Testes de US-5
+- [x] **T012** [P] Testes de US-5
       *entrega:* 5 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-037-1, UT-037-2, UT-037-3, UT-037-4, UT-037-5), com o mesmo dado de entrada, ação e resultado esperado. Os 2 testes de regra de negócio (UT-037-4, UT-037-5) entram na mesma suíte.
       *satisfaz:* CA-5.1, CA-5.2, CA-5.3
       *depende de:* T011
