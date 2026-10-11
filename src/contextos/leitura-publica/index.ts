@@ -4,9 +4,10 @@
  * Tarefas fechadas aqui: **T001** (o esqueleto — a porta de dados, a ordem das
  * etapas do atendimento e a resposta de endereco inexistente), **T002** (a
  * tabela de regras de traducao como dado, o casamento do endereco contra ela e a
- * coleta dos criterios diretos, em `./traducao-de-endereco/`) e **T003** (US-1:
+ * coleta dos criterios diretos, em `./traducao-de-endereco/`), **T003** (US-1:
  * a resolucao do endereco numa consulta de conteudo, em `./consulta/`, com os
- * tres ramos de excecao do `handle_404`). A hierarquia de modelos (T005), a
+ * tres ramos de excecao do `handle_404`) e **T005** (US-2: a hierarquia
+ * declarada de modelos e a etapa 5 do atendimento, em `./apresentacao/`). A
  * paginacao (T007), o portao de `post_status` (T009), o 404 do tema (T011), a
  * senha de conteudo (T013), a pre-busca (T015) e a macro textual (T017) entram
  * nas tarefas delas. A leitura obrigatoria de quem pegar a tarefa seguinte e
@@ -41,6 +42,11 @@
  */
 
 import {
+  escolherApresentacao,
+  type ApresentacaoEscolhida,
+  type OpcoesDaApresentacao,
+} from './apresentacao/escolher-apresentacao.js';
+import {
   consultarConteudo,
   type ConsultaDeConteudo,
   type OpcoesDaConsultaDeConteudo,
@@ -67,6 +73,7 @@ import {
 export * from './portas/index.js';
 export * from './traducao-de-endereco/index.js';
 export * from './consulta/index.js';
+export * from './apresentacao/index.js';
 export * from './requisicao/endereco-pedido.js';
 export * from './requisicao/resolver-endereco.js';
 export * from './requisicao/situacao-da-resposta.js';
@@ -89,8 +96,9 @@ export interface PortasDeLeituraPublica {
  * | `situacaoDaResposta` | — (infraestrutura) | T001 | **nenhuma capacidade**, declarada |
  * | `atender` | — (infraestrutura) | T001 | **nenhuma capacidade**, declarada |
  * | `consultarConteudo` | **US-1** | T003 | **nenhuma capacidade**, declarada |
+ * | `escolherApresentacao` | **US-2** | T005 | **nenhuma capacidade**, declarada |
  *
- * **As quatro declaram "nenhuma", e nesta feature isso e a regra e nao a
+ * **As cinco declaram "nenhuma", e nesta feature isso e a regra e nao a
  * ausencia dela.** UC-01 e literal: *"nao ha verificacao de capacidade. O portao
  * e o `post_status`"* — o ator e o visitante, que por definicao nao tem papel. As
  * duas unicas portas de autorizacao desta feature chegam depois, e nenhuma delas
@@ -159,6 +167,32 @@ export interface ModuloDeLeituraPublica {
   ): ConsultaDeConteudo;
 
   /**
+   * Escolhe a apresentacao do resultado da consulta pela hierarquia declarada
+   * de modelos (`wp-includes/template-loader.php`), que e a entrega de
+   * **US-2**.
+   *
+   * **Permissao exigida: nenhuma, e a declaracao e o ponto** (P4) — ver o
+   * cabecalho desta interface. O unico `current_user_can()` de
+   * `template-loader.php` esta no ramo de **inclusao** (`:133`), que nao e desta
+   * tarefa, e ele nao decide a apresentacao: decide se quem pode trocar tema ve
+   * os erros do tema.
+   *
+   * ⚠️ **Nao e etapa de `atender`**, e isso e fidelidade e nao desenho:
+   * `wp-blog-header.php` chama `wp()` (`:16`) e so depois carrega
+   * `template-loader.php` (`:19`), ja fora de `WP::main()` e depois da acao
+   * `wp`. O que `atender` acrescentou em T005 e a etapa 5, `register_globals`,
+   * cujo resultado esta em `AtendimentoDaLeitura.publicacao`.
+   *
+   * Recebe a consulta, e nao o endereco nem a publicacao: o legado le
+   * `$wp_query` por dezessete predicados e dois criterios, e nada do endereco
+   * original.
+   */
+  escolherApresentacao(
+    consulta: ConsultaDeConteudo,
+    opcoes?: OpcoesDaApresentacao,
+  ): ApresentacaoEscolhida;
+
+  /**
    * Atende uma leitura publica inteira, na ordem do legado (`WP::main`).
    *
    * **Permissao exigida: nenhuma, e a declaracao e o ponto** (P4).
@@ -188,6 +222,7 @@ export function criarModuloDeLeituraPublica(
     resolverEndereco,
     situacaoDaResposta,
     consultarConteudo,
+    escolherApresentacao,
     atender: atenderLeituraPublica,
   };
 }
