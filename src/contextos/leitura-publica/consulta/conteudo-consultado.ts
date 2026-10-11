@@ -33,7 +33,7 @@
  *
  * | o que | legado | de quem e |
  * |---|---|---|
- * | o total encontrado e o numero de paginas | `class-wp-query.php:3692-3747` (`set_found_posts`) | **T007** (US-3), que e quem tem CA-3.2 |
+ * | ✅ o total encontrado e o numero de paginas | `class-wp-query.php:3692-3741` (`set_found_posts`) | **T007** (US-3): o total que o banco devolve entrou aqui, em {@link ResultadoDaConsulta.totalEncontrado}, e a divisao em paginas esta em `./paginacao-da-listagem.ts` |
  * | o estado e o autor do conteudo | `class-wp-query.php:3500-3567` | **T009** (US-4), o portao de `post_status` |
  * | a senha do conteudo | `wp-includes/post-template.php:882` | **T013** (US-6) |
  * | o conteudo fixado no topo | `class-wp-query.php:3582-3629` | de quem tiver a opcao `sticky_posts`; nenhuma tarefa desta feature a nomeia |
@@ -44,6 +44,8 @@
  */
 
 import type { CriteriosDaConsulta } from './criterios-da-consulta.js';
+import type { OrdenacaoResolvida } from './ordenacao-da-listagem.js';
+import type { PaginacaoResolvida } from './paginacao-da-listagem.js';
 import type { TiposDeConsulta } from './tipo-de-consulta.js';
 
 /**
@@ -77,30 +79,72 @@ export interface ConteudoConsultado {
 /**
  * O que a consulta principal devolve do repositorio.
  *
- * Dois campos, e os dois sao lidos por `handle_404`:
+ * Tres campos, e os dois primeiros sao lidos por `handle_404`:
  *
  * - `conteudos` e o `WP_Query::$posts`, **na ordem em que o repositorio os
  *   devolve** — a ordem e a regra (CA-3.4, e UT-038-3 afirma *"o mesmo conjunto
- *   de registros, na mesma ordem"*). Este modulo nao reordena.
+ *   de registros, na mesma ordem"*). Este modulo nao reordena: o que ele faz e
+ *   **declarar** a ordem, em `./ordenacao-da-listagem.ts`.
  * - `objetoConsultado` e o `get_queried_object()` que o ramo de
  *   `class-wp.php:790` testa: *"Don't 404 for these queries if they matched an
  *   object"*. E `unknown` porque o legado devolve quatro tipos diferentes ali
  *   (`WP_Term`, `WP_Post_Type`, `WP_Post`, `WP_User`) e **nada neste modulo le o
  *   conteudo dele**: o que `handle_404` pergunta e so se existe.
+ * - `totalEncontrado` e o `SELECT FOUND_ROWS()` de `set_found_posts()`
+ *   (`class-wp-query.php:3712`), entregue por **T007**.
  */
 export interface ResultadoDaConsulta {
   readonly conteudos: readonly ConteudoConsultado[];
   readonly objetoConsultado?: unknown;
+  /**
+   * O total de registros que casam a consulta **ignorando a janela** — o
+   * `SELECT FOUND_ROWS()` que o legado emite logo depois da consulta principal
+   * (`class-wp-query.php:3712`), e o unico numero desta feature que o
+   * repositorio precisa devolver alem dos registros.
+   *
+   * ⚠️ Vem do repositorio, e nao e `conteudos.length`: a janela de
+   * `./paginacao-da-listagem.ts` corta a lista e **nao** corta este total. E
+   * dele que sai o numero de paginas de CA-3.2.
+   *
+   * Ausente significa *"nao perguntei"*, e o resultado e **zero** — que e o que
+   * `(int) $wpdb->get_var()` devolve sem linha de resposta. O repositorio so
+   * precisa dele quando a consulta tem janela e `no_found_rows` esta desligado;
+   * nos outros casos o legado conta a propria lista (`:3717`).
+   */
+  readonly totalEncontrado?: number;
+}
+
+/**
+ * O recorte que a consulta pede ao repositorio: a janela de registros e a ordem
+ * declarada.
+ *
+ * E o que `WP_Query::get_posts()` tem em maos quando monta o SQL — `$limits`
+ * (`:2823`) e `$orderby` (`:2553`) —, entregue como **dado** em lugar de texto
+ * de clausula. Entrega de **T007** (US-3).
+ *
+ * O repositorio recebe o recorte por fora dos criterios porque o legado tambem
+ * o tem por fora: `$limits` e `$orderby` sao variaveis locais de `get_posts()`,
+ * nao chaves de `query_vars`, e `set_found_posts()` recebe `$limits` por
+ * argumento justamente por isso (`:3692`).
+ */
+export interface RecorteDaListagem {
+  readonly paginacao: PaginacaoResolvida;
+  readonly ordenacao: OrdenacaoResolvida;
 }
 
 /**
  * O repositorio de conteudo, como a leitura publica o pede.
  *
- * Recebe os criterios **ja analisados** e os predicados de tipo de consulta, que
- * e o que `WP_Query::get_posts()` tem em maos quando monta a consulta
- * (`class-wp-query.php:1900`): os dois chegam juntos porque no legado sao a
- * mesma instancia, e metade das decisoes de `get_posts()` le predicado e nao
- * criterio.
+ * Recebe os criterios **ja analisados**, os predicados de tipo de consulta e o
+ * recorte da listagem, que e o que `WP_Query::get_posts()` tem em maos quando
+ * monta a consulta (`class-wp-query.php:1900`): os tres chegam juntos porque no
+ * legado sao a mesma instancia mais duas variaveis locais, e metade das
+ * decisoes de `get_posts()` le predicado e nao criterio.
+ *
+ * T007 acrescentou o terceiro argumento. Um repositorio que o ignore continua
+ * valendo — foi o que os duplos de T003 fizeram —, e o que ele perde e o
+ * recorte: sem janela nao ha pagina, e sem a ordem declarada a listagem nao e
+ * estavel entre paginas (CA-3.4).
  *
  * Sincrono, por AD-04 de `target_architecture.md`: a fronteira de `await` e
  * `adaptadores/`.
@@ -108,6 +152,7 @@ export interface ResultadoDaConsulta {
 export type RepositorioDeConteudoPublico = (
   criterios: CriteriosDaConsulta,
   tipos: TiposDeConsulta,
+  recorte: RecorteDaListagem,
 ) => ResultadoDaConsulta;
 
 /** O resultado de uma consulta que nao encontrou nada. */

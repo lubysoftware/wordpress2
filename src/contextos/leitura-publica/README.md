@@ -4,9 +4,10 @@ Epico EP-4 do backlog: *"entregar o conteudo publicado a quem nao tem conta"*.
 Tarefas fechadas com nota de entrega neste arquivo: **T001** (esqueleto, a porta
 de dados, a resolucao de endereco e a resposta de endereco inexistente),
 **T002** (a tabela de regras de traducao como dado, o casamento do endereco
-contra ela e a coleta dos criterios diretos) e **T003** (US-1: a resolucao do
+contra ela e a coleta dos criterios diretos), **T003** (US-1: a resolucao do
 endereco numa consulta de conteudo, com os predicados de tipo de consulta e os
-tres ramos de excecao do `handle_404`).
+tres ramos de excecao do `handle_404`) e **T007** (US-3: a paginacao da listagem
+publica, a ordem declarada e o total encontrado).
 
 Este arquivo e a leitura obrigatoria de quem pegar a tarefa seguinte: ele diz o
 que ja esta decidido, o que esta decidido **em outro lugar**, e o que ninguem
@@ -14,7 +15,7 @@ decidiu.
 
 ---
 
-## 🔴 O que quem pega T005, T007, T009 ou T013 precisa saber antes de escrever a primeira linha
+## 🔴 O que quem pega T005, T009 ou T013 precisa saber antes de escrever a primeira linha
 
 ### 0. Numa instalacao nova a tabela de regras esta VAZIA, e isso muda como se le o resto
 
@@ -123,7 +124,7 @@ apanha quem resolver dado no carregamento.
 
 ### 4. Os pontos de extensao chegam por argumento, porque o barramento nao existe
 
-Sao **dez** os pontos que o fluxo atravessa hoje, com o nome do legado e na
+Sao **onze** os pontos que o fluxo atravessa hoje, com o nome do legado e na
 posicao do legado:
 
 | ponto | tipo | onde dispara | legado |
@@ -134,6 +135,7 @@ posicao do legado:
 | `parse_request` | acao | depois da resolucao | `class-wp.php:418` |
 | `parse_query` | acao | fim da analise da consulta | `class-wp-query.php:1164` |
 | `pre_get_posts` | acao **por referencia**, e por isso aqui ela devolve os criterios | depois da analise, antes da consulta | `class-wp-query.php:1916` |
+| `found_posts` | filtro, substitui o **total encontrado** | depois da consulta e **antes** de `the_posts` | `class-wp-query.php:3735` |
 | `the_posts` | filtro, substitui a lista de registros | depois da consulta | `class-wp-query.php:3641` |
 | `pre_handle_404` | filtro, curto-circuita com qualquer valor `!== false` | antes da decisao de situacao | `class-wp.php:738` |
 | `set_404` | acao | ao marcar a resposta | `class-wp-query.php:1858` |
@@ -319,14 +321,60 @@ registros —, o primeiro responde `is_single` e `/?cat=5` responde `is_archive`
 | `tag_id` em arranjo salta a clausula, e no legado `absint( array )` **derruba a requisicao** com erro de tipo | `consulta/consulta-de-taxonomia.ts` | do oraculo executavel (`ESC-ORACULO`): nenhuma regra do nucleo produz `tag_id` em arranjo, so `?tag_id[]=` |
 | `page` resolvido pela colisao de identificador numerico e gravado como **texto**, e no legado e inteiro | `traducao-de-endereco/colisao-de-identificador-numerico.ts` | de quem precisar alargar `ValorDeCriterio`, que e contrato mesclado de T001. As tres leituras de `page` no nucleo convertem antes de comparar, logo nenhuma decisao muda; o que muda e o tipo do global que `register_globals()` publica |
 
-### O que T005, T007, T009 e T013 recebem pronto
+### O que T005, T009 e T013 recebem pronto
 
 | tarefa | o que ela acrescenta, e onde |
 |---|---|
 | **T005** (US-2) | a etapa 5 do atendimento, na posicao marcada em `requisicao/atender-leitura-publica.ts`. Os 30 predicados que a hierarquia de modelos le ja existem, em `consulta/tipo-de-consulta.ts`, com a tabela de nome publico para nome daqui — e ela le o estado **depois** do `set_404()`, que e o que o legado publica |
-| **T007** (US-3) | o total encontrado e o numero de paginas em `ResultadoDaConsulta` (`set_found_posts`, `class-wp-query.php:3692`), e o tamanho de pagina, que nasce em 10 (`schema.php:434`). O ramo 3 de `handle_404` ja 404a a pagina de listagem fora de faixa, que e CA-3.3 |
+| ✅ **T007** (US-3) | fechada: ver *O que T007 entregou*, abaixo |
 | **T009** (US-4) | o estado e o autor em `ConteudoConsultado`, e o recorte por estado nos criterios que vao ao repositorio. ⚠️ **Enquanto T009 nao entrar, o repositorio decide sozinho o que e publico** — e e por isso que `REPOSITORIO_SEM_CONTEUDO` e o default, e nao um repositorio que devolve tudo |
 | **T013** (US-6) | a senha em `ConteudoConsultado` e o atestado. A protecao e do **corpo**, nao da existencia: o conteudo protegido continua saindo nesta consulta |
+
+## O que T007 entregou
+
+```
+leitura-publica/consulta/
+├── paginacao-da-listagem.ts    o tamanho da pagina, a janela e o total encontrado
+└── ordenacao-da-listagem.ts    a ordem declarada e `parse_order`
+```
+
+Fora os dois arquivos novos, T007 mexeu em quatro, e so neles:
+`consulta/consultar-conteudo.ts` (as etapas 4 e 6 das sete de `get_posts()`, nas
+posicoes do legado), `consulta/conteudo-consultado.ts` (o `totalEncontrado` que o
+repositorio devolve e o `RecorteDaListagem` que ele recebe),
+`consulta/contexto-da-consulta.ts` (as duas opcoes de tamanho de pagina) e
+`index.ts` (a area nova no barril; a superficie do modulo **nao** mudou).
+
+A entrega em uma frase conferivel: a home de um site com 37 conteudos serve 10
+por pagina sem ninguem ter configurado nada, informa `paged=2` como pagina 2 de
+**4**, serve a pagina 4 com os 7 que restam, e responde **404** na pagina 5 — e as
+paginas 1 e 2 nao repetem nem saltam registro porque a ordem (`post_date DESC`) e
+resolvida dos criterios, que nao dependem da pagina pedida.
+
+### Os cinco quirks do legado que esta tarefa preserva de proposito
+
+| o que | legado | por que um porte "limpo" o perde |
+|---|---|---|
+| a pagina **fora de faixa** informa total 0 e 0 paginas, mesmo com conteudo na tabela | `class-wp-query.php:3699-3701`, a desistencia de `set_found_posts()` | parece defeito e e o que o tema recebe hoje em todo endereco de pagina vazia. E o ponto de filtro `found_posts` **nao dispara** nesse caminho |
+| o total encontrado e a contagem **discordam** quando `the_posts` mexe na lista | `:3327` em diante contra `:3649` | `found_posts` e calculado antes do filtro e `post_count` depois; recalcular os dois juntos troca o numero de paginas |
+| tamanho zero vira **um**, e tamanho abaixo de -1 vira o positivo dele | `:2041-2046` | recusar valor invalido em lugar de moldar troca a resposta de `?posts_per_page=-5` por `extra_query_vars` |
+| consulta singular e listagem com `nopaging` respondem **zero** paginas, nao uma | `:2810` e `:3737` | a divisao so acontece onde houve `LIMIT`; "arredondar para 1" e invencao |
+| `paged` continua em **zero** na primeira pagina | `:845` e `:2811-2814`, onde `$page` e variavel local | gravar 1 de volta ligaria `is_paged()` na primeira pagina e **404aria a home de um site vazio** |
+
+### As duas lacunas que T007 declarou, e por que nenhuma delas e decisao
+
+| lacuna | onde | de quem e |
+|---|---|---|
+| `nopaging` e `no_found_rows` sao **booleanos** em `query_vars` e nao voltam aos criterios, porque `ValorDaConsulta` nao tem booleano | `consulta/paginacao-da-listagem.ts` | de quem precisar alargar `EscalarDaConsulta`, que e contrato mesclado de T003 — e alargar nao e ampliar: `(string) true` e `'1'` no interpretador e `'true'` neste runtime, logo os `String(...)` de T003 passariam a mentir. Os dois valores resolvidos saem em `PaginacaoResolvida`, e `empty()` responde igual a ausencia e a `false` |
+| `parse_orderby()` — a lista de chaves permitidas, o prefixo de tabela, `RAND(x)`, os apelidos de `meta_query` e a volta ao `post_date` quando todas as chaves caem | `consulta/ordenacao-da-listagem.ts` | do repositorio, pela mesma razao do SQL: as chaves permitidas sao colunas de `posts` e apelidos de juncao. Este modulo declara as chaves **pedidas**, e o descarte e de quem monta a consulta |
+
+⚠️ E um fato do legado que a tabela de lacunas de T003 descreve ao contrario:
+`absint()` **nao** tem declaracao de tipo (`wp-includes/load.php:1469`,
+`abs( (int) $maybeint )`), logo `absint( array() )` nao derruba a requisicao — o
+molde corre primeiro e devolve 0 para arranjo vazio e 1 para arranjo com
+elemento. Importa em `:2811`, que absinta `paged` **sem** a guarda de escalar que
+`parse_query` usa em `:845`, e esta reproduzido em
+`consulta/paginacao-da-listagem.ts`.
 
 ## O que esta decidido em outro lugar
 
@@ -390,7 +438,7 @@ caminho do arquivo.
 
 ## Como conferir
 
-`npm test` na raiz. Duas suites, e elas nao se misturam:
+`npm test` na raiz. Quatro suites, e elas nao se misturam:
 
 - `modulo.test.ts` — os testes de T001: **so** o que T001 entrega, mais tres
   invariantes que um esqueleto quebra em silencio, estado de modulo
@@ -408,7 +456,12 @@ caminho do arquivo.
   quatro criterios de aceite de US-1, os tres ramos de excecao de `handle_404`,
   os tres pontos de extensao novos e o isolamento entre duas leituras
   concorrentes (`EXT-CONTEXTO`).
+- `consulta/us-3-paginar-listagem-publica.test.ts` — os testes de T007: os
+  quatro criterios de aceite de US-3, os cinco quirks da tabela acima, o ponto
+  `found_posts` alterando o numero de paginas (P2), e duas leituras concorrentes
+  de paginas diferentes em que nenhuma contem elemento do recorte da outra (o
+  cenario `@concorrencia` de `PT-011`).
 
-Nenhum caso `UT-0xx` de `backlog/tests.md` e afirmado nas tres: esses sao das
+Nenhum caso `UT-0xx` de `backlog/tests.md` e afirmado nas quatro: esses sao das
 tarefas de teste de cada historia (T004, T006, T008, T010, T012, T014, T016,
 T018).

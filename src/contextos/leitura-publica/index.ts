@@ -4,13 +4,14 @@
  * Tarefas fechadas aqui: **T001** (o esqueleto — a porta de dados, a ordem das
  * etapas do atendimento e a resposta de endereco inexistente), **T002** (a
  * tabela de regras de traducao como dado, o casamento do endereco contra ela e a
- * coleta dos criterios diretos, em `./traducao-de-endereco/`) e **T003** (US-1:
+ * coleta dos criterios diretos, em `./traducao-de-endereco/`), **T003** (US-1:
  * a resolucao do endereco numa consulta de conteudo, em `./consulta/`, com os
- * tres ramos de excecao do `handle_404`). A hierarquia de modelos (T005), a
- * paginacao (T007), o portao de `post_status` (T009), o 404 do tema (T011), a
- * senha de conteudo (T013), a pre-busca (T015) e a macro textual (T017) entram
- * nas tarefas delas. A leitura obrigatoria de quem pegar a tarefa seguinte e
- * `./README.md`.
+ * tres ramos de excecao do `handle_404`) e **T007** (US-3: a paginacao da
+ * listagem, a ordem declarada e o total encontrado, tambem em `./consulta/`). A
+ * hierarquia de modelos (T005), o portao de `post_status` (T009), o 404 do tema
+ * (T011), a senha de conteudo (T013), a pre-busca (T015) e a macro textual
+ * (T017) entram nas tarefas delas. A leitura obrigatoria de quem pegar a tarefa
+ * seguinte e `./README.md`.
  *
  * **Onde este modulo mora, e por que nao numa pasta de `bounded context`.** Esta
  * feature nao e um contexto do desenho: ela atravessa `BC-01` (a consulta e a
@@ -88,7 +89,7 @@ export interface PortasDeLeituraPublica {
  * | `resolverEndereco` | — (infraestrutura) | T001 | **nenhuma capacidade**, declarada |
  * | `situacaoDaResposta` | — (infraestrutura) | T001 | **nenhuma capacidade**, declarada |
  * | `atender` | — (infraestrutura) | T001 | **nenhuma capacidade**, declarada |
- * | `consultarConteudo` | **US-1** | T003 | **nenhuma capacidade**, declarada |
+ * | `consultarConteudo` | **US-1** · **US-3** | T003 · T007 | **nenhuma capacidade**, declarada |
  *
  * **As quatro declaram "nenhuma", e nesta feature isso e a regra e nao a
  * ausencia dela.** UC-01 e literal: *"nao ha verificacao de capacidade. O portao
@@ -152,6 +153,13 @@ export interface ModuloDeLeituraPublica {
    *
    * O repositorio de conteudo chega no contexto, por ligacao tardia: `posts` e
    * tabela de BC-01 e a regra de dependencia 3 proibe o `import`.
+   *
+   * T007 **nao acrescentou operacao** a esta superficie, pela mesma razao de
+   * T002: no legado a paginacao e a ordenacao da listagem sao dois blocos
+   * **dentro** de `get_posts()` (`class-wp-query.php:2013-2046`,
+   * `:2494-2556` e `:2809-2824`), nao funcao separada, e o resultado delas sai
+   * nesta mesma resposta — `totalEncontrado`, `totalDePaginas` e `recorte`. A
+   * tabela acima cresce na tarefa de cada historia, nunca antes.
    */
   consultarConteudo(
     criterios: CriteriosDaConsulta,

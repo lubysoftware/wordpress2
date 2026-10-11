@@ -54,6 +54,10 @@
 import type { ConteudoPorCaminho, RepositorioDeConteudoPublico } from './conteudo-consultado.js';
 import type { SaneamentoDeIdentificadorDeTermo } from './consulta-de-taxonomia.js';
 import {
+  ITENS_POR_FEED_DE_FABRICA,
+  ITENS_POR_PAGINA_DE_FABRICA,
+} from './paginacao-da-listagem.js';
+import {
   REGISTRO_SEM_TAXONOMIAS,
   REGISTRO_SEM_TIPOS,
   type RegistroDeTaxonomias,
@@ -61,18 +65,23 @@ import {
 } from './registro-consultavel.js';
 
 /**
- * As quatro opcoes do site que `parse_query` le, com o valor de fabrica de cada
- * uma.
+ * As opcoes do site que a consulta le, com o valor de fabrica de cada uma.
  *
- * As quatro decidem **so** a correcao de predicados de `class-wp-query.php:1057-1121`
- * — o bloco que o proprio legado abre e fecha com comentario, *"Correct `is_*`
- * for 'page_on_front' and 'page_for_posts'"*. Com os valores de fabrica, o bloco
- * inteiro nao tem efeito: `show_on_front` nasce em `'posts'`
- * (`wp-admin/includes/schema.php:476`) e as tres paginas nascem em zero (`:518`,
- * `:519` e `:536`).
+ * As quatro primeiras decidem **so** a correcao de predicados de
+ * `class-wp-query.php:1057-1121` — o bloco que o proprio legado abre e fecha com
+ * comentario, *"Correct `is_*` for 'page_on_front' and 'page_for_posts'"*. Com
+ * os valores de fabrica, o bloco inteiro nao tem efeito: `show_on_front` nasce
+ * em `'posts'` (`wp-admin/includes/schema.php:476`) e as tres paginas nascem em
+ * zero (`:518`, `:519` e `:536`).
  *
- * E o quinto campo, a forma dos enderecos, e lido por `parse_query` em `:1083` e
- * por `wp_resolve_numeric_slug_conflicts()` em `wp-includes/rewrite.php:387`.
+ * A quinta, a forma dos enderecos, e lida por `parse_query` em `:1083` e por
+ * `wp_resolve_numeric_slug_conflicts()` em `wp-includes/rewrite.php:387`.
+ *
+ * As duas ultimas sao de **T007** e sao as duas unicas opcoes desta feature que
+ * `parse_query` **nao** le: `get_posts()` as le, depois dos predicados
+ * (`:2014` e `:2036`). Entraram aqui, e nao em estrutura propria, porque no
+ * legado as sete sao a mesma chamada `get_option()` na mesma requisicao e nao
+ * existe estado em que a consulta enxergue duas configuracoes diferentes.
  */
 export interface ConfiguracaoDoSiteNaConsulta {
   /**
@@ -98,13 +107,29 @@ export interface ConfiguracaoDoSiteNaConsulta {
    * `../traducao-de-endereco/tabela-de-regras.ts`.
    */
   readonly formaDosEnderecos: string;
+  /**
+   * `get_option( 'posts_per_page' )` — o tamanho da pagina da listagem publica.
+   *
+   * Fabrica: **10** (`wp-admin/includes/schema.php:434`). E a regra de negocio
+   * que US-3 nomeia, e `get_posts()` a le em `:2014`, quando o criterio
+   * `posts_per_page` nao chegou.
+   */
+  readonly itensPorPagina: number;
+  /**
+   * `get_option( 'posts_per_rss' )` — o tamanho da pagina do feed.
+   *
+   * Fabrica: **10** (`wp-admin/includes/schema.php:424`). Mesmo numero da
+   * listagem, opcao diferente: `:2036` a le e ela **sobrepoe** o tamanho da
+   * listagem quando a consulta e de feed.
+   */
+  readonly itensPorFeed: number;
 }
 
 /** O valor que `show_on_front` tem quando a frente e uma pagina estatica. */
 export const FRENTE_COMO_PAGINA = 'page';
 
 /**
- * A configuracao de uma instalacao nova de site unico, com os cinco valores de
+ * A configuracao de uma instalacao nova de site unico, com os sete valores de
  * fabrica (P6: *"todo prazo, contagem e limite vem do legado, com o valor de
  * fabrica"*).
  */
@@ -115,6 +140,8 @@ export const CONFIGURACAO_DE_FABRICA: ConfiguracaoDoSiteNaConsulta =
     paginaDeConteudos: 0,
     paginaDePoliticaDePrivacidade: 0,
     formaDosEnderecos: '',
+    itensPorPagina: ITENS_POR_PAGINA_DE_FABRICA,
+    itensPorFeed: ITENS_POR_FEED_DE_FABRICA,
   });
 
 /**
