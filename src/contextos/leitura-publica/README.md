@@ -2,9 +2,11 @@
 
 Epico EP-4 do backlog: *"entregar o conteudo publicado a quem nao tem conta"*.
 Tarefas fechadas com nota de entrega neste arquivo: **T001** (esqueleto, a porta
-de dados, a resolucao de endereco e a resposta de endereco inexistente) e
+de dados, a resolucao de endereco e a resposta de endereco inexistente),
 **T002** (a tabela de regras de traducao como dado, o casamento do endereco
-contra ela e a coleta dos criterios diretos).
+contra ela e a coleta dos criterios diretos) e **T003** (US-1: a resolucao do
+endereco numa consulta de conteudo, com os predicados de tipo de consulta e os
+tres ramos de excecao do `handle_404`).
 
 Este arquivo e a leitura obrigatoria de quem pegar a tarefa seguinte: ele diz o
 que ja esta decidido, o que esta decidido **em outro lugar**, e o que ninguem
@@ -12,7 +14,7 @@ decidiu.
 
 ---
 
-## 🔴 O que quem pega T003 precisa saber antes de escrever a primeira linha
+## 🔴 O que quem pega T005, T007, T009 ou T013 precisa saber antes de escrever a primeira linha
 
 ### 0. Numa instalacao nova a tabela de regras esta VAZIA, e isso muda como se le o resto
 
@@ -37,38 +39,57 @@ Duas consequencias:
 - o teste de paridade de US-1 tem de cobrir as duas entradas, e e exatamente o
   que CA-1.2 pede. Nenhuma das duas e "a forma certa" do endereco.
 
-### 1. O 404 que este esqueleto devolve e provisorio por tarefa, e nao regra
+### 1. ✅ O 404 deixou de ser o default, e e por isso que a home responde 200
 
-T001 entrega, por texto da tarefa, *"resolve o endereco pedido para um conjunto
-vazio de criterios e devolve a resposta de endereco inexistente"*. Isso e
-exatamente o valor inicial do legado — `$set_404 = true`
-(`wp-includes/class-wp.php:747`) —, e o que derruba esse valor sao **tres ramos de
-excecao que dependem do resultado da consulta**, que e T003.
+T001 entregava *"a resposta de endereco inexistente"* porque nao havia consulta:
+o valor inicial do legado e `$set_404 = true` (`wp-includes/class-wp.php:747`) e
+os **tres ramos de excecao** que o derrubam dependem do resultado da consulta e
+dos predicados de tipo de consulta. T003 trouxe os dois.
 
-Consequencia que precisa estar escrita: enquanto a consulta nao existir, **todo**
-endereco responde 404 aqui, **inclusive a home**. No legado, conjunto vazio de
-criterios e `is_home()`, e `is_home()` esta na lista que limpa o 404
-(`class-wp.php:784-795`). Quem fechar T003 sem trazer os tres ramos deixa a cara
-publica do produto respondendo 404 na primeira pagina. Os tres estao transcritos,
-com linha do legado, no cabecalho de `requisicao/situacao-da-resposta.ts`.
+Consequencia, e ela e a entrega: o conjunto vazio de criterios — que e o que uma
+instalacao nova de site unico produz para **qualquer** endereco (secao 0) — e
+`is_home()`, `is_home()` esta no terceiro ramo (`class-wp.php:792`), e o legado
+declara **200** (`:804`). O teste de `modulo.test.ts` que afirmava 404 para
+`atender` foi reescrito para afirmar isso, e o 404 continua afirmado onde ele e a
+resposta certa: uma consulta sem predicado e sem resultado.
 
-### 2. Os dois caminhos de 404 do legado sao diferentes, e so um deles esta aqui
+Os tres ramos estao transcritos, com linha do legado, no cabecalho de
+`requisicao/situacao-da-resposta.ts`, e cada um tem teste proprio em
+`consulta/us-1-resolver-endereco-em-consulta.test.ts`.
 
-| caminho | como o legado decide | quem o traz |
+⚠️ **Ao 404ar, `set_404()` zera os predicados da consulta, e quem le isso e a
+etapa 5.** `handle_404` chama `$wp_query->set_404()` (`class-wp.php:800`), que
+zera os 29 predicados de `init_query_flags()` e repoe **so** `is_feed`
+(`class-wp-query.php:1846-1849`). O efeito e observavel pelo tema: um endereco
+que era `is_single` e virou 404 **deixa de ser** `is_single`. T001 nomeou este
+zeramento como pertencente a T003, e ele esta em
+`consulta/consultar-conteudo.ts` (`consultaMarcadaComoNaoEncontrada`), aplicado
+em `requisicao/atender-leitura-publica.ts` entre as etapas 4 e 5, que e a posicao
+do legado. Quem fizer T005 le o estado **ja zerado**; quem precisar da distincao
+de CA-1.4 le a consulta na etapa 3, antes da decisao.
+
+⚠️ **Dois valores que `handle_404` le de lugares diferentes.** `page` vem dos
+criterios da **resolucao** (`$this->query_vars`, `class-wp.php:763` e `:766`);
+`author` e `sitemap-stylesheet` vem dos criterios **da consulta**
+(`get_query_var()`, `:751` e `:785`). Os dois conjuntos nascem iguais e divergem
+quando `parse_query` corrige a pagina da frente ou quando `pre_get_posts` mexe na
+copia da consulta. Ler os tres do mesmo lugar e a simplificacao obvia, e ela
+troca o 404 de um endereco de pagina da frente com paginacao interna.
+
+### 2. Os dois caminhos de 404 do legado sao diferentes, e os dois estao aqui
+
+| caminho | como o legado decide | quem o trouxe |
 |---|---|---|
-| **endereco que nao casa regra nenhuma** | `parse_request` poe o criterio `error` em `'404'` (`class-wp.php:167` e `:398-400`); a consulta le o criterio e se marca sozinha (`class-wp-query.php:1148-1150`); `handle_404` desiste no comeco; o codigo sai do envio de cabecalhos (`class-wp.php:455-466`) | ✅ **T002**, em `traducao-de-endereco/casar-endereco.ts` |
-| **consulta que nao encontra conteudo** | `handle_404` olha o resultado e decide (`class-wp.php:724-805`) | **T003**, e e o que `situacaoDaResposta` ja esboca |
+| **endereco que nao casa regra nenhuma** | `parse_request` poe o criterio `error` em `'404'` (`class-wp.php:167` e `:398-400`); a consulta le o criterio e se marca sozinha (`class-wp-query.php:1148-1150`); `handle_404` desiste no comeco; o codigo sai do envio de cabecalhos (`class-wp.php:455-466`) | ✅ **T002** (a marca) e **T003** (a consulta que a le, em `consulta/analisar-consulta.ts`, etapa 15) |
+| **consulta que nao encontra conteudo** | `handle_404` olha o resultado e decide (`class-wp.php:724-805`) | ✅ **T003**, os tres ramos |
 
-⚠️ T002 entrega a **marca** (`error` em `'404'` nos criterios), nao o codigo
-HTTP: quem le o criterio e se marca e a consulta, e quem emite o codigo e o envio
-de cabecalhos. Quem fizer T003 precisa ligar os dois — e lembrar que o caminho de
-cima **nao** passa pelos tres ramos de excecao de `handle_404`.
+⚠️ Os dois chegam ao **mesmo** codigo HTTP por caminhos diferentes, e a diferenca
+e observavel: no primeiro, `situacaoDaResposta` devolve `codigoHttp: null` —
+porque o legado volta sem chamar `status_header` — e quem emite o 404 e o envio
+de cabecalhos, a partir do criterio `error`. O primeiro **nao** passa pelos tres
+ramos de excecao, e `set_404()` ja zerou os predicados quando ele chega ali.
 
-Confundir os dois produz um sistema que 404a no lugar certo pelo motivo errado — e
-o motivo e observavel, porque o primeiro caminho **nao** passa pelos tres ramos de
-excecao do segundo.
-
-### 3. A porta de dados tem `escrever`, numa feature de leitura, e isso e regra do legado — mas T002 ainda nao a usou
+### 3. A porta de dados tem `escrever`, numa feature de leitura, e isso e regra do legado — e nem T002 nem T003 a usaram
 
 A pos-condicao de UC-01 diz *"nada muda no armazenamento"* e *"o contador de
 visualizacoes nao existe"* — e vale para o conteudo e para a visita. Mas a tabela
@@ -88,12 +109,21 @@ implementar a fonte sobre a porta preserva a ordem — ler a opcao, reconstruir 
 vazia, e gravar **so depois de `wp_loaded`** (`:1515-1523`: antes dela a gravacao
 e adiada, *"as the rules may be partial"*).
 
+⚠️ **T003 tambem nao a usou, e isso surpreende.** A consulta de conteudo le
+`posts`, que e tabela de **BC-01** (`target_architecture.md` § *BC-01:
+Conteudo*), e a regra de dependencia 3 proibe `contextos/leitura-publica/`
+importar `contextos/conteudo/` *"sempre, sem excecao"*. Logo o acesso ao conteudo
+chega por **ligacao tardia**, no contexto da operacao — e e tambem o que o
+catalogo de testes descreve: os cinco casos de `REQ-038`, os cinco de `REQ-040` e
+os cinco de `REQ-041` declaram como duplo *"repositorio de conteudo"*, e nao um
+duplo de banco. A razao inteira esta em `consulta/conteudo-consultado.ts`.
+
 Os dois zeros de `modulo.test.ts` continuam valendo, e continuam sendo o teste que
 apanha quem resolver dado no carregamento.
 
 ### 4. Os pontos de extensao chegam por argumento, porque o barramento nao existe
 
-Sao **sete** os pontos que o fluxo atravessa hoje, com o nome do legado e na
+Sao **dez** os pontos que o fluxo atravessa hoje, com o nome do legado e na
 posicao do legado:
 
 | ponto | tipo | onde dispara | legado |
@@ -102,9 +132,25 @@ posicao do legado:
 | `query_vars` | filtro, substitui a **lista de nomes** aceitos | depois do casamento de regra, antes da coleta | `class-wp.php:311` |
 | `request` | filtro, substitui os criterios | fim da resolucao | `class-wp.php:409` |
 | `parse_request` | acao | depois da resolucao | `class-wp.php:418` |
+| `parse_query` | acao | fim da analise da consulta | `class-wp-query.php:1164` |
+| `pre_get_posts` | acao **por referencia**, e por isso aqui ela devolve os criterios | depois da analise, antes da consulta | `class-wp-query.php:1916` |
+| `the_posts` | filtro, substitui a lista de registros | depois da consulta | `class-wp-query.php:3641` |
 | `pre_handle_404` | filtro, curto-circuita com qualquer valor `!== false` | antes da decisao de situacao | `class-wp.php:738` |
 | `set_404` | acao | ao marcar a resposta | `class-wp-query.php:1858` |
 | `wp` | acao | fim do atendimento, **sempre** | `class-wp.php:839` |
+
+⚠️ **`pre_get_posts` dispara DEPOIS de `parse_query`, e o legado nao reanalisa.**
+Uma extensao que troque `post_type` ali muda a consulta e **nao** muda
+`is_post_type_archive`: a unica coisa que o legado refaz e o preenchimento de
+`:1922`. Reanalisar "para ficar coerente" troca o predicado que o tema le.
+
+⚠️ **Quatro pontos de extensao estao declarados e NAO disparam**, com o motivo em
+cada arquivo: `parse_tax_query` (`class-wp-query.php:1420`),
+`is_post_type_viewable` (`post.php:2476`), `wp_checkdate`
+(`functions.php:7541`) e `sanitize_key` (`formatting.php:2207`). Os tres ultimos
+sao de funcoes da plataforma que este modulo portou por dentro; o primeiro e da
+montagem de taxonomia. Quando `plataforma/barramento/` existir, e ele que os
+alimenta — a forma dos pontos nao muda.
 
 `plataforma/barramento/` nao existe nesta arvore, e inventa-lo em T001 seria
 decidir no lugar da feature 015. Entao os interceptadores chegam por argumento,
@@ -160,8 +206,9 @@ A superficie do modulo, com a permissao de cada operacao declarada na interface
 | `resolverEndereco` | T001 | **nenhuma capacidade**, declarada |
 | `situacaoDaResposta` | T001 | **nenhuma capacidade**, declarada |
 | `atender` | T001 | **nenhuma capacidade**, declarada |
+| `consultarConteudo` | T003 | **nenhuma capacidade**, declarada |
 
-As tres declaram "nenhuma" porque UC-01 e literal: *"nao ha verificacao de
+As quatro declaram "nenhuma" porque UC-01 e literal: *"nao ha verificacao de
 capacidade. O portao e o `post_status`"*. As duas portas de autorizacao desta
 feature chegam depois, e nenhuma delas e uma capacidade perguntada na entrada: o
 portao de `post_status` em **T009** (US-4) e o atestado de senha de conteudo em
@@ -213,25 +260,73 @@ percorre (`class-wp.php:612`).
 - Os pontos de extensao que este modulo atravessa sao **sete**, com a entrada do
   `query_vars`.
 
-### O que T003 recebe pronto, e o que ela ainda tem de trazer
+### ✅ As quatro pendencias que T002 deixou nomeadas, fechadas por T003
 
-Pronto: os criterios de consulta, com as quatro fontes, a marca de `error`, as
-quatro propriedades publicas do casamento (`request`, `matched_rule`,
-`matched_query`, `did_permalink`) e os pontos de extensao de `parse_request`.
+Todas **nas posicoes do legado** no corpo de `criterios-diretos.ts`, e nao no fim
+(a ordem e contrato publico, BR-MIGRAR-106):
 
-Ainda falta, **nas posicoes marcadas em comentario** no corpo de
-`criterios-diretos.ts` (a ordem e contrato publico, BR-MIGRAR-106):
-
-| o que | legado |
-|---|---|
-| os criterios de tipo de conteudo (`post_type` e `name` a partir do nome do tipo) | `class-wp.php:313-317` e `:349-352` |
-| o espaco de volta para `+` no criterio de taxonomia | `:356-362` |
-| os dois filtros de visibilidade (taxonomia e tipo de conteudo nao consultaveis publicamente) | `:364-389` |
-| a colisao de identificador numerico com arquivo de data | `:390`, e `wp-includes/rewrite.php:381` |
+| o que | legado | onde |
+|---|---|---|
+| os criterios de tipo de conteudo (`post_type` e `name` a partir do nome do tipo) | `class-wp.php:313-317` e `:349-352` | `criterios-diretos.ts`, no laco |
+| o espaco de volta para `+` no criterio de taxonomia | `:356-362` | `criterios-diretos.ts`, depois do laco |
+| os dois filtros de visibilidade (taxonomia e tipo de conteudo nao consultaveis publicamente) | `:364-389` | `criterios-diretos.ts` |
+| a colisao de identificador numerico com arquivo de data | `:390`, e `wp-includes/rewrite.php:381` | `traducao-de-endereco/colisao-de-identificador-numerico.ts` |
 
 ⚠️ A conversao de escalar em texto (`:338-347`) **nao** e lacuna: sob
 `ValorDeCriterio` como T001 o declarou — `string` ou lista de `string` — ela nao
 tem o que converter. A razao inteira esta no cabecalho de `criterios-diretos.ts`.
+Mas atencao ao que T003 descobriu ali: o mapeamento de `:349-352` mora **dentro**
+do `! empty()` de `:338`, logo `?livro=0` nao vira `post_type=livro`.
+
+## O que T003 entregou
+
+```
+leitura-publica/consulta/
+├── semantica-de-php.ts         empty, is_scalar, is_numeric, (int), absint, ==, sort, checkdate, sanitize_key
+├── registro-consultavel.ts     os registros de tipo de conteudo e de taxonomia, como esta feature os le
+├── conteudo-consultado.ts      a linha de `posts` que a leitura le, e o REPOSITORIO que a devolve
+├── criterios-da-consulta.ts    `fill_query_vars` e a normalizacao dos criterios
+├── tipo-de-consulta.ts         as 30 propriedades `is_*`, e o `set_404`
+├── consulta-de-taxonomia.ts    `parse_tax_query` e o saneamento de `WP_Tax_Query`
+├── contexto-da-consulta.ts     as colaboracoes tardias e as quatro opcoes do site
+├── analisar-consulta.ts        `parse_query`, as dezesseis etapas
+├── consultar-conteudo.ts       `WP_Query::query` — analisar mais buscar
+└── index.ts                    o barril da area
+```
+
+Fora da pasta nova, T003 mexeu em seis arquivos, e so neles:
+`traducao-de-endereco/criterios-diretos.ts` (as tres etapas inline que faltavam),
+`traducao-de-endereco/colisao-de-identificador-numerico.ts` (a quarta, em arquivo
+novo porque no legado tambem e funcao propria),
+`requisicao/resolver-endereco.ts` (o contexto chega as opcoes),
+`requisicao/situacao-da-resposta.ts` (os tres ramos de excecao e o 200),
+`requisicao/atender-leitura-publica.ts` (a etapa 3, na posicao marcada) e
+`index.ts` (a operacao nova e a area nova no barril).
+
+A entrega em uma frase conferivel: `/2026/10/ola-mundo/` por uma tabela declarada
+e `?year=2026&monthnum=10&name=ola-mundo` com a tabela vazia produzem a **mesma**
+consulta — mesmos criterios na mesma ordem, mesmos 30 predicados, mesmos
+registros —, o primeiro responde `is_single` e `/?cat=5` responde `is_archive`
+**sem depender da contagem devolvida**, e a home de uma instalacao nova responde
+200 em lugar de 404.
+
+### As quatro lacunas que T003 declarou, e por que nenhuma delas e decisao
+
+| lacuna | onde | de quem e |
+|---|---|---|
+| o saneamento de identificador de termo (`sanitize_term_field` e `sanitize_title_for_query`) chega por ligacao tardia; ausente, o identificador e usado **como veio** | `consulta/consulta-de-taxonomia.ts` | de BC-02 mais o barramento de ganchos: as duas funcoes disparam ponto de extensao (`taxonomy.php:1846` e `:1849`), e P2 poe argumento de ponto no contrato |
+| o criterio `tax_query`, que chega pronto como arranjo de arranjo, nao e representavel em `ValorDaConsulta` e e **ignorado** | `consulta/consulta-de-taxonomia.ts` | de quem tiver o chamador que o produza: `tax_query` nao e nome publico nem privado de criterio, logo nao vem da rede |
+| `tag_id` em arranjo salta a clausula, e no legado `absint( array )` **derruba a requisicao** com erro de tipo | `consulta/consulta-de-taxonomia.ts` | do oraculo executavel (`ESC-ORACULO`): nenhuma regra do nucleo produz `tag_id` em arranjo, so `?tag_id[]=` |
+| `page` resolvido pela colisao de identificador numerico e gravado como **texto**, e no legado e inteiro | `traducao-de-endereco/colisao-de-identificador-numerico.ts` | de quem precisar alargar `ValorDeCriterio`, que e contrato mesclado de T001. As tres leituras de `page` no nucleo convertem antes de comparar, logo nenhuma decisao muda; o que muda e o tipo do global que `register_globals()` publica |
+
+### O que T005, T007, T009 e T013 recebem pronto
+
+| tarefa | o que ela acrescenta, e onde |
+|---|---|
+| **T005** (US-2) | a etapa 5 do atendimento, na posicao marcada em `requisicao/atender-leitura-publica.ts`. Os 30 predicados que a hierarquia de modelos le ja existem, em `consulta/tipo-de-consulta.ts`, com a tabela de nome publico para nome daqui — e ela le o estado **depois** do `set_404()`, que e o que o legado publica |
+| **T007** (US-3) | o total encontrado e o numero de paginas em `ResultadoDaConsulta` (`set_found_posts`, `class-wp-query.php:3692`), e o tamanho de pagina, que nasce em 10 (`schema.php:434`). O ramo 3 de `handle_404` ja 404a a pagina de listagem fora de faixa, que e CA-3.3 |
+| **T009** (US-4) | o estado e o autor em `ConteudoConsultado`, e o recorte por estado nos criterios que vao ao repositorio. ⚠️ **Enquanto T009 nao entrar, o repositorio decide sozinho o que e publico** — e e por isso que `REPOSITORIO_SEM_CONTEUDO` e o default, e nao um repositorio que devolve tudo |
+| **T013** (US-6) | a senha em `ConteudoConsultado` e o atestado. A protecao e do **corpo**, nao da existencia: o conteudo protegido continua saindo nesta consulta |
 
 ## O que esta decidido em outro lugar
 
@@ -309,7 +404,11 @@ caminho do arquivo.
   400, o ponto `query_vars`, as regras fixas transcritas, e os quirks do legado
   que um porte "limpo" apaga em silencio (o `empty()` que inclui o zero, o alvo
   que nao reinicia no laco, o recorte guloso da consulta, o `addslashes`).
+- `consulta/us-1-resolver-endereco-em-consulta.test.ts` — os testes de T003: os
+  quatro criterios de aceite de US-1, os tres ramos de excecao de `handle_404`,
+  os tres pontos de extensao novos e o isolamento entre duas leituras
+  concorrentes (`EXT-CONTEXTO`).
 
-Nenhum caso `UT-0xx` de `backlog/tests.md` e afirmado nas duas: esses sao das
+Nenhum caso `UT-0xx` de `backlog/tests.md` e afirmado nas tres: esses sao das
 tarefas de teste de cada historia (T004, T006, T008, T010, T012, T014, T016,
 T018).

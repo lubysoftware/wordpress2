@@ -31,19 +31,20 @@
  * um porte que o fizesse aqui teria duas analises da mesma coisa, que divergem no
  * primeiro caractere escapado.
  *
- * ## O que falta, nomeado, para quem pega T003
+ * ## ✅ O que T003 fechou nesta funcao
  *
- * | o que entra | onde esta no legado | onde entra aqui |
+ * | o que entrou | onde esta no legado | onde esta aqui |
  * |---|---|---|
  * | os criterios de tipo de conteudo | `:313-317` e `:349-352` | dentro do laco de `coletarCriterios` |
  * | o espaco de volta para `+` no criterio de taxonomia | `:356-362` | depois do laco |
  * | os dois filtros de visibilidade (taxonomia e tipo de conteudo) | `:364-389` | depois do laco |
- * | a colisao de identificador numerico com arquivo de data | `:390` | depois dos filtros |
- * | a consulta principal, que le estes criterios | `class-wp-query.php:811` | etapa 3 de `atender-leitura-publica.ts` |
+ * | a colisao de identificador numerico com arquivo de data | `:390` | `../traducao-de-endereco/colisao-de-identificador-numerico.ts` |
+ * | a consulta principal, que le estes criterios | `class-wp-query.php:811` | etapa 3 de `atender-leitura-publica.ts`, em `../consulta/` |
  *
- * As quatro primeiras tem a posicao marcada em comentario no corpo de
+ * As quatro primeiras estao **nas posicoes do legado** no corpo de
  * `criterios-diretos.ts`, e nao no fim: BR-MIGRAR-106 (`EXT-ORDEM`) poe a ordem no
- * contrato publico.
+ * contrato publico. As quatro dependem dos registros de tipo de conteudo e de
+ * taxonomia, que chegam por {@link OpcoesDaResolucao.contexto}.
  *
  * ## Os pontos de extensao desta funcao sao contrato publico (P2)
  *
@@ -64,6 +65,7 @@
  * por prioridade e de quem construir o barramento.
  */
 
+import type { ContextoDaConsulta } from '../consulta/contexto-da-consulta.js';
 import {
   casarEndereco,
   coletarCriterios,
@@ -154,6 +156,19 @@ export interface OpcoesDaResolucao {
    * `../traducao-de-endereco/tabela-de-regras.ts`.
    */
   readonly fonteDeRegras?: FonteDeRegrasDeTraducao;
+  /**
+   * O contexto de onde `parse_request` le os dois registros, o `is_admin()`, a
+   * forma dos enderecos e o `get_page_by_path()` — as quatro coisas de que
+   * dependem as etapas de `:313-317`, `:349-352`, `:356-362`, `:364-389` e
+   * `:390`.
+   *
+   * E o **mesmo** contexto da etapa 3 do atendimento, e nao um gemeo: no legado
+   * `parse_request` e `WP_Query::parse_query` leem `get_post_types()` e
+   * `get_taxonomies()` na mesma requisicao, e duas leituras que divergissem
+   * seriam um estado que o produto nao tem. A razao inteira esta na ultima secao
+   * do cabecalho de `../traducao-de-endereco/criterios-diretos.ts`.
+   */
+  readonly contexto?: ContextoDaConsulta;
   readonly pontosDeExtensao?: PontosDeExtensaoDaResolucao;
 }
 
@@ -282,6 +297,7 @@ export function resolverEndereco(
       ? {}
       : { criteriosDaRegra: casamento.criteriosDaRegra }),
     ...(casamento.erro === undefined ? {} : { erro: casamento.erro }),
+    ...(opcoes.contexto === undefined ? {} : { contexto: opcoes.contexto }),
   });
 
   // `request`: o retorno substitui o conjunto (`:409`).

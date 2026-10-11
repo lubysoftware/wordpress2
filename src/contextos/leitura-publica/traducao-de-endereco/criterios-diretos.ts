@@ -47,27 +47,60 @@
  * | o que | legado | de quem e |
  * |---|---|---|
  * | converter escalar em texto | `:338-347` | ninguem: e inalcancavel sob o tipo que T001 declarou — ver abaixo |
- * | criterio de tipo de conteudo (`post_type` e `name` a partir do nome do tipo) | `:313-317` e `:349-352` | **T003**, que traz o registro de tipos |
- * | espaco de volta para `+` no criterio de taxonomia | `:356-362` | **T003** |
- * | tirar taxonomia e tipo de conteudo nao consultaveis publicamente | `:364-389` | **T003** (sao os *"dois filtros de visibilidade"* que T001 nomeou) |
- * | resolver identificador numerico que colide com arquivo de data | `:390` | **T003**: `wp_resolve_numeric_slug_conflicts` (`wp-includes/rewrite.php:381`) le a forma dos enderecos **e** procura conteudo, duas coisas que este modulo nao tem |
  *
- * A primeira linha merece a explicacao inteira, porque parece omissao: `:338-347`
+ * Essa linha merece a explicacao inteira, porque parece omissao: `:338-347`
  * converte cada valor escalar com `(string)`, inclusive dentro de arranjo, e
  * `ValorDeCriterio` — como T001 o declarou — ja e `string` ou lista de `string`.
  * A conversao nao tem o que converter. O que o tipo de T001 descarta junto e o
  * `empty( '0' )` de `:338`, que faz o legado **pular** a conversao de um valor
  * `'0'`: pular a conversao de um texto que ja e texto nao tem efeito observavel.
  *
- * As quatro linhas de T003 tem a **posicao** marcada no corpo da funcao, e nao o
- * fim: BR-MIGRAR-106 (`EXT-ORDEM`) poe a ordem no contrato publico, e a tabela
- * *Nao negociavel* da constituicao tira essa decisao das maos do agente.
+ * ⚠️ O `empty()` de `:338` **nao** e so sobre a conversao: o mapeamento de
+ * criterio de tipo de conteudo de `:349-352` esta **dentro** dele. Logo
+ * `?livro=0` nao vira `post_type=livro`, e `?livro=x` vira. Esse aninhamento e
+ * facil de perder quando se le o trecho como duas regras separadas.
+ *
+ * ## ✅ As quatro coisas que T002 deixou nomeadas, e que T003 trouxe
+ *
+ * | o que | legado | onde esta |
+ * |---|---|---|
+ * | criterio de tipo de conteudo (`post_type` e `name` a partir do nome do tipo) | `:313-317` e `:349-352` | aqui, com o registro de `../consulta/registro-consultavel.ts` |
+ * | espaco de volta para `+` no criterio de taxonomia | `:356-362` | aqui, {@link desfazerEspacoDeTaxonomia} |
+ * | tirar taxonomia e tipo de conteudo nao consultaveis publicamente | `:364-389` | aqui, {@link filtrarTaxonomiaNaoConsultavel} e {@link filtrarTipoDeConteudoNaoConsultavel} |
+ * | resolver identificador numerico que colide com arquivo de data | `:390` | `./colisao-de-identificador-numerico.ts` |
+ *
+ * As quatro estao **nas posicoes do legado**, e nao no fim: BR-MIGRAR-106
+ * (`EXT-ORDEM`) poe a ordem no contrato publico, e a tabela *Nao negociavel* da
+ * constituicao tira essa decisao das maos do agente. A sequencia e: o laco, o
+ * espaco de taxonomia, os dois filtros de visibilidade, a colisao de
+ * identificador, os nomes privados e o `error` — seis passos, nesta ordem.
+ *
+ * ## Por que os tres colaboradores chegam num contexto, e nao em tres campos
+ *
+ * `../consulta/contexto-da-consulta.ts` declara o contexto que a etapa 3 do
+ * atendimento usa, e `parse_request` le um **subconjunto** dele: os dois
+ * registros, o `is_admin()`, a forma dos enderecos e o `get_page_by_path()`. Sao
+ * os mesmos valores, lidos duas vezes no mesmo fluxo do legado — e um contexto
+ * so garante que as duas leituras concordem. Declarar campos separados aqui
+ * permitiria uma composicao em que `parse_request` e `parse_query` enxergam
+ * registros diferentes, que e um estado que o legado nao tem.
  */
 
+import {
+  contextoResolvido,
+  type ContextoDaConsulta,
+  type ContextoDaConsultaResolvido,
+} from '../consulta/contexto-da-consulta.js';
+import {
+  criteriosDeTipoDeConteudo,
+  tiposConsultaveisPublicamente,
+} from '../consulta/registro-consultavel.js';
+import { vazioComoNoPhp } from '../consulta/semantica-de-php.js';
 import type {
   CriteriosDeConsulta,
   ValorDeCriterio,
 } from '../requisicao/endereco-pedido.js';
+import { resolverColisaoDeIdentificadorNumerico } from './colisao-de-identificador-numerico.js';
 import {
   NOMES_PRIVADOS_DE_CRITERIO,
   NOMES_PUBLICOS_DE_CRITERIO,
@@ -152,6 +185,110 @@ export interface EntradaDaColeta {
   readonly criteriosDaRegra?: CriteriosDaRegra;
   /** `$error`, quando o casamento o deixou de pe. */
   readonly erro?: string;
+  /**
+   * O contexto de onde saem os dois registros, o `is_admin()`, a forma dos
+   * enderecos e o `get_page_by_path()` — ver a ultima secao do cabecalho.
+   *
+   * Ausente, os registros estao vazios: nenhum criterio de tipo de conteudo e
+   * reconhecido, nenhum espaco de taxonomia e desfeito, **nenhum `post_type`
+   * sobrevive ao filtro de `:377-387`** e a colisao de identificador numerico
+   * nao se resolve. Nao e omissao: e o que o legado faz numa instalacao em que
+   * nada foi registrado.
+   */
+  readonly contexto?: ContextoDaConsulta;
+}
+
+/**
+ * `:356-362` — *"Convert urldecoded spaces back into '+'"*.
+ *
+ * O caminho do endereco chegou decodificado, e `+` ja virou espaco: sem desfazer
+ * isso, `/etiqueta/a+b/` consultaria o termo `a b` em lugar dos termos `a` e `b`
+ * — que e o significado que `parse_tax_query` da ao `+`
+ * (`class-wp-query.php:1215-1224`).
+ *
+ * ⚠️ O teste e `isset`, e nao `! empty`: um criterio de taxonomia com o valor
+ * `'0'` tambem passa por aqui. E `str_replace` com arranjo como assunto troca
+ * em **cada** elemento, o que esta reproduzido.
+ */
+function desfazerEspacoDeTaxonomia(
+  criterios: Record<string, ValorDeCriterio>,
+  contexto: ContextoDaConsultaResolvido,
+): void {
+  for (const taxonomia of contexto.taxonomias()) {
+    const nome = taxonomia.criterioProprio;
+    if (nome === '') {
+      continue;
+    }
+    const valor = criterios[nome];
+    if (valor === undefined) {
+      continue;
+    }
+    criterios[nome] =
+      typeof valor === 'string'
+        ? valor.replaceAll(' ', '+')
+        : valor.map((parte) => parte.replaceAll(' ', '+'));
+  }
+}
+
+/**
+ * `:364-374` — taxonomia nao consultavel publicamente sai dos criterios, **e so
+ * fora do painel**.
+ *
+ * O comentario do legado diz o que o codigo faz e o proprio codigo diz por que
+ * basta testar o criterio `taxonomy`: *"Non-publicly queryable taxonomies cannot
+ * register custom query vars. See register_taxonomy()"*. Logo a unica porta de
+ * entrada delas e o par `taxonomy` + `term`, e os dois saem juntos.
+ */
+function filtrarTaxonomiaNaoConsultavel(
+  criterios: Record<string, ValorDeCriterio>,
+  contexto: ContextoDaConsultaResolvido,
+): void {
+  if (contexto.noPainel) {
+    return;
+  }
+  for (const taxonomia of contexto.taxonomias()) {
+    if (taxonomia.consultavelPublicamente) {
+      continue;
+    }
+    if (criterios['taxonomy'] === taxonomia.nome) {
+      delete criterios['taxonomy'];
+      delete criterios['term'];
+    }
+  }
+}
+
+/**
+ * `:376-387` — o `post_type` pedido tem de ser consultavel publicamente.
+ *
+ * Duas formas, e as duas sao do legado: em texto, o tipo que nao esta na lista e
+ * **descartado** (`unset`, `:382`); em arranjo, a lista e **intersectada**
+ * (`:385`), ou seja sobram os que passam e o criterio continua existindo mesmo
+ * vazio.
+ *
+ * ⚠️ Este filtro **nao** roda so fora do painel: diferente do de taxonomia, ele
+ * nao tem guarda de `is_admin()`. E assim no legado, e o comentario de `:376`
+ * fala de *"publicly queried post_types"* sem qualificar onde.
+ *
+ * ⚠️ E o criterio e `publicly_queryable`, e nao `is_post_type_viewable()`: um
+ * tipo de fabrica publico sem `publicly_queryable` e visivel e **nao** e
+ * consultavel. Ver `../consulta/registro-consultavel.ts`.
+ */
+function filtrarTipoDeConteudoNaoConsultavel(
+  criterios: Record<string, ValorDeCriterio>,
+  contexto: ContextoDaConsultaResolvido,
+): void {
+  const pedido = criterios['post_type'];
+  if (pedido === undefined) {
+    return;
+  }
+  const consultaveis = tiposConsultaveisPublicamente(contexto.tiposDeConteudo);
+  if (typeof pedido === 'string') {
+    if (!consultaveis.includes(pedido)) {
+      delete criterios['post_type'];
+    }
+  } else {
+    criterios['post_type'] = pedido.filter((nome) => consultaveis.includes(nome));
+  }
 }
 
 /**
@@ -173,12 +310,18 @@ export function coletarCriterios(
   const corpo = entrada.parametrosDeCorpo ?? {};
   const consulta = entrada.parametrosDeConsulta ?? {};
   const daRegra = entrada.criteriosDaRegra;
+  const contexto = contextoResolvido(entrada.contexto);
 
   // A ordem de insercao e a da lista publica, depois a da privada, depois
   // `error`: e ela que `WP::build_query_string()` percorre em
   // `wp-includes/class-wp.php:612` para montar `WP::$query_string`, que e
   // argumento de ponto de extensao.
   const criterios: Record<string, ValorDeCriterio> = {};
+
+  // `:313-317` — o mapa de nome de criterio para tipo de conteudo, montado
+  // ANTES do laco, com a condicao dupla do legado (visivel e com criterio
+  // proprio).
+  const tipoPorCriterio = criteriosDeTipoDeConteudo(contexto.tiposDeConteudo);
 
   // `:319-336`.
   for (const nome of nomesPublicos) {
@@ -205,14 +348,46 @@ export function coletarCriterios(
       }
     }
 
-    // `:338-347` (conversao de escalar) e `:349-352` (criterio de tipo de
-    // conteudo) entram AQUI, dentro do laco. A conversao e inalcancavel sob o
-    // tipo de T001; o criterio de tipo de conteudo e T003. Ver o cabecalho.
+    // `:338` — o bloco de conversao, e o mapeamento de tipo de conteudo que
+    // mora DENTRO dele.
+    const coletado = criterios[nome];
+    if (coletado !== undefined && !vazioComoNoPhp(coletado)) {
+      // `:339-347` — a conversao de escalar em texto e inalcancavel sob o tipo
+      // de T001. Ver o cabecalho.
+
+      // `:349-352` — o criterio proprio de um tipo de conteudo preenche DOIS
+      // criterios: o tipo e o identificador na URL. E e por isso que
+      // `?livro=dom-casmurro` e `?post_type=livro&name=dom-casmurro` resolvem
+      // para a mesma consulta, que e o CA-1.2 de US-1.
+      const tipoDeConteudo = tipoPorCriterio.get(nome);
+      if (tipoDeConteudo !== undefined) {
+        criterios['post_type'] = tipoDeConteudo;
+        criterios['name'] = coletado;
+      }
+    }
   }
 
-  // `:356-362`, `:364-389` e `:390` — taxonomia, os dois filtros de
-  // visibilidade e a colisao de identificador numerico com arquivo de data —
-  // entram AQUI, nesta ordem, e sao T003.
+  // `:356-362`.
+  desfazerEspacoDeTaxonomia(criterios, contexto);
+
+  // `:364-374`.
+  filtrarTaxonomiaNaoConsultavel(criterios, contexto);
+
+  // `:376-387`.
+  filtrarTipoDeConteudoNaoConsultavel(criterios, contexto);
+
+  // `:390` — a colisao de identificador numerico com arquivo de data. Devolve
+  // um conjunto novo quando houve colisao, porque ela **tira** tres criterios.
+  const apos = resolverColisaoDeIdentificadorNumerico(criterios, {
+    formaDosEnderecos: contexto.configuracao.formaDosEnderecos,
+    conteudoPorCaminho: contexto.conteudoPorCaminho,
+  });
+  if (apos !== criterios) {
+    for (const nome of Object.keys(criterios)) {
+      delete criterios[nome];
+    }
+    Object.assign(criterios, apos);
+  }
 
   // `:392-396` — os nomes privados, e **so** de `extra_query_vars`.
   for (const nome of nomesPrivados) {

@@ -1,14 +1,17 @@
 /**
- * A traducao de endereco em criterios de consulta — a entrega de **T002**.
+ * A traducao de endereco em criterios de consulta — a entrega de **T002**, mais
+ * a colisao de identificador numerico, que T003 trouxe.
  *
- * Quatro arquivos, e a divisao entre eles e a do legado:
+ * Cinco arquivos (seis com `cadeia-de-consulta.ts`), e a divisao entre eles e a
+ * do legado:
  *
  * | arquivo | o que e | legado |
  * |---|---|---|
  * | `nomes-de-criterio.ts` | as duas listas de nomes aceitos, e o ponto de extensao sobre elas | `class-wp.php:18`, `:28`, `:311` |
  * | `tabela-de-regras.ts` | a tabela como **dado**, a fonte dela e as regras fixas | `class-wp.php:163` · `class-wp-rewrite.php:1276-1500` |
  * | `casar-endereco.ts` | o casamento do caminho pedido contra a tabela | `class-wp.php:165-298` |
- * | `criterios-diretos.ts` | a coleta, com as quatro fontes e a recusa 400 | `class-wp.php:319-400` |
+ * | `criterios-diretos.ts` | a coleta, com as quatro fontes, a recusa 400 e os tres filtros de `:313-389` | `class-wp.php:313-400` |
+ * | `colisao-de-identificador-numerico.ts` | identificador numerico que parece arquivo de data | `class-wp.php:390` · `rewrite.php:381-475` |
  *
  * Quem compoe os quatro na ordem do legado e `../requisicao/resolver-endereco.ts`,
  * que e o `parse_request` inteiro. Nada aqui guarda estado: tudo chega por
@@ -52,6 +55,9 @@ export {
 
 export type { CasamentoDeEndereco } from './casar-endereco.js';
 export { casarEndereco, vazioNoLegado } from './casar-endereco.js';
+
+export type { EntradaDaColisaoDeIdentificador } from './colisao-de-identificador-numerico.js';
+export { resolverColisaoDeIdentificadorNumerico } from './colisao-de-identificador-numerico.js';
 
 export type { EntradaDaColeta } from './criterios-diretos.js';
 export {

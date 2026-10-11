@@ -9,7 +9,7 @@
       *entrega:* as regras de tradução do legado estão declaradas como dado, não como código, e a mesma consulta pode ser montada pelo endereço amigável ou pelos critérios diretos
       *satisfaz:* — (infraestrutura)
       *depende de:* T001
-- [ ] **T003** Resolver o endereço pedido numa consulta de conteúdo (US-1)
+- [x] **T003** Resolver o endereço pedido numa consulta de conteúdo (US-1)
       *entrega:* o comportamento de US-1 existe e os critérios CA-1.1, CA-1.2, CA-1.3, CA-1.4 passam contra o sistema novo
       *satisfaz:* CA-1.1, CA-1.2, CA-1.3, CA-1.4
       *depende de:* T001, T002

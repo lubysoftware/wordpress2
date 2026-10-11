@@ -80,12 +80,14 @@ test('a superficie do modulo tem exatamente as operacoes das tarefas fechadas', 
   //
   // T001: as tres etapas que existem — resolver o endereco (`parse_request`),
   // decidir a situacao da resposta (`handle_404`) e o atendimento que as poe na
-  // ordem do legado (`WP::main`). As tres declaram "nenhuma capacidade" na
-  // interface do modulo, porque UC-01 registra que a leitura publica nao
-  // verifica capacidade nenhuma: o portao e o `post_status`, e ele chega em
-  // T009.
+  // ordem do legado (`WP::main`). T003 acrescentou a quarta, a consulta de
+  // conteudo (`WP_Query::query`), que e a etapa 3 do atendimento e a entrega de
+  // US-1. As quatro declaram "nenhuma capacidade" na interface do modulo,
+  // porque UC-01 registra que a leitura publica nao verifica capacidade
+  // nenhuma: o portao e o `post_status`, e ele chega em T009.
   assert.deepEqual(Object.keys(modulo).sort(), [
     'atender',
+    'consultarConteudo',
     'nome',
     'portas',
     'resolverEndereco',
@@ -102,12 +104,17 @@ test('criar o modulo nao toca na porta (EXT-ORDEM: nada se resolve no carregamen
   assert.deepEqual(toques.escrever, []);
 });
 
-test('atender uma leitura tambem nao toca na porta, porque a consulta e T003', () => {
+test('atender uma leitura tambem nao toca na porta, nem depois da consulta de T003', () => {
   const { portas, toques } = portasDeTeste();
   const modulo = criarModuloDeLeituraPublica(portas);
 
   modulo.atender(PEDIDO);
 
+  // ⚠️ Os dois zeros continuam valendo depois de T003, e nao por acaso: `posts`
+  // e tabela de BC-01, logo a consulta de conteudo vai pelo **repositorio**, que
+  // e ligacao tardia e chega no contexto (`consulta/conteudo-consultado.ts`). O
+  // unico consumidor previsto da porta de dados desta feature e a fonte da
+  // tabela de regras de traducao, pelo item 1 de `portas/porta-de-dados.ts`.
   assert.deepEqual(toques.selecionar, []);
   assert.deepEqual(toques.escrever, []);
 });
@@ -184,14 +191,38 @@ test('os cinco campos publicos da resolucao ficam no valor de quem nao tem regra
   assert.equal(resolucao.permalinkResolvido, false);
 });
 
-test('a resposta e a de endereco inexistente, com as tres marcas do legado', () => {
+test('sem tabela de regras, a leitura resolve para a listagem inicial e responde 200', () => {
   const { portas } = portasDeTeste();
   const modulo = criarModuloDeLeituraPublica(portas);
 
-  const { resposta } = modulo.atender(PEDIDO);
+  const { consulta, resposta } = modulo.atender(PEDIDO);
 
-  // As tres coisas que `handle_404` faz ao 404ar: marca a consulta, declara o
-  // codigo e manda nao guardar em cache (`wp-includes/class-wp.php:798-805`).
+  // ⚠️ **Este teste mudou em T003, e a mudanca e a entrega.** T001 entregava
+  // "devolve a resposta de endereco inexistente" porque nao havia consulta: o
+  // valor inicial do legado e `$set_404 = true` (`class-wp.php:747`) e nenhum
+  // dos tres ramos de excecao tinha predicado de que depender. Com a consulta,
+  // o conjunto vazio de criterios — que e o que uma instalacao nova de site
+  // unico produz para qualquer endereco (`schema.php:443`) — e `is_home()`, e
+  // `is_home()` esta no terceiro ramo (`class-wp.php:792`). Logo o legado
+  // declara 200 (`:804`), e nao 404.
+  assert.equal(consulta?.tipos.inicio, true);
+  assert.equal(consulta?.tipos.naoEncontrado, false);
+  assert.equal(resposta.naoEncontrado, false);
+  assert.equal(resposta.codigoHttp, 200);
+  assert.equal(resposta.semCache, false);
+});
+
+test('a resposta de endereco inexistente tem as tres marcas do legado', () => {
+  const { portas } = portasDeTeste();
+  const modulo = criarModuloDeLeituraPublica(portas);
+  const resolucao = modulo.resolverEndereco(PEDIDO);
+
+  // Uma consulta sem predicado e sem resultado: nenhum dos tres ramos de
+  // excecao a salva, e `$set_404` fica no valor inicial. As tres coisas que
+  // `handle_404` faz ao 404ar sao marcar a consulta, declarar o codigo e mandar
+  // nao guardar em cache (`wp-includes/class-wp.php:798-805`).
+  const resposta = modulo.situacaoDaResposta(resolucao);
+
   assert.equal(resposta.naoEncontrado, true);
   assert.equal(resposta.codigoHttp, 404);
   assert.equal(resposta.semCache, true);
