@@ -1,0 +1,63 @@
+# Tarefa: T001 de `015-plataforma-transversal` — a instalacao executavel do legado
+# como oraculo de paridade. Satisfaz: — (infraestrutura).
+#
+# "Ambiente isolado" e o que a entrega de T001 pede, e conteiner aqui nao briga
+# com a decisao de infra adiada: `risk_register.md` RISK-022 e literal — "o
+# adiamento do container vale para o PRODUTO, nao para o oraculo", e a mitigacao
+# que ele pede e esta receita.
+#
+# MySQL 8.0: `readme.html:62` o recomenda, `wp-admin/includes/class-wp-site-health.php:20`
+# repete o numero em `$mysql_recommended_version`, e o piso e 5.5.5 em
+# `wp-includes/version.php:57`.
+#
+# O banco NAO publica porta: so a rede interna do compose o alcanca. O legado
+# publica em 127.0.0.1 e nada mais — o oraculo nunca serve trafego
+# (`parity_specs.md` secao *Detalhe por modo*, linha do Shadow mode).
+
+name: oraculo-wp-712
+
+services:
+  banco:
+    image: mysql:8.0@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b
+    environment:
+      MYSQL_DATABASE: "${ORACULO_BANCO_NOME:-oraculo}"
+      MYSQL_USER: "${ORACULO_BANCO_USUARIO:-oraculo}"
+      MYSQL_PASSWORD: "${ORACULO_BANCO_SENHA:-oraculo}"
+      MYSQL_ROOT_PASSWORD: "${ORACULO_BANCO_SENHA_RAIZ:-oraculo-raiz}"
+    volumes:
+      # Volume nomeado, e nao montagem do disco do hospedeiro: InnoDB sobre
+      # virtiofs/sshfs do macOS trava arquivo de forma que nao se reproduz. O
+      # retrato que RISK-007 pede sai por `mysqldump`, nao por copia de pasta.
+      - banco:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
+      interval: 3s
+      timeout: 5s
+      retries: 40
+
+  legado:
+    build:
+      context: .
+      args:
+        ORACULO_IMAGICK: "${ORACULO_IMAGICK:-1}"
+        ORACULO_PORTA: "${ORACULO_PORTA:-8080}"
+    depends_on:
+      banco:
+        condition: service_healthy
+    environment:
+      # Lidos pelo `wp-config.php` desta receita.
+      ORACULO_BANCO_NOME: "${ORACULO_BANCO_NOME:-oraculo}"
+      ORACULO_BANCO_USUARIO: "${ORACULO_BANCO_USUARIO:-oraculo}"
+      ORACULO_BANCO_SENHA: "${ORACULO_BANCO_SENHA:-oraculo}"
+    volumes:
+      # A arvore de 7.1.2 copiada pelo `levantar.sh`. Montada do disco de
+      # proposito: o atualizador embutido escreve no proprio webroot
+      # (`deployment.md` secao 8), e isso tem de continuar visivel de fora.
+      - "${ORACULO_RAIZ}/html:/var/www/html"
+    ports:
+      # Dentro e fora na MESMA porta, pelo motivo escrito no `Dockerfile`: o
+      # loopback do produto bate no proprio `home_url()`, que carrega a porta.
+      - "127.0.0.1:${ORACULO_PORTA:-8080}:${ORACULO_PORTA:-8080}"
+
+volumes:
+  banco:

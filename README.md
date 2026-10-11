@@ -64,7 +64,18 @@ lacuna sem ter aberto o arquivo. Vetor de paridade se transcreve do formato — 
 
 O **oráculo executável** — um ambiente do legado na mesma versão, de pé, para comparação
 caso a caso — é a terceira divergência autorizada (resposta 16) e é a tarefa T001 da feature
-`015`. Ele não existe. Até existir, a prova de paridade é a leitura mais o teste transcrito.
+`015`. **Ele agora existe como receita:** [`scripts/oraculo/`](scripts/oraculo/) levanta o
+legado 7.1.2 em ambiente isolado (PHP 8.3 e MySQL 8.0, as versões que o próprio produto
+recomenda em `readme.html:61-62`), instala pelo instalador do legado e confere que ele
+responde — REST, feeds, sitemap, OPML, XML-RPC, HTML de tema e de painel, com e sem sessão,
+mais o efeito no banco. O que a receita congela, e por quê, está no
+[`README` dela](scripts/oraculo/README.md).
+
+Duas coisas continuam faltando ao oráculo, e nenhuma delas é desta tarefa: o lado cliente
+construído (`wp-includes/js/dist/`, que a resposta 15 manda tirar de `wordpress-develop` na
+mesma versão) e o *corpus* dos cenários de paridade, que é o arnês de REQ-163. Enquanto o
+arnês não existe, a prova de paridade de cada história continua sendo a leitura mais o teste
+transcrito — mas agora há contra o que conferir, caso a caso.
 
 ## Os dois sistemas lado a lado
 
@@ -215,6 +226,15 @@ Nenhum teste toca banco, rede, relógio real ou navegador. Tudo externo entra po
 `porta-falsa.ts`, que **registra comando** em vez de simular banco — é assim que se afirma o
 caso em que o legado não emite comando nenhum.
 
+O oráculo é outro comando, e não entra no portão: ele precisa de `docker` e da árvore 7.1.2
+ao lado, e nenhum teste de `src/` depende dele.
+
+```sh
+sh scripts/oraculo/levantar.sh    # sobe o legado 7.1.2 em 127.0.0.1:8080 e confere
+sh scripts/oraculo/conferir.sh    # só a conferência, contra um oráculo já no ar
+sh scripts/oraculo/derrubar.sh    # para os contêineres e deixa o banco
+```
+
 ## Mapa do repositório
 
 ```
@@ -231,6 +251,7 @@ memory/              a constituição: 8 princípios e a tabela Não negociável
 .specify/migration/  arquitetura alvo, modelo de dados, specs de paridade
 backlog/             o catálogo de 985 casos de teste, com entrada, ação e resultado
 _discovery/          gerado pelo agentic-squad; edição à mão chega como diff
+scripts/oraculo/     a receita do oráculo de paridade: o legado 7.1.2 de pé, em contêiner
 ```
 
 A **regra de dependência** é o que torna a árvore verificável:

@@ -38,7 +38,7 @@ node --test --test-name-pattern 'CA-1.4' dist/contextos/conteudo/publicacao/us-1
 
 Não há lint, formatter nem hook: **o portão é `tsc` em modo estrito** (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `verbatimModuleSyntax`, `noUnusedLocals`) **mais `npm test` verde**. `squad.yaml` declara `verificar: npm test` porque um agente já saiu com código 0 deixando dezoito testes vermelhos na main. O CI (`.github/workflows/verificar.yml`) roda o mesmo portão em `push` e `pull_request`, num job só — `npm run typecheck` à parte repetiria o `tsc` que o build já faz.
 
-O **oráculo** é o legado legível em disco em `~/Downloads/wordpress` (WordPress 7.1.2, `db_version` 61833 — a mesma versão do pacote). Está **fora deste repositório e não é versionado**. Não há PHP nesta máquina: o legado se **lê**, não se executa; vetor de paridade se transcreve do formato (ver `src/plataforma/serializacao/conformidade.test.ts`). O oráculo executável é T001 da feature `015` e não existe.
+O **oráculo** é o legado legível em disco em `~/Downloads/wordpress` (WordPress 7.1.2, `db_version` 61833 — a mesma versão do pacote). Está **fora deste repositório e não é versionado**. Não há PHP instalado nesta máquina: para portar, o legado se **lê**, e vetor de paridade se transcreve do formato (ver `src/plataforma/serializacao/conformidade.test.ts`). O **oráculo executável** da resposta 16 existe desde T001 da feature `015`: `scripts/oraculo/levantar.sh` sobe o 7.1.2 em contêiner (PHP 8.3 e MySQL 8.0, as versões que o produto recomenda) e `conferir.sh` afirma que ele responde — é contra ele que se confere caso a caso, e o que ele ainda não cobre está em `scripts/oraculo/README.md`.
 
 ## Estrutura, e a regra que a sustenta
 
