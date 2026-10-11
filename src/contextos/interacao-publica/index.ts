@@ -1,14 +1,14 @@
 /**
  * Modulo de interacao publica — BC-03 de `target_architecture.md`.
  *
- * Esqueleto da feature `007-interacao-publica-e-moderacao`, tarefa T001. O que
- * existe aqui e o que T001 entrega: o modulo carrega com as **quatro portas**
- * declaradas — dados, relogio, envio de e-mail e cliente externo — e com os
+ * Feature `007-interacao-publica-e-moderacao`, tarefas T001 e T002. O que existe
+ * aqui e o que as duas entregam: o modulo carrega com as **quatro portas**
+ * declaradas — dados, relogio, envio de e-mail e cliente externo —, com os
  * **pontos de configuracao de moderacao** criados com os valores de fabrica do
- * legado. **Nenhuma regra de negocio esta implementada.** O comentario e o
- * metadado dele entram em T002, a cascata nomeada e ordenada em T003, e cada
- * historia na tarefa dela (T004 em diante). A leitura obrigatoria de quem pegar
- * a tarefa seguinte esta em `./README.md`.
+ * legado e com a **forma de armazenamento do comentario e do metadado dele**.
+ * **Nenhuma regra de negocio esta implementada.** A cascata nomeada e ordenada
+ * entra em T003, e cada historia na tarefa dela (T004 em diante). A leitura
+ * obrigatoria de quem pegar a tarefa seguinte esta em `./README.md`.
  *
  * **Por que este contexto existe separado, sendo 1-para-1 com uma tabela.**
  * `target_architecture.md` exige justificativa para contexto que nao funde nada,
@@ -34,6 +34,10 @@
  */
 
 import {
+  criarArmazenamentoDeInteracao,
+  type ArmazenamentoDeInteracao,
+} from './armazenamento/index.js';
+import {
   LIMITES_DA_MODERACAO_DE_FABRICA,
   OPCOES_DE_MODERACAO_DE_FABRICA,
   type LimitesDaModeracao,
@@ -48,6 +52,7 @@ import type {
 
 export * from './portas/index.js';
 export * from './configuracao/index.js';
+export * from './armazenamento/index.js';
 
 /** As quatro portas de que este modulo depende, na forma em que ele as recebe. */
 export interface PortasDeInteracaoPublica {
@@ -111,7 +116,13 @@ export function configuracaoDaInteracaoPublica(
  *
  * Cada historia acrescenta aqui a sua operacao, com a declaracao explicita de
  * permissao que o P4 da constituicao exige, e **nenhuma antes da propria
- * tarefa**. Hoje ha duas coisas, as duas de T001: as portas e a configuracao.
+ * tarefa**. Hoje ha tres coisas: as portas e a configuracao, de T001, e o
+ * armazenamento, de T002.
+ *
+ * O armazenamento **nao e operacao**, e por isso nao declara permissao: ele nao
+ * decide nada. A primeira operacao desta interface e a submissao de T004 (US-1),
+ * e ela nasce declarando *"nenhuma capacidade"* — que **e** a declaracao que o
+ * P4 pede, porque o default desta superficie e aberto por regra lida do legado.
  *
  * As operacoes que vao entrar sao as da tabela *Contratos* do `plan.md`, e a
  * permissao de cada uma ja esta lida dos casos de uso — fica registrada aqui
@@ -137,6 +148,11 @@ export interface ModuloDeInteracaoPublica {
   readonly nome: 'interacao-publica';
   readonly portas: PortasDeInteracaoPublica;
   readonly configuracao: ConfiguracaoDaInteracaoPublica;
+  /**
+   * A forma de armazenamento do comentario e do metadado dele (T002). Le e
+   * grava **somente** pela porta de dados.
+   */
+  readonly armazenamento: ArmazenamentoDeInteracao;
 }
 
 /**
@@ -162,5 +178,8 @@ export function criarModuloDeInteracaoPublica(
     nome: 'interacao-publica',
     portas,
     configuracao,
+    // Compor o armazenamento monta nome de tabela e nada mais: nenhuma consulta
+    // sai daqui, que e o que `EXT-ORDEM` cobra e o que `modulo.test.ts` afirma.
+    armazenamento: criarArmazenamentoDeInteracao(portas.dados),
   };
 }
