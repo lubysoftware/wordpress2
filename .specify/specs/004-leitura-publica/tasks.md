@@ -5,7 +5,7 @@
 - [x] **T001** Preparar o esqueleto do módulo de leitura pública
       *entrega:* o módulo carrega com a porta de dados declarada, resolve o endereço pedido para um conjunto vazio de critérios e devolve a resposta de endereço inexistente
       *satisfaz:* — (infraestrutura)
-- [ ] **T002** Portar a tabela de regras de tradução de endereço em critérios de consulta
+- [x] **T002** Portar a tabela de regras de tradução de endereço em critérios de consulta
       *entrega:* as regras de tradução do legado estão declaradas como dado, não como código, e a mesma consulta pode ser montada pelo endereço amigável ou pelos critérios diretos
       *satisfaz:* — (infraestrutura)
       *depende de:* T001
