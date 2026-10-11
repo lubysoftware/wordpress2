@@ -1,9 +1,10 @@
 # Modulo de retencao e descarte — feature `005-retencao-e-descarte`
 
 Tarefas fechadas com nota de entrega neste arquivo: **T001** (esqueleto, as tres
-portas e o prazo de retencao). Este arquivo e a leitura obrigatoria de quem pegar
-a tarefa seguinte: ele diz o que ja esta decidido, o que esta decidido **em outro
-lugar**, e o que **ninguem decidiu**.
+portas e o prazo de retencao) e **T002** (os marcadores de lixeira como
+metadado). Este arquivo e a leitura obrigatoria de quem pegar a tarefa seguinte:
+ele diz o que ja esta decidido, o que esta decidido **em outro lugar**, e o que
+**ninguem decidiu**.
 
 > 🔴 **Antes de qualquer coisa, se a sua tarefa toca o agendamento da coleta
 > (T011, US-5):** o conflito entre **CA-5.1** e a **resposta 10** de
@@ -39,9 +40,10 @@ lugar**, e o que **ninguem decidiu**.
 | `configuracao/prazo-de-retencao.test.ts` | a borda do numero, que o P6 cobra |
 
 **Nenhuma regra de negocio esta implementada**, e nenhuma operacao esta exposta. A
-superficie do modulo e `{ nome, portas, prazoDeRetencao }`, e `modulo.test.ts` a
-congela nessas tres chaves de proposito: a lista cresce **na tarefa de cada
-historia**, com a declaracao explicita de permissao que o **P4** cobra.
+superficie do modulo e `{ nome, portas, prazoDeRetencao, armazenamento }`, e
+`modulo.test.ts` a congela nessas quatro chaves de proposito — **nenhuma delas e
+operacao**: a lista de operacoes cresce **na tarefa de cada historia**, com a
+declaracao explicita de permissao que o **P4** cobra.
 
 **Um unico numero mora neste modulo hoje**, e e o que T001 pede: o prazo de
 retencao. Os outros numeros desta feature entram nas tarefas que os implementam,
@@ -114,6 +116,75 @@ descartado **exatamente** no instante limite ainda **nao** vence — e a borda d
 UT-052-2 (*"poupa o que esta no limite"*). Trocar por `<=` e mudanca de
 comportamento observavel.
 
+## O que T002 entrega, e so isso
+
+> *o estado anterior e o instante do descarte sao gravados e lidos como metadado
+> do registro, para conteudo e para comentario, pela porta de dados*
+> — `.specify/specs/005-retencao-e-descarte/tasks.md`, T002
+
+| arquivo | o que e |
+|---|---|
+| `armazenamento/chaves-e-tabelas.ts` | as duas tabelas e as **tres** chaves de marcador, derivadas como o legado as deriva |
+| `armazenamento/metadado.ts` | `add`, `get` e `delete` de `wp-includes/meta.php`, parametrizados pelo tipo de metadado |
+| `armazenamento/marcadores-de-lixeira.ts` | os marcadores com nome, para conteudo e para comentario |
+| `armazenamento/leitura-de-linha.ts` | leitura de coluna, repetida de BC-01 porque a regra de dependencia 3 a obriga |
+| `armazenamento/porta-falsa.ts` | o duplo que **registra comando**, para que "nenhum comando" seja afirmavel |
+| `armazenamento/armazenamento.test.ts` | as 19 afirmacoes de T002 |
+
+**Sao tres chaves, nao duas.** `tasks.md` pede o estado anterior e o instante, que
+sao duas chaves por registro; a terceira —
+`_wp_trash_meta_comments_status` — e o mesmo estado anterior, *"para
+comentario"*, gravado por `add_post_meta()` **no conteudo**
+(`wp-includes/post.php:4299`). E o *"guardado, agrupado, junto do conteudo"* de
+CA-2.2, e a forma dele e desta tarefa; a **cascata que o preenche** e T005.
+
+| marcador | onde mora | quem o le no legado |
+|---|---|---|
+| `_wp_trash_meta_status` | `postmeta` e `commentmeta` | a restauracao, o mapeamento de capacidade (CA-3.5), o anexo que le o **pai**, a tela de moderacao |
+| `_wp_trash_meta_time` | `postmeta` e `commentmeta` | **ninguem, por registro** — so o SQL da coleta |
+| `_wp_trash_meta_comments_status` | so `postmeta` | a restauracao de comentarios |
+
+**O que esta tarefa achou e vale para as seguintes:**
+
+- **A ordem dos comandos nao e a mesma nos dois lados, e e por isso que este
+  modulo oferece primitivas e nao uma chamada "registrar descarte".** O conteudo
+  grava **dois** comandos (acrescenta estado, acrescenta instante); o comentario
+  grava **quatro** (apaga os dois, acrescenta os dois), porque ele pode chegar da
+  caixa de spam ja com marcador. E a restauracao do comentario apaga na ordem
+  **inversa** da do descarte. A tabela completa, com arquivo:linha, esta no
+  cabecalho de `marcadores-de-lixeira.ts`.
+- **Ler um marcador e UM comando, nao um por chave.** `get_metadata_raw()` nao
+  consulta por chave: carrega todas as linhas do registro
+  (`wp-includes/meta.php:1204`) e filtra em memoria. Um porte que consultasse por
+  chave multiplicaria os comandos que a area 3 da Decisao 2 compara.
+- **Apagar marcador sao dois comandos, ou nenhum.** `SELECT meta_id` e so entao
+  `DELETE ... IN( ... )`; quando o `SELECT` nao devolve linha, o `DELETE` **nao
+  sai** (`wp-includes/meta.php:467`). E o caso comum de US-7, e esta afirmado.
+- ⚠️ **Identificador negativo nao e recusado: ele e espelhado no positivo.**
+  `absint( -5 )` e `5`, logo o marcador vai para o registro 5. O bloco de
+  documentacao de `get_metadata_raw()` afirma o contrario, e **o codigo ganha**
+  (P1). Reproduzido, com teste.
+- **A ordem das entradas do marcador agrupado e observavel nos bytes** e nao e
+  ordenada: no legado ela e a ordem de uma consulta **sem `ORDER BY`**
+  (`wp-includes/post.php:4288`), e a chave do arranjo sai **inteira**. Ordenar ou
+  reindexar quebraria `15-fronteira-do-banco-e-codec-serialize`.
+
+🔴 **O que T002 deliberadamente NAO fez, e a tarefa seguinte nao deve procurar
+aqui:** a varredura do que venceu. A unica comparacao de prazo do legado e
+`SELECT post_id FROM postmeta WHERE meta_key = '_wp_trash_meta_time' AND
+meta_value < %d` (`wp-includes/functions.php:6979`, e a gemea sobre `commentmeta`
+em `:6997`) — ela atravessa **todos** os registros, nao e o marcador "do
+registro" que T002 entrega, e o `%d` dela vem de `instanteLimiteDeRetencao()`, que
+e o numero de T001. Ela e de **T011**, com a borda de UT-052-2. O leitor
+`instanteDoDescarte()` existe para afirmar o byte gravado e **nao** substitui a
+varredura: filtrar em memoria mudaria o conjunto de linhas apagadas.
+
+**E nao existe `esquema.ts` neste armazenamento, por decisao e nao por
+esquecimento.** `plan.md` abre a secao *Modelo de dados* com *"Esta feature nao
+acrescenta tabela"*: o DDL de `{p}postmeta` e de BC-01 e o de `{p}commentmeta` e
+de BC-03. Emitir DDL daqui criaria dois donos para a mesma tabela — e o segundo
+dono e exatamente quem declararia a cascata que o **P5** proibe.
+
 ## O conflito que T001 declarou e nao decidiu
 
 `spec.md` registra, em *Perguntas em aberto*, duas decisoes humanas em sentidos
@@ -172,9 +243,15 @@ proibe inventar prazo de retencao para esse registro novo.
 ## Como esta entrega se confere
 
 - `npm run typecheck` e `npm test` — as 10 afirmacoes de T001 estao em
-  `modulo.test.ts` (6) e `configuracao/prazo-de-retencao.test.ts` (4).
+  `modulo.test.ts` (6) e `configuracao/prazo-de-retencao.test.ts` (4), e as 19 de
+  T002 em `armazenamento/armazenamento.test.ts`.
 - Pela paridade: **PT-004**
   (`.specify/migration/parity_tests/04-retencao-e-coleta-da-lixeira.feature`), o
   cenario `@invariante` *"O prazo de retencao da lixeira e o do legado, e desliga-lo
   torna apagar irreversivel"*. A metade dele que depende de T001 e o **numero**; a
   metade que depende da coleta e do descarte vem com T003, T009 e T011.
+- A parte de T002 e conferida pela **area 3 da Decisao 2** de `parity_specs.md`
+  (*"efeito no banco ... snapshot + sequencia de comandos"*, **zero** divergencia)
+  e, para os bytes do marcador agrupado, pelo cenario de
+  `15-fronteira-do-banco-e-codec-serialize.feature`. A porta falsa registra
+  comando justamente para que a sequencia seja comparavel linha por linha.

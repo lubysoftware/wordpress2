@@ -1,14 +1,13 @@
 /**
  * Modulo de retencao e descarte — a feature `005-retencao-e-descarte`.
  *
- * Esqueleto da tarefa **T001**. O que existe aqui e exatamente o que T001
- * entrega: *"o modulo carrega com as portas de dados, de relogio e de fila
- * agendada declaradas, e o prazo de retencao lido de um ponto de configuracao
- * nomeado com o valor de fabrica do legado"* — e **nenhuma regra de negocio
- * implementada**. Descartar, suspender comentario, restaurar, avisar que apagar
- * nao tem volta, coletar o que venceu, expirar rascunho automatico, tolerar
- * estado inconsistente e reparentar filhos entram nas tarefas delas (T002 em
- * diante), e a leitura obrigatoria de cada uma esta em `./README.md`.
+ * Tarefas fechadas aqui: **T001** (o esqueleto — as tres portas e o prazo de
+ * retencao) e **T002** (os marcadores de lixeira como metadado, em
+ * `./armazenamento/`). E **nenhuma regra de negocio implementada**. Descartar,
+ * suspender comentario, restaurar, avisar que apagar nao tem volta, coletar o
+ * que venceu, expirar rascunho automatico, tolerar estado inconsistente e
+ * reparentar filhos entram nas tarefas delas (T003 em diante), e a leitura
+ * obrigatoria de cada uma esta em `./README.md`.
  *
  * ## A qual bounded context este modulo pertence — e sao dois
  *
@@ -46,6 +45,10 @@
  */
 
 import {
+  criarArmazenamentoDeRetencao,
+  type ArmazenamentoDeRetencao,
+} from './armazenamento/index.js';
+import {
   PRAZO_DE_RETENCAO_DE_FABRICA,
   type PrazoDeRetencao,
 } from './configuracao/index.js';
@@ -57,6 +60,7 @@ import type {
 
 export * from './portas/index.js';
 export * from './configuracao/index.js';
+export * from './armazenamento/index.js';
 
 /** As tres portas de que este modulo depende, na forma em que ele as recebe. */
 export interface PortasDeRetencaoEDescarte {
@@ -82,7 +86,10 @@ export interface OpcoesDeRetencaoEDescarte {
  *
  * Cada historia acrescenta aqui a sua operacao, com a declaracao explicita de
  * permissao que o **P4** da constituicao exige, e nenhuma antes da propria tarefa.
- * Hoje ha duas coisas, as duas de T001: as portas e o prazo de retencao.
+ * Hoje ha tres coisas, e **nenhuma delas e operacao**: as portas e o prazo de
+ * retencao (T001) e o armazenamento dos marcadores (T002). O armazenamento nao
+ * declara permissao porque nao decide nada — ele le e grava metadado, e quem
+ * cobra a capacidade e a operacao que o chama.
  *
  * As operacoes que a tabela *Contratos* de `plan.md` nomeia, com a permissao que o
  * pacote declara para cada uma — **citadas, nao decididas aqui**, para que a
@@ -107,6 +114,11 @@ export interface ModuloDeRetencaoEDescarte {
    * nomeado (T001). De fabrica, 30 dias — `R1` / BR-MIGRAR-030.
    */
   readonly prazoDeRetencao: PrazoDeRetencao;
+  /**
+   * Os marcadores de lixeira como metadado, para conteudo e para comentario
+   * (T002). Le e grava **somente** pela porta de dados.
+   */
+  readonly armazenamento: ArmazenamentoDeRetencao;
 }
 
 /**
@@ -130,5 +142,8 @@ export function criarModuloDeRetencaoEDescarte(
     // que a composicao resolve: nenhuma porta e tocada, que e o que `EXT-ORDEM`
     // cobra e o que `modulo.test.ts` afirma.
     prazoDeRetencao: opcoes.prazoDeRetencao ?? PRAZO_DE_RETENCAO_DE_FABRICA,
+    // Compor o armazenamento monta nome de tabela e nada mais: nenhuma consulta
+    // sai daqui, e nenhum DDL — esta feature nao acrescenta tabela.
+    armazenamento: criarArmazenamentoDeRetencao(portas.dados),
   };
 }

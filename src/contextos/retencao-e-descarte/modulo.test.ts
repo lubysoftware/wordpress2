@@ -104,12 +104,15 @@ test('a superficie do modulo tem exatamente o que as tarefas fechadas entregam',
   // explicita de permissao".
   //
   // T001: nenhuma operacao — as tres portas e o prazo de retencao, que e valor e
-  // nao operacao. As quatro operacoes que a tabela *Contratos* de `plan.md`
-  // nomeia (descartar, restaurar, apagar em definitivo, coletar) entram em T003,
-  // T007, T017 e T011, cada uma com a permissao declarada na interface do modulo
-  // — inclusive a da coleta, que UC-11 declara como NENHUMA ("o prazo e a
+  // nao operacao. T002 acrescentou o armazenamento, que **tambem nao e
+  // operacao**: ele le e grava metadado e nao decide nada, logo nao declara
+  // permissao. As quatro operacoes que a tabela *Contratos* de `plan.md` nomeia
+  // (descartar, restaurar, apagar em definitivo, coletar) entram em T003, T007,
+  // T017 e T011, cada uma com a permissao declarada na interface do modulo —
+  // inclusive a da coleta, que UC-11 declara como NENHUMA ("o prazo e a
   // autorizacao"), e que o P4 manda escrever justamente por isso.
   assert.deepEqual(Object.keys(modulo).sort(), [
+    'armazenamento',
     'nome',
     'portas',
     'prazoDeRetencao',

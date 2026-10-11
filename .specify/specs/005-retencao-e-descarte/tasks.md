@@ -5,7 +5,7 @@
 - [x] **T001** Preparar o esqueleto do módulo de retenção
       *entrega:* o módulo carrega com as portas de dados, de relógio e de fila agendada declaradas, e o prazo de retenção lido de um ponto de configuração nomeado com o valor de fábrica do legado
       *satisfaz:* — (infraestrutura)
-- [ ] **T002** Portar os marcadores de lixeira como metadado
+- [x] **T002** Portar os marcadores de lixeira como metadado
       *entrega:* o estado anterior e o instante do descarte são gravados e lidos como metadado do registro, para conteúdo e para comentário, pela porta de dados
       *satisfaz:* — (infraestrutura)
       *depende de:* T001
