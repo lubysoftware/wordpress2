@@ -10,35 +10,45 @@
  *
  * ---
  *
- * 🔴 **LEIA ISTO ANTES DE FECHAR T003: o 404 desta tarefa e provisorio por
- * tarefa, e nao regra.**
+ * ## ✅ Os tres ramos de excecao, que T003 trouxe
  *
- * T001 entrega *"devolve a resposta de endereco inexistente"*, e isso e
- * exatamente o valor inicial do legado: `$set_404 = true`
- * (`wp-includes/class-wp.php:747`). O que derruba esse valor sao **tres ramos de
- * excecao que dependem do resultado da consulta e dos predicados de tipo de
- * consulta** — e os dois chegam em T003. Enquanto nao chegarem, **todo** endereco
- * resolve para 404 aqui, inclusive a home: no legado, conjunto vazio de criterios
- * e `is_home()`, e `is_home()` esta na lista que limpa o 404
- * (`class-wp.php:784-795`). Quem fechar T003 sem trazer a lista deixa a cara
- * publica do produto respondendo 404 na primeira pagina.
- *
- * Os ramos, transcritos do legado para servirem de lista de conferencia:
+ * O valor inicial do legado e `$set_404 = true` (`wp-includes/class-wp.php:747`),
+ * que e o que T001 entregava. O que o derruba sao tres ramos `elseif` que
+ * dependem do **resultado da consulta** e dos **predicados de tipo de consulta**,
+ * e os dois chegaram com a etapa 3 do atendimento:
  *
  * 1. `class-wp.php:749-752` — painel, `robots`, `favicon`, mapa do site e a
  *    folha de estilo do mapa **nunca** 404am aqui. O mapa do site manda o
  *    proprio codigo, em `WP_Sitemaps::render_sitemaps()`.
- * 2. `class-wp.php:753-781` — havendo conteudo no resultado, 404 so continua se
+ * 2. `class-wp.php:755-781` — havendo conteudo no resultado, 404 so continua se
  *    a paginacao interna do corpo nao alcanca a pagina pedida: para conteudo
  *    singular, a pagina pedida tem de caber na contagem de `<!--nextpage-->` do
  *    corpo, e corpo sem o marcador com pagina pedida **nao** tem conteudo; a
  *    pagina de posts nao suporta essa paginacao de corpo nenhuma.
- * 3. `class-wp.php:783-796` — sem conteudo e **sem paginacao de listagem**,
+ * 3. `class-wp.php:784-796` — sem conteudo e **sem paginacao de listagem**,
  *    ainda nao se 404a: arquivo de autor cujo autor e membro do site, arquivo de
  *    termo, de taxonomia ou de tipo de conteudo que casou um objeto, e home,
  *    busca e feed. Com paginacao de listagem (`is_paged()`), 404a — e e esse ramo
  *    que CA-3.3 cobra em T007, *"pedir pagina alem do total devolve a resposta de
  *    endereco sem correspondencia"*.
+ *
+ * E o ramo final, que T001 nao tinha: nao marcando, o legado **declara 200**
+ * (`:804`, `status_header( 200 )`). Antes de T003 toda leitura respondia 404,
+ * inclusive a home de uma instalacao nova — porque conjunto vazio de criterios e
+ * `is_home()`, e `is_home()` esta na lista do ramo 3.
+ *
+ * ## 🔴 Dois valores que este ramo le de **lugares diferentes**, e isso e do legado
+ *
+ * `handle_404()` e metodo de `WP`, e ele le `$this->query_vars` **e**
+ * `$wp_query`. Os dois conjuntos nascem iguais e podem divergir:
+ *
+ * | valor | de onde o legado o le | por que divergem |
+ * |---|---|---|
+ * | `page` (`:763` e `:766`) | `$this->query_vars` — os criterios da **resolucao** | `parse_query` pode ter gravado `page` na copia da consulta, na correcao pela pagina da frente (`class-wp-query.php:1073`), e `pre_get_posts` pode ter mexido na copia da consulta |
+ * | `author` (`:785`) e `sitemap-stylesheet` (`:751`) | `get_query_var()` — os criterios **da consulta** | idem, do outro lado |
+ *
+ * Ler os tres do mesmo lugar e a simplificacao obvia, e ela troca o 404 de um
+ * endereco de pagina da frente com paginacao interna.
  *
  * ---
  *
@@ -47,18 +57,28 @@
  *
  * - **Endereco que nao casa regra nenhuma** (T002): `parse_request` poe o
  *   criterio `error` em `'404'` (`class-wp.php:167` e `:398-400`); a consulta le
- *   esse criterio e se marca sozinha (`class-wp-query.php:1148-1150`); esta
- *   funcao entao **desiste no comeco**, pelo `if ( is_404() ) return;`
- *   (`class-wp.php:742-745`), sem declarar codigo nenhum; e quem emite o 404 e o
- *   envio de cabecalhos, a partir do criterio `error`
- *   (`class-wp.php:455-466`).
- * - **Consulta que nao encontra conteudo** (T003 em diante): e este arquivo.
+ *   esse criterio e se marca sozinha (`class-wp-query.php:1148-1150`, a etapa 15
+ *   de `../consulta/analisar-consulta.ts`); esta funcao entao **desiste no
+ *   comeco**, pelo `if ( is_404() ) return;` (`class-wp.php:742-745`), sem
+ *   declarar codigo nenhum; e quem emite o 404 e o envio de cabecalhos, a partir
+ *   do criterio `error` (`class-wp.php:455-466`).
+ * - **Consulta que nao encontra conteudo**: e este arquivo, pelos tres ramos
+ *   acima.
  *
  * Confundir os dois produz um sistema que 404a no lugar certo pelo motivo
  * errado — e o motivo e observavel, porque o primeiro caminho nao passa pelos
- * tres ramos de excecao acima.
+ * tres ramos de excecao e **nao** declara codigo nenhum aqui.
  */
 
+import type { ConsultaDeConteudo } from '../consulta/consultar-conteudo.js';
+import { MARCADOR_DE_PAGINA_NO_CORPO } from '../consulta/conteudo-consultado.js';
+import type { ContaMembroDoSite } from '../consulta/contexto-da-consulta.js';
+import {
+  escalarComoNoPhp,
+  inteiroComoNoPhp,
+  numericoComoNoPhp,
+  vazioComoNoPhp,
+} from '../consulta/semantica-de-php.js';
 import type { ResolucaoDeEndereco } from './resolver-endereco.js';
 
 /**
@@ -160,15 +180,151 @@ export interface PontosDeExtensaoDaSituacao {
 /** O que a decisao de situacao recebe alem da resolucao. */
 export interface OpcoesDaSituacao {
   /**
-   * A consulta ja se marcou como nao encontrada.
+   * `$wp_query` — o resultado da etapa 3 do atendimento.
    *
-   * Hoje nunca: a consulta e T003, e o criterio `error` que a faz se marcar e
-   * T002. Esta aqui porque e a primeira coisa que o legado testa depois do ponto
-   * de extensao, e esquece-la faz o sistema novo decidir duas vezes o mesmo 404
-   * — disparando `set_404` de novo, que e ponto de extensao de terceiro.
+   * Ausente, os tres ramos de excecao nao tem predicado nem registro de que
+   * depender e a decisao fica no valor inicial do legado, 404 — que e a decisao
+   * correta para uma consulta sem predicado e sem resultado, e nao um esboco.
+   */
+  readonly consulta?: ConsultaDeConteudo;
+  /**
+   * A consulta ja se marcou como nao encontrada — o `is_404()` de `:743`.
+   *
+   * Ausente, o valor sai de {@link OpcoesDaSituacao.consulta}, que e de onde o
+   * legado o le. Esta declarado em separado porque e a primeira coisa que o
+   * legado testa depois do ponto de extensao, e esquece-la faz o sistema novo
+   * decidir duas vezes o mesmo 404 — disparando `set_404` de novo, que e ponto
+   * de extensao de terceiro.
    */
   readonly jaMarcadaComoNaoEncontrada?: boolean;
+  /**
+   * `is_user_member_of_blog()`, o unico colaborador que o ramo 3 precisa
+   * (`class-wp.php:788`).
+   *
+   * Ausente, nenhuma conta e membro — que e a resposta do legado para conta que
+   * nao e membro, e faz o arquivo de autor sem conteudo 404ar.
+   */
+  readonly contaMembroDoSite?: ContaMembroDoSite;
   readonly pontosDeExtensao?: PontosDeExtensaoDaSituacao;
+}
+
+/** A situacao de quem respondeu 200: o `status_header( 200 )` de `:804`. */
+const SITUACAO_ENCONTRADA: RespostaDaLeitura = Object.freeze({
+  codigoHttp: 200,
+  naoEncontrado: false,
+  semCache: false,
+});
+
+/** `trim( $pagina, '/' )` de `class-wp.php:766`. */
+function recortarBarras(texto: string): string {
+  return texto.replace(/^\/+/, '').replace(/\/+$/, '');
+}
+
+/** `substr_count( $corpo, '<!--nextpage-->' ) + 1` (`class-wp.php:767`). */
+function paginasNoCorpo(corpo: string): number {
+  return corpo.split(MARCADOR_DE_PAGINA_NO_CORPO).length;
+}
+
+/**
+ * Ramo 1 — `:749-752`: as cinco superficies que **nunca** 404am aqui.
+ *
+ * A quinta e lida por `get_query_var( 'sitemap-stylesheet' )`, ou seja dos
+ * criterios **da consulta** — ver a tabela do cabecalho.
+ */
+function superficieQueNunca404a(consulta: ConsultaDeConteudo): boolean {
+  const { tipos } = consulta;
+  return (
+    tipos.painel ||
+    tipos.robots ||
+    tipos.favicon ||
+    tipos.mapaDoSite ||
+    !vazioComoNoPhp(consulta.criterios['sitemap-stylesheet'])
+  );
+}
+
+/**
+ * Ramo 2 — `:755-781`: ha conteudo, e o que resta decidir e a paginacao **de
+ * corpo**.
+ *
+ * A pagina pedida vem dos criterios da **resolucao** (`$this->query_vars`), e
+ * nao dos da consulta — ver a tabela do cabecalho.
+ */
+function conteudoAlcancaAPaginaPedida(
+  consulta: ConsultaDeConteudo,
+  paginaPedida: ResolucaoDeEndereco['criterios'][string],
+): boolean {
+  let achou = true;
+
+  // `:758-772` — so para conteudo singular.
+  if (consulta.tipos.singular) {
+    const conteudo = consulta.conteudo;
+    if (conteudo !== undefined && !vazioComoNoPhp(paginaPedida)) {
+      if (conteudo.corpo.includes(MARCADOR_DE_PAGINA_NO_CORPO)) {
+        // `:766` — `trim( $this->query_vars['page'], '/' )`. Com o criterio em
+        // arranjo o interpretador lanca erro de tipo; aqui o primeiro elemento
+        // vale, e e a mesma borda declarada em `../consulta/consulta-de-taxonomia.ts`.
+        const texto =
+          typeof paginaPedida === 'string'
+            ? paginaPedida
+            : (paginaPedida?.[0] ?? '');
+        achou =
+          inteiroComoNoPhp(recortarBarras(texto)) <=
+          paginasNoCorpo(conteudo.corpo);
+      } else {
+        // Corpo sem marcador **e** pagina pedida: o legado decide que nao ha
+        // conteudo, e isso 404a um endereco cujo conteudo existe.
+        achou = false;
+      }
+    }
+  }
+
+  // `:774-777` — a pagina de listagem nao suporta paginacao de corpo nenhuma, e
+  // este teste e **fora** do `if ( is_singular() )`.
+  if (consulta.tipos.paginaDeConteudos && !vazioComoNoPhp(paginaPedida)) {
+    achou = false;
+  }
+
+  return achou;
+}
+
+/**
+ * Ramo 3 — `:784-796`: nao ha conteudo, e ainda assim ha cinco casos em que nao
+ * se 404a.
+ *
+ * A precedencia dos operadores do legado agrupa as cinco condicoes assim:
+ * `( autor && numerico && positivo && membro ) || ( ( termo || categoria ||
+ * taxonomia || arquivo de tipo ) && objeto ) || inicio || busca || feed`.
+ * Escrever o `&&` e o `||` na ordem textual, sem esse agrupamento, troca o
+ * resultado de um arquivo de termo vazio.
+ */
+function naoEncontraMasNao404a(
+  consulta: ConsultaDeConteudo,
+  contaMembroDoSite: ContaMembroDoSite,
+): boolean {
+  const { tipos } = consulta;
+  const autor = consulta.criterios['author'];
+
+  const autorDoSite =
+    tipos.autor &&
+    numericoComoNoPhp(autor) &&
+    escalarComoNoPhp(autor) &&
+    Number(autor) > 0 &&
+    contaMembroDoSite(inteiroComoNoPhp(autor));
+
+  const termoQueCasouObjeto =
+    (tipos.etiqueta ||
+      tipos.categoria ||
+      tipos.taxonomia ||
+      tipos.arquivoDeTipoDeConteudo) &&
+    consulta.objetoConsultado !== undefined;
+
+  return (
+    autorDoSite ||
+    termoQueCasouObjeto ||
+    tipos.inicio ||
+    tipos.busca ||
+    tipos.feed
+  );
 }
 
 /**
@@ -186,7 +342,11 @@ export function situacaoDaResposta(
   opcoes: OpcoesDaSituacao = {},
 ): RespostaDaLeitura {
   const pontos = opcoes.pontosDeExtensao ?? {};
-  const jaMarcada = opcoes.jaMarcadaComoNaoEncontrada ?? false;
+  const consulta = opcoes.consulta;
+  const jaMarcada =
+    opcoes.jaMarcadaComoNaoEncontrada ??
+    consulta?.tipos.naoEncontrado ??
+    false;
 
   // `pre_handle_404`: o valor corrente comeca em `false` e o retorno do ultimo
   // interceptador e o que vale (`class-wp.php:738`).
@@ -214,9 +374,40 @@ export function situacaoDaResposta(
     });
   }
 
-  // `$set_404 = true` (`class-wp.php:747`). Os tres ramos que o derrubam estao
-  // no cabecalho deste arquivo e entram em T003, T007 e T009: nenhum deles tem,
-  // hoje, consulta nem predicado de tipo de consulta de que depender.
+  // `$set_404 = true` (`class-wp.php:747`), e os tres ramos `elseif` que o
+  // derrubam (`:749-796`). A ordem e a do legado e e ela que decide: sao
+  // `elseif`, logo o ramo 2 **nao** e consultado para `robots.txt` e o ramo 3
+  // **nao** e consultado quando houve conteudo.
+  let marcar = true;
+  if (consulta !== undefined) {
+    if (superficieQueNunca404a(consulta)) {
+      marcar = false;
+    } else if (consulta.conteudos.length > 0) {
+      if (
+        conteudoAlcancaAPaginaPedida(consulta, resolucao.criterios['page'])
+      ) {
+        marcar = false;
+      }
+    } else if (!consulta.tipos.paginado) {
+      // Com paginacao de listagem, 404a — e e esse ramo que CA-3.3 cobra em
+      // T007.
+      if (
+        naoEncontraMasNao404a(
+          consulta,
+          opcoes.contaMembroDoSite ?? (() => false),
+        )
+      ) {
+        marcar = false;
+      }
+    }
+  }
+
+  // `:803-805` — nao marcando, o legado declara 200 e nao manda nada sobre
+  // cache.
+  if (!marcar) {
+    return SITUACAO_ENCONTRADA;
+  }
+
   const resposta: RespostaDaLeitura = Object.freeze({
     codigoHttp: 404,
     naoEncontrado: true,

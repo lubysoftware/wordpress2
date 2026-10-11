@@ -2,13 +2,15 @@
  * Modulo de leitura publica — feature `004-leitura-publica`, epico EP-4.
  *
  * Tarefas fechadas aqui: **T001** (o esqueleto — a porta de dados, a ordem das
- * etapas do atendimento e a resposta de endereco inexistente) e **T002** (a
+ * etapas do atendimento e a resposta de endereco inexistente), **T002** (a
  * tabela de regras de traducao como dado, o casamento do endereco contra ela e a
- * coleta dos criterios diretos, em `./traducao-de-endereco/`). A consulta de
- * conteudo (T003), a hierarquia de modelos (T005), a paginacao (T007), o portao
- * de `post_status` (T009), o 404 do tema (T011), a senha de conteudo (T013), a
- * pre-busca (T015) e a macro textual (T017) entram nas tarefas delas. A leitura
- * obrigatoria de quem pegar a tarefa seguinte e `./README.md`.
+ * coleta dos criterios diretos, em `./traducao-de-endereco/`) e **T003** (US-1:
+ * a resolucao do endereco numa consulta de conteudo, em `./consulta/`, com os
+ * tres ramos de excecao do `handle_404`). A hierarquia de modelos (T005), a
+ * paginacao (T007), o portao de `post_status` (T009), o 404 do tema (T011), a
+ * senha de conteudo (T013), a pre-busca (T015) e a macro textual (T017) entram
+ * nas tarefas delas. A leitura obrigatoria de quem pegar a tarefa seguinte e
+ * `./README.md`.
  *
  * **Onde este modulo mora, e por que nao numa pasta de `bounded context`.** Esta
  * feature nao e um contexto do desenho: ela atravessa `BC-01` (a consulta e a
@@ -38,6 +40,12 @@
  *   `EXT-ORDEM`), e trabalho feito na importacao e trabalho fora da ordem.
  */
 
+import {
+  consultarConteudo,
+  type ConsultaDeConteudo,
+  type OpcoesDaConsultaDeConteudo,
+} from './consulta/consultar-conteudo.js';
+import type { CriteriosDaConsulta } from './consulta/criterios-da-consulta.js';
 import type { PortaDeDados } from './portas/index.js';
 import {
   atenderLeituraPublica,
@@ -58,6 +66,7 @@ import {
 
 export * from './portas/index.js';
 export * from './traducao-de-endereco/index.js';
+export * from './consulta/index.js';
 export * from './requisicao/endereco-pedido.js';
 export * from './requisicao/resolver-endereco.js';
 export * from './requisicao/situacao-da-resposta.js';
@@ -79,8 +88,9 @@ export interface PortasDeLeituraPublica {
  * | `resolverEndereco` | — (infraestrutura) | T001 | **nenhuma capacidade**, declarada |
  * | `situacaoDaResposta` | — (infraestrutura) | T001 | **nenhuma capacidade**, declarada |
  * | `atender` | — (infraestrutura) | T001 | **nenhuma capacidade**, declarada |
+ * | `consultarConteudo` | **US-1** | T003 | **nenhuma capacidade**, declarada |
  *
- * **As tres declaram "nenhuma", e nesta feature isso e a regra e nao a
+ * **As quatro declaram "nenhuma", e nesta feature isso e a regra e nao a
  * ausencia dela.** UC-01 e literal: *"nao ha verificacao de capacidade. O portao
  * e o `post_status`"* — o ator e o visitante, que por definicao nao tem papel. As
  * duas unicas portas de autorizacao desta feature chegam depois, e nenhuma delas
@@ -128,6 +138,27 @@ export interface ModuloDeLeituraPublica {
   ): RespostaDaLeitura;
 
   /**
+   * Resolve os criterios numa consulta de conteudo (`WP_Query::query`), que e a
+   * etapa 3 do atendimento e a entrega de **US-1**.
+   *
+   * **Permissao exigida: nenhuma, e a declaracao e o ponto** (P4) — ver o
+   * cabecalho desta interface. O portao de `post_status` (T009) age **dentro**
+   * do recorte que esta operacao entrega ao repositorio, nao antes dela.
+   *
+   * ⚠️ Nao recebe o endereco: recebe os **criterios**, que e o que US-1 cobra em
+   * CA-1.2 — *"os mesmos criterios podem ser informados diretamente, sem
+   * endereco amigavel, e produzem o mesmo resultado"*. A equivalencia entre as
+   * duas entradas e uma propriedade desta assinatura, e nao um teste.
+   *
+   * O repositorio de conteudo chega no contexto, por ligacao tardia: `posts` e
+   * tabela de BC-01 e a regra de dependencia 3 proibe o `import`.
+   */
+  consultarConteudo(
+    criterios: CriteriosDaConsulta,
+    opcoes?: OpcoesDaConsultaDeConteudo,
+  ): ConsultaDeConteudo;
+
+  /**
    * Atende uma leitura publica inteira, na ordem do legado (`WP::main`).
    *
    * **Permissao exigida: nenhuma, e a declaracao e o ponto** (P4).
@@ -156,6 +187,7 @@ export function criarModuloDeLeituraPublica(
     portas,
     resolverEndereco,
     situacaoDaResposta,
+    consultarConteudo,
     atender: atenderLeituraPublica,
   };
 }

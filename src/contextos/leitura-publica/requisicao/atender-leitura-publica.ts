@@ -14,9 +14,9 @@
  * | # | etapa no legado | onde esta neste porte |
  * |---|---|---|
  * | 1 | `init()` — resolve a identidade corrente | feature 001, `sessaoDaRequisicao`; nao e desta feature |
- * | 2 | `parse_request()` — resolve o endereco em criterios | `resolverEndereco`, **T001** |
- * | 3 | `query_posts()` — executa a consulta principal | **T003** (US-1), e a paginacao em T007 |
- * | 4 | `handle_404()` — decide a situacao da resposta | `situacaoDaResposta`, **T001**, com os tres ramos de excecao em T003 |
+ * | 2 | `parse_request()` — resolve o endereco em criterios | `resolverEndereco`, **T001** e **T002** |
+ * | 3 | `query_posts()` — executa a consulta principal | `consultarConteudo`, **T003** (US-1); a paginacao em T007 e o portao de estado em T009 |
+ * | 4 | `handle_404()` — decide a situacao da resposta | `situacaoDaResposta`, **T001**, com os tres ramos de excecao em **T003** |
  * | 5 | `register_globals()` — publica o resultado para o tema | **T005** (US-2), com a hierarquia de modelos |
  * | 6 | `send_headers()` — emite os cabecalhos e o codigo | borda HTTP; o 404 por criterio `error` sai daqui (`class-wp.php:455-466`) |
  *
@@ -31,8 +31,28 @@
  *    uma requisicao aparentemente bem-sucedida em 404.
  * 3. **A acao `wp` dispara sempre**, resolvida ou nao a requisicao, e depois da
  *    etapa 6 (`class-wp.php:830-839`).
+ *
+ * ---
+ *
+ * ## Por que o contexto e do atendimento, e nao de cada etapa
+ *
+ * As etapas 2 e 3 leem os **mesmos** registros — `get_post_types()` e
+ * `get_taxonomies()` —, a **mesma** forma de endereco e o **mesmo**
+ * `get_page_by_path()`. No legado sao as mesmas funcoes globais na mesma
+ * requisicao, e nao existe estado em que as duas etapas enxerguem registros
+ * diferentes. {@link OpcoesDoAtendimento.contexto} e esse conjunto, declarado uma
+ * vez e passado as duas; as opcoes por etapa continuam aceitando o proprio
+ * contexto porque cada etapa tambem e operacao publica do modulo, e quem chama
+ * `atender` e que nao tem como diverge-las.
  */
 
+import {
+  consultaMarcadaComoNaoEncontrada,
+  consultarConteudo,
+  type ConsultaDeConteudo,
+  type OpcoesDaConsultaDeConteudo,
+} from '../consulta/consultar-conteudo.js';
+import type { ContextoDaConsulta } from '../consulta/contexto-da-consulta.js';
 import type { EnderecoPedido } from './endereco-pedido.js';
 import {
   resolverEndereco,
@@ -60,17 +80,34 @@ export type ObservadorDoAtendimento = (
 
 /** O que o atendimento recebe, por etapa. */
 export interface OpcoesDoAtendimento {
+  /**
+   * Os colaboradores que as etapas 2 e 3 compartilham — ver a ultima secao do
+   * cabecalho. Informado aqui, ele vence o contexto das opcoes por etapa.
+   */
+  readonly contexto?: ContextoDaConsulta;
   /** Repassado a etapa 2. */
   readonly resolucao?: OpcoesDaResolucao;
+  /** Repassado a etapa 3. */
+  readonly consulta?: OpcoesDaConsultaDeConteudo;
   /** Repassado a etapa 4. */
   readonly situacao?: OpcoesDaSituacao;
   /** `wp`, no fim, sempre. */
   readonly aoFimDoAtendimento?: readonly ObservadorDoAtendimento[];
 }
 
-/** O que uma leitura publica produz hoje: a resolucao e a situacao. */
+/** O que uma leitura publica produz: a resolucao, a consulta e a situacao. */
 export interface AtendimentoDaLeitura {
   readonly resolucao: ResolucaoDeEndereco;
+  /**
+   * `$wp_the_query` — a consulta principal da requisicao.
+   *
+   * Ausente quando `do_parse_request` recusou a resolucao: ali o legado pula as
+   * etapas 3, 4 e 5 inteiras (`class-wp.php:824-828`), e a consulta nao e uma
+   * consulta vazia, e **nenhuma** consulta. O tema que perguntasse por
+   * `is_home()` nesse caminho ouviria o valor de declaracao de uma instancia que
+   * nunca foi analisada.
+   */
+  readonly consulta?: ConsultaDeConteudo;
   readonly resposta: RespostaDaLeitura;
 }
 
@@ -83,29 +120,59 @@ export interface AtendimentoDaLeitura {
  * papel. O portao de `post_status` entra em T009 (US-4), dentro da consulta —
  * **nao** aqui, na porta de entrada.
  *
- * Hoje a entrega e a de T001: resolve para o conjunto vazio de criterios e
- * devolve a resposta de endereco inexistente. As etapas 3 e 5 nao estao no
- * corpo desta funcao porque nao existem nesta arvore — e quem as acrescentar tem
- * de faze-lo **nas posicoes marcadas**, nao no fim.
+ * Com T003 as etapas 2, 3 e 4 existem. A etapa 5 nao esta no corpo desta funcao
+ * porque nao existe nesta arvore — e quem a acrescentar tem de faze-lo **na
+ * posicao marcada**, nao no fim.
  */
 export function atenderLeituraPublica(
   pedido: EnderecoPedido,
   opcoes: OpcoesDoAtendimento = {},
 ): AtendimentoDaLeitura {
+  const doAtendimento =
+    opcoes.contexto === undefined ? {} : { contexto: opcoes.contexto };
+
   // Etapa 2.
-  const resolucao = resolverEndereco(pedido, opcoes.resolucao ?? {});
+  const resolucao = resolverEndereco(pedido, {
+    ...(opcoes.resolucao ?? {}),
+    ...doAtendimento,
+  });
 
   // Etapas 3, 4 e 5 — todas dentro do `if ( $parsed )` do legado.
+  let consulta: ConsultaDeConteudo | undefined;
   let resposta = SITUACAO_NAO_DECIDIDA;
   if (resolucao.resolvida) {
-    // Etapa 3 (T003): a consulta principal entra AQUI, antes da situacao, e e o
-    // resultado dela que alimenta os tres ramos de excecao da etapa 4.
-    resposta = situacaoDaResposta(resolucao, opcoes.situacao ?? {});
+    // Etapa 3 — a consulta principal, antes da situacao: e o resultado dela que
+    // alimenta os tres ramos de excecao da etapa 4.
+    consulta = consultarConteudo(resolucao.criterios, {
+      ...(opcoes.consulta ?? {}),
+      ...doAtendimento,
+    });
+
+    // Etapa 4.
+    const membro =
+      opcoes.situacao?.contaMembroDoSite ?? opcoes.contexto?.contaMembroDoSite;
+    resposta = situacaoDaResposta(resolucao, {
+      ...(opcoes.situacao ?? {}),
+      consulta,
+      ...(membro === undefined ? {} : { contaMembroDoSite: membro }),
+    });
+
+    // ⚠️ `handle_404` chama `$wp_query->set_404()` (`class-wp.php:800`), que
+    // **zera os 29 predicados** da consulta. Isso acontece depois da decisao e
+    // antes da etapa 5, e e por isso que esta linha esta exatamente aqui: e o
+    // estado zerado que `register_globals()` publica para o tema. Nao se aplica
+    // quando a consulta ja estava marcada — ali `handle_404` desistiu no comeco
+    // e `set_404()` nao foi chamado uma segunda vez.
+    if (resposta.naoEncontrado && !consulta.tipos.naoEncontrado) {
+      consulta = consultaMarcadaComoNaoEncontrada(consulta);
+    }
+
     // Etapa 5 (T005): o registro do resultado para o tema entra AQUI.
   }
 
   const atendimento: AtendimentoDaLeitura = Object.freeze({
     resolucao,
+    ...(consulta === undefined ? {} : { consulta }),
     resposta,
   });
 
