@@ -2,8 +2,9 @@
 
 Feature `007-interacao-publica-e-moderacao`. Tarefas fechadas com nota de
 entrega neste arquivo: **T001** (esqueleto, as quatro portas e os pontos de
-configuracao de moderacao). Este arquivo e a leitura obrigatoria de quem pegar a
-tarefa seguinte: ele diz o que ja esta decidido, o que esta decidido **em outro
+configuracao de moderacao) e **T002** (a forma de armazenamento do comentario e
+do metadado dele). Este arquivo e a leitura obrigatoria de quem pegar a tarefa
+seguinte: ele diz o que ja esta decidido, o que esta decidido **em outro
 lugar**, e o que ninguem decidiu.
 
 > 🔴 **Antes de qualquer coisa, se a sua tarefa toca a ORDEM da cascata (T003,
@@ -26,7 +27,7 @@ lugar**, e o que ninguem decidiu.
 
 ```
 interacao-publica/
-├── index.ts                                  a composicao: nome, portas, configuracao
+├── index.ts                                  a composicao: nome, portas, configuracao, armazenamento
 ├── modulo.test.ts                            os testes desta entrega
 ├── portas/
 │   ├── porta-de-dados.ts                     a unica porta deste modulo para o banco
@@ -38,10 +39,11 @@ interacao-publica/
 ```
 
 `criarModuloDeInteracaoPublica(portas, configuracao?)` devolve
-`{ nome, portas, configuracao }` e **mais nada**. Operacao de dominio entra na
-tarefa da historia dela, com a declaracao de permissao que o P4 exige — a tabela
-de quem entra, com a permissao de cada uma ja lida dos casos de uso, esta no
-comentario de `ModuloDeInteracaoPublica` em `index.ts`.
+`{ nome, portas, configuracao }` e **mais nada** — T002 acrescentou
+`armazenamento`, e nada mais. Operacao de dominio entra na tarefa da historia
+dela, com a declaracao de permissao que o P4 exige — a tabela de quem entra, com
+a permissao de cada uma ja lida dos casos de uso, esta no comentario de
+`ModuloDeInteracaoPublica` em `index.ts`.
 
 Duas invariantes de arquitetura tem teste proprio aqui, porque um esqueleto as
 quebra em silencio:
@@ -89,12 +91,101 @@ ligada. Quem escrever a leitura da opcao reproduz essa assimetria.
 
 ---
 
+## O que T002 entregou
+
+A forma de armazenamento das **duas** tabelas desta feature, lida e gravada
+somente pela porta de dados. Nenhuma regra de negocio: a cascata e T003 e T010, e
+cada historia e a tarefa dela.
+
+```
+interacao-publica/armazenamento/
+├── chaves-e-tabelas.ts        os dois nomes de tabela, com o prefixo DO SITE
+├── vocabulario.ts             estado (5 valores), tipo (4), os dois zeros e a sentinela
+├── comentario.ts              a linha de 15 colunas, as DUAS listas de 14 gravaveis, a auto-referencia
+├── metadado.ts                `commentmeta`, com os dois testes de PHP que decidem qual comando sai
+├── esquema.ts                 o DDL das duas byte a byte + os 4 limites de coluna de `C10`
+├── leitura-de-linha.ts        tolerancia de tipo de coluna, e nenhuma validacao
+├── porta-falsa.ts             o duplo que REGISTRA comando, para afirmar o que nao sai
+├── index.ts                   a composicao: `{ comentarios, metadados }`
+├── armazenamento.test.ts      49 testes
+└── esquema.test.ts            13 testes
+```
+
+### As quatro coisas que a entrega nomeia, e onde cada uma esta
+
+| o que T002 entrega | onde | o que carrega |
+|---|---|---|
+| o **vocabulario de estado** | `vocabulario.ts` | os **cinco** valores (`'1'`, `'0'`, `spam`, `trash`, `post-trashed`), e quais **quatro** a interface de estado alcanca (`comment.php:2814`, CA-10.2) |
+| o **vocabulario de tipo** | `vocabulario.ts` | os quatro (`comment`, `pingback`, `trackback`, `note`), mais a normalizacao do tipo **vazio** na leitura (`comment-template.php:1161`) |
+| a **auto-referencia** | `comentario.ts` | `comment_parent`, com as duas pontas da cascata: ler as respostas diretas (`comment.php:1590`) e **subir** a ninhada um nivel (`:1592`) |
+| o **vinculo opcional com conta** | `vocabulario.ts` e `comentario.ts` | `user_id`, com `0` = anonimo legitimo e orfao como estado normal — nenhum metodo confere a conta |
+
+### As cinco coisas que ficaram como o legado as faz
+
+1. **A escrita tem 14 colunas e DUAS ordens.** `comment_author_IP` e a segunda
+   na insercao (`comment.php:2179`) e a quinta na atualizacao (`:2964`), porque
+   o legado monta as duas listas de formas diferentes. A ordem e o comando que
+   sai, e a area 3 da Decisao 2 compara *"snapshot + sequencia de comandos"*.
+2. **`comment_karma` e escrita, sempre com zero.** BR-MIGRAR-086 (`DB-DEAD`) diz
+   que o nucleo *"nunca escreve nada alem de `0`"* — e escrever zero e escrever.
+3. **Nenhuma validacao na gravacao.** Nem estado, nem tipo, nem tamanho, nem
+   existencia de conteudo, pai ou conta. `DB-DEG` e `DB-ENUM`, e a recusa do
+   campo longo e `C10`/T012, do lado da aplicacao.
+4. **Os tres casos em que nenhum comando sai** sao afirmados por teste: gravar
+   metadado com valor identico, apagar metadado que nao existe, e apagar
+   comentario sem respostas (sem `UPDATE` de reparenteamento).
+5. **O DDL e dado, nao acao.** A borda 4 de `target_architecture.md` diz que
+   esta metade *"le e nunca escreve"* estrutura; `esquema.test.ts` falha se
+   alguem "normalizar" tabulacao, espaco duplo ou ordem de indice, porque
+   `DB-MIG` transforma diferenca de forma em `ALTER TABLE`.
+
+### Os quatro limites de coluna, e por que eles nascem no DDL
+
+`C10` (CA-5.3) pede o limite de cada campo **declarado**. O legado o declara
+duas vezes e as duas tem de coincidir: `wp_get_comment_fields_max_lengths()`
+escreve quatro numeros a mao (`comment.php:1267`) e depois **pergunta a coluna**,
+subtraindo 10 quando o tipo e `byte` (`:1290`).
+
+| campo | coluna | conta | limite |
+|---|---|---|---|
+| nome | `comment_author` `tinytext` | 255 − 10 | **245** |
+| e-mail | `comment_author_email` `varchar(100)` | sem subtracao | **100** |
+| endereco | `comment_author_url` `varchar(200)` | sem subtracao | **200** |
+| texto | `comment_content` `text` | 65535 − 10 | **65525** |
+
+⚠️ **Sao bytes, nao caracteres.** O legado compara com `mb_strlen($v, '8bit')` e
+`strlen()` (`comment.php:1322` a `:1334`), e as duas contam bytes. Quem escrever
+T012 nao pode usar comprimento de `string` em JavaScript: um caractere fora do
+ASCII ocupa de 2 a 4 bytes.
+
+### Duas diferencas deliberadas em relacao ao gemeo de BC-01
+
+`armazenamento/metadado.ts` de BC-01 reproduz a mesma maquina de
+`wp-includes/meta.php`, e **este arquivo nao e copia dele**: duas condicoes que
+no gemeo viraram `=== undefined` sao, no legado, testes de PHP com resultado
+diferente — e as duas mudam qual comando sai.
+
+- a clausula `AND meta_value = ?` da **exclusao** entra pelo teste de tres
+  valores (`'' !== && null !== && false !==`, `meta.php:462`), nao pela presenca
+  do argumento: apagar com texto vazio e apagar sem valor emitem a **mesma**
+  consulta, e `'0'` **entra** na clausula;
+- a comparacao de valor identico da **gravacao** e desligada por
+  `empty( $prev_value )` (`meta.php:256`), nao por ausencia: valor anterior
+  `'0'` se comporta como se nenhum tivesse sido pedido.
+
+As duas funcoes (`valorEntraNaClausula`, `vazioComoNoPhp`) ficam no arquivo e nao
+em `plataforma/`: a regra de dependencia 3 proibe importar a `vazioComoNoPhp` que
+ja existe em `contextos/leitura-publica/`, e descer para `plataforma/` e decisao
+de quem construir `015-plataforma-transversal`.
+
+---
+
 ## O que esta decidido em outro lugar
 
 | assunto | onde mora | por que nao aqui |
 |---|---|---|
 | perguntar permissao | `plataforma/autorizacao/` | e chamada 1.279 vezes em 224 arquivos; fica abaixo de todo contexto. `C3` e `US-10` **consomem** a decisao, nao a tomam |
-| os limites de coluna (`C10`) | T002 (forma de armazenamento) e T012 (a recusa) | sao o tamanho da coluna, nao configuracao de moderacao |
+| os limites de coluna (`C10`) | ✅ T002 declarou os quatro em `armazenamento/esquema.ts`; a **recusa** e T012 | sao o tamanho da coluna, nao configuracao de moderacao |
 | o prazo da lixeira (30 dias) | feature `005-retencao-e-descarte` | `C9` le a constante **por veracidade**; aqui so o booleano `lixeiraLigada` e observavel. Duplicar o 30 criaria dois donos para o mesmo numero |
 | a ordem de arranque | D1, contrato publico | AD-10: nenhum contexto importa outro no topo do modulo |
 | a definicao de papel | ADR-0001, e BC-05 | P3: a autorizacao e por capacidade, e papel e dado mutavel |
@@ -172,12 +263,20 @@ decisao. **T038**.
 ## Como conferir esta entrega
 
 ```sh
-npm test            # a suite inteira; 11 testes sao de T001
+npm test            # a suite inteira; 11 testes sao de T001 e 63 de T002
 ```
 
 A paridade desta area se prova por
 `.specify/migration/parity_tests/01-cascata-de-moderacao-de-comentario.feature`,
 cujo criterio e *"efeito no banco + byte a byte no valor devolvido por hook"*
-(Decisao 2 de `parity_specs.md`). T001 entrega os dois pre-requisitos daquele
-arquivo: as portas que o cenario `@composicao` substitui por duplo, e os valores
-de fabrica que os cenarios `Dado a opcao ... com o valor ...` pressupoem.
+(Decisao 2 de `parity_specs.md`). T001 entrega dois pre-requisitos daquele
+arquivo — as portas que o cenario `@composicao` substitui por duplo, e os valores
+de fabrica que os cenarios `Dado a opcao ... com o valor ...` pressupoem — e T002
+entrega o terceiro: o **efeito no banco** que cada cenario afirma, com a porta
+falsa que registra a sequencia de comandos em vez de simular banco.
+
+Dos cenarios daquele arquivo, T002 cobre em parte os dois `@cascata`/`@invariante`
+que nao dependem de regra: *"apagar o comentario pai propaga para a arvore de
+respostas"* (as duas pontas do reparenteamento existem e tem teste; a **ordem**
+entre elas e de quem apaga) e *"comentario orfao e estado normal"* (nenhum metodo
+confere a existencia da conta). Os demais dependem da cascata, que nao existe.

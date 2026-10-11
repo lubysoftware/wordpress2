@@ -5,7 +5,7 @@
 - [x] **T001** Preparar o esqueleto do módulo de interação pública
       *entrega:* o módulo carrega com as portas de dados, de relógio, de envio de e-mail e de cliente externo declaradas, e os pontos de configuração de moderação criados com os valores de fábrica do legado
       *satisfaz:* — (infraestrutura)
-- [ ] **T002** Portar a forma de armazenamento de comentário e do seu metadado
+- [x] **T002** Portar a forma de armazenamento de comentário e do seu metadado
       *entrega:* a estrutura de comentário existe com o vocabulário de estado e de tipo do legado, a auto-referência que encadeia respostas e o vínculo opcional com conta, e é lida e gravada pela porta de dados
       *satisfaz:* — (infraestrutura)
       *depende de:* T001

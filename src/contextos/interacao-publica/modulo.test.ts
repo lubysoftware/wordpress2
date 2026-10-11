@@ -3,6 +3,11 @@
  * relogio, de envio de e-mail e de cliente externo declaradas, e os pontos de
  * configuracao de moderacao criados com os valores de fabrica do legado"*.
  *
+ * T002 acrescentou **uma** linha a este arquivo: o armazenamento na superficie
+ * do modulo. O que o armazenamento entrega esta afirmado em
+ * `armazenamento/armazenamento.test.ts` e `armazenamento/esquema.test.ts`; o que
+ * importa aqui e que compor o modulo continua **nao tocando porta nenhuma**.
+ *
  * Nao sao os testes de nenhuma historia — esses sao T005, T007, T009 e os demais
  * `[P]` de `tasks.md`, um por caso de `backlog/tests.md`. Aqui se afirma so o
  * que T001 entrega, mais as duas invariantes de arquitetura que um esqueleto
@@ -122,26 +127,52 @@ test('o modulo carrega com as quatro portas declaradas', () => {
   assert.equal(modulo.portas.clienteExterno, portas.clienteExterno);
 });
 
-test('a superficie do modulo tem exatamente o que T001 entrega', () => {
+test('a superficie do modulo tem exatamente o que T001 e T002 entregam', () => {
   const { portas } = portasDeTeste();
 
   const modulo = criarModuloDeInteracaoPublica(portas);
 
-  // Esta lista cresce NA TAREFA DE CADA HISTORIA, nunca antes: e o que o P4 da
-  // constituicao cobra, "toda operacao exposta nova nasce com declaracao
-  // explicita de permissao". T001 nao expoe operacao nenhuma — so as portas e a
-  // configuracao. A tabela de quem entra, com a permissao de cada uma ja lida
-  // dos casos de uso, esta no comentario de `ModuloDeInteracaoPublica`.
+  // A lista cresceu em T002, que acrescentou `armazenamento` — e nao cresceu
+  // mais do que isso. Ela cresce NA TAREFA DE CADA HISTORIA, nunca antes: e o
+  // que o P4 da constituicao cobra, "toda operacao exposta nova nasce com
+  // declaracao explicita de permissao". Nem T001 nem T002 expoem operacao
+  // nenhuma — o armazenamento nao decide nada. A tabela de quem entra, com a
+  // permissao de cada uma ja lida dos casos de uso, esta no comentario de
+  // `ModuloDeInteracaoPublica`.
   assert.deepEqual(Object.keys(modulo).sort(), [
+    'armazenamento',
     'configuracao',
     'nome',
     'portas',
   ]);
 });
 
+test('o armazenamento chega composto sobre a porta de dados recebida (T002)', () => {
+  const { portas, toques } = portasDeTeste({ prefixoDeTabela: 'wp_2_' });
+
+  const modulo = criarModuloDeInteracaoPublica(portas);
+
+  assert.deepEqual(Object.keys(modulo.armazenamento).sort(), [
+    'comentarios',
+    'metadados',
+  ]);
+
+  // O prefixo do site chega aos DOIS repositorios, e nao a um deles: as duas
+  // tabelas desta feature sao de escopo por site, e um nome montado com o
+  // prefixo errado gravaria o comentario de um site na tabela de outro.
+  modulo.armazenamento.comentarios.obterPorId(1);
+  modulo.armazenamento.metadados.listar(1);
+
+  assert.equal(toques.selecionar.length, 2);
+  assert.match(String(toques.selecionar[0]?.texto), /FROM wp_2_comments /);
+  assert.match(String(toques.selecionar[1]?.texto), /FROM wp_2_commentmeta /);
+});
+
 test('criar o modulo nao toca em porta nenhuma (EXT-ORDEM: nada se resolve no carregamento)', () => {
   const { portas, toques } = portasDeTeste();
 
+  // Vale tambem para o armazenamento de T002: compor monta nome de tabela e
+  // nada mais — nenhuma consulta sai, nenhum DDL e emitido.
   criarModuloDeInteracaoPublica(portas);
 
   assert.deepEqual(toques.selecionar, []);
