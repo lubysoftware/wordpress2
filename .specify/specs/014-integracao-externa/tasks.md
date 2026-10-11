@@ -2,7 +2,7 @@
 
 > Ordem de dependência. `[P]` marca tarefa que não disputa arquivo com nenhuma outra desta feature e portanto pode rodar em paralelo com as demais, uma vez satisfeita a dependência dela: toda tarefa de teste, que toca só a própria suíte, e a tarefa de implementação cuja história não compartilha módulo com nenhuma outra história daqui.
 
-- [ ] **T001** Preparar o esqueleto da borda de saída
+- [x] **T001** Preparar o esqueleto da borda de saída
       *entrega:* a porta de cliente externo e a de envio de e-mail existem com uma implementação cada, e toda chamada de saída do sistema passa por elas, sem nenhuma política de prazo ou de repetição definida
       *satisfaz:* — (infraestrutura)
 - [ ] **T002** Portar o catálogo de endereços externos como dado declarado
