@@ -218,8 +218,15 @@ function recusar(
  * `caso-de-gestao-de-rotulo.ts`). E a mesma composicao que
  * `../vinculo-de-objeto/classificar-conteudo.ts` faz com o caso de atribuicao, e
  * pela mesma razao — o caso e deste modulo, nao do chamador.
+ *
+ * ⚠️ **Exportada por T011**, e nao publicada pelo barril: o portao da **acao em
+ * lote** (`wp-admin/edit-tags.php:137`) pergunta `$tax->cap->delete_terms`, que e
+ * capacidade de **contexto** e nao de objeto, logo ele compoe a pergunta
+ * exatamente como os dois portoes deste arquivo. Duas composicoes da mesma
+ * pergunta divergiriam no dia em que uma das duas ganhasse um caso — ver
+ * `../protecao-do-termo-padrao/permissao-sobre-rotulo.ts`.
  */
-function podeNoContexto(
+export function podeNoContexto(
   colaboracao: ColaboracaoDaGestaoDaLista,
   capacidade: string,
 ): boolean {

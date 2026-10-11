@@ -116,7 +116,7 @@
  *
  * | o que | de quem |
  * |---|---|
- * | a protecao do termo padrao, e os tres portoes de item da tela que passam por ela | **T011**, US-5 (CA-5.1 a CA-5.3) — ver o bloco 🔴 de `apagar-rotulo-do-contexto.ts` |
+ * | a protecao do termo padrao, e os tres portoes de item da tela | **T011**, US-5 (CA-5.1 a CA-5.3) — entregues em `../protecao-do-termo-padrao/`. O passo 2 da cascata **chama** a de la, e so **dois** dos tres portoes passam pelo `case` de capacidade sobre o termo: o do lote e no plural |
  * | a consulta de termos por filtro, `term_exists()`, `get_term_by()` e `wp_unique_term_slug()` | feature `015`, T007 — ver o bloco acima |
  * | `sanitize_title()`, e com ela a derivacao do apelido a partir do nome | `plataforma/`, que nao tem o modulo: a ausencia foi declarada por T003 e esta repetida em `criar-rotulo-no-contexto.ts` |
  * | o agrupamento de sinonimos (`alias_of`) | declarado e nao construido: nenhum criterio de US-4 o menciona. Ver a tabela de ausencias de `criar-rotulo-no-contexto.ts` |

@@ -2,18 +2,27 @@
 
 Entregue por **T001** (o esqueleto), **T002** (a forma de armazenamento),
 **T003** (a separacao entre rotulo e contexto, US-1), **T005** (a classificacao
-do conteudo, US-2), **T007** (o termo padrao do contexto, US-3) e **T009** (a
-manutencao da lista, US-4) da feature `003-classificacao-do-conteudo`. Este
-arquivo e a leitura obrigatoria de quem pegar **T011** em diante: ele diz o que
-ja esta decidido, o que esta decidido **em outro lugar**, e o que ninguem
-decidiu.
+do conteudo, US-2), **T007** (o termo padrao do contexto, US-3), **T009** (a
+manutencao da lista, US-4) e **T011** (a protecao do termo padrao, US-5) da
+feature `003-classificacao-do-conteudo`. **As cinco historias da feature estao
+implementadas.** Este arquivo e a leitura obrigatoria de quem pegar as suites de
+catalogo que faltam e de quem vier de outra feature: ele diz o que ja esta
+decidido, o que esta decidido **em outro lugar**, e o que ninguem decidiu.
 
-> ⚠️ **Se voce esta pegando T011, comece por dois lugares:** o bloco 🔴 de
-> `manutencao-da-lista/apagar-rotulo-do-contexto.ts`, que e a cascata inteira
-> **sem** o passo que T011 acrescenta e com a consequencia concreta dessa
-> ausencia; e a secao 🔴 de `manutencao-da-lista/permissao-na-gestao-de-rotulos.ts`,
-> que lista os **tres** portoes da tela que dependem do `case` de capacidade sobre
-> o termo — o `case` que carrega a regra de T011.
+> ⚠️ **O que falta nesta feature nao e comportamento, sao as duas suites de
+> catalogo:** **T012** (`UT-037-1` a `UT-037-5`, os casos de US-5) e as demais
+> tarefas `[P]` de `tasks.md` que ainda estiverem abertas. Elas **transcrevem**
+> os casos de `backlog/tests.md`, e nao reconstroem: o comportamento que cada uma
+> exercita esta na suite `us-N-*` da pasta da historia.
+>
+> ⚠️ **E uma correcao de leitura entrou com T011**, porque ela muda o que um
+> portao recusa: o portao da **acao em lote** da tela de termos pergunta
+> `$tax->cap->delete_terms`, no **plural**, logo ele **nao** passa pelo `case` de
+> capacidade sobre o termo e **nao** protege o termo padrao. T009 havia escrito
+> que os tres portoes de item passavam por ele. Quem protege o padrao no caminho
+> do lote e o `return 0` de dentro de `wp_delete_term()`, item por item. As duas
+> fontes do pacote que decidem isso estao no cabecalho de
+> `protecao-do-termo-padrao/permissao-sobre-rotulo.ts`.
 
 ## O que T001 entrega, e so isso
 
@@ -430,10 +439,120 @@ Oito coisas que T009 **nao** fez, e nao e esquecimento:
    tela.** Os tres (`:117`, `:137`, `:173`) passam pelo `case` de capacidade
    **sobre o termo**, que carrega *"o termo padrao da taxonomia e indestrutivel"*
    (`BR-MIGRAR-091`, `capabilities.php:738`) e e **T011**.
+   ⚠️ **Correcao de T011: passam dois, e nao tres** — o do lote (`:137`) pergunta
+   `$tax->cap->delete_terms`, no plural. Ver o aviso no topo deste arquivo.
 7. **Nao reconta por conta propria.** CA-4.5 e CA-2.3 sao a mesma coluna e o mesmo
    calculo, e `wp_update_term_count()` ja era de T005: a recontagem sai **de
    dentro** da substituicao e da remocao, como no legado.
 8. **Nao escreveu os testes do catalogo.** `UT-036-1` a `UT-036-7` sao **T010**,
+   que roda em paralelo com esta tarefa.
+
+## O que T011 entrega, e so isso
+
+> *o comportamento de US-5 existe e os criterios CA-5.1, CA-5.2, CA-5.3 passam
+> contra o sistema novo*
+> — `.specify/specs/003-classificacao-do-conteudo/tasks.md`, T011
+
+Tudo em `protecao-do-termo-padrao/`, mais o passo 2 que faltava na cascata de
+T009. O `index.ts` dessa pasta e a leitura de entrada:
+
+| arquivo | o que e |
+|---|---|
+| `protecao-do-termo-padrao/escopo-de-protecao-do-termo-padrao.ts` | a colaboracao dos portoes de item, e por que esta historia **nao** tem escopo proprio |
+| `protecao-do-termo-padrao/termo-padrao-indestrutivel.ts` | **CA-5.1**: o passo 2 de `wp_delete_term()`, o `return 0` **sem ator** (`taxonomy.php:2073`-`:2087`) |
+| `protecao-do-termo-padrao/caso-de-capacidade-sobre-rotulo.ts` | **CA-5.2**: o `case` de `map_meta_cap()` sobre o termo, com `do_not_allow` em `capabilities.php:738`-`:744` (ADR 0009) |
+| `protecao-do-termo-padrao/permissao-sobre-rotulo.ts` | os **tres portoes de item** da tela (`edit-tags.php:114`, `:137`, `:173`), com os `msgid` byte a byte |
+| `protecao-do-termo-padrao/us-5-protecao-do-termo-padrao.test.ts` | 24 testes: os tres criterios por efeito no banco, por sequencia de comandos e por **ausencia** de comando |
+
+**SAO DUAS RECUSAS, e elas nao se substituem** — e e a divisao da pasta em dois
+arquivos de regra:
+
+| mecanismo | onde | tem ator? | alcanca |
+|---|---|---|---|
+| `return 0` | dentro de `wp_delete_term()` (`:2077` e `:2086`) | **nao** | **todo** chamador: a tela, a API REST, o XML-RPC, a fila agendada, o lote, uma extensao |
+| `do_not_allow` | no `case` de `map_meta_cap()` (`:738`-`:744`) | sim | quem pergunta `delete_term` **com o termo em maos**: o portao de item da tela e a API REST |
+
+`CA-5.1` (*"recusado, para qualquer ator"*) e o primeiro; `CA-5.2` (*"a recusa
+vence inclusive o ator de maior poder"*) e o segundo. Quem portar so um dos dois
+produz um sistema em que o padrao morre por um caminho.
+
+**Quatro operacoes novas na superficie do modulo, e tres delas verificam
+capacidade:**
+
+| operacao | no legado | permissao |
+|---|---|---|
+| `permissaoDeApagarRotulo` | a checagem de `wp-admin/edit-tags.php:114`, `msgid` de `:117` | `delete_term` **sobre o termo**, **verificada** — e e ela que carrega CA-5.1 e CA-5.2 |
+| `permissaoDeEditarRotulo` | `wp-admin/edit-tags.php:173` | `edit_term` sobre o termo, **verificada** — e **sem** a protecao do padrao: o ramo de `:738` e so de `delete_term` |
+| `permissaoDeApagarRotulosEmLote` | `wp-admin/edit-tags.php:137` | `$tax->cap->delete_terms`, no **plural**, **verificada** |
+| `apagarRotuloDoContexto` | `wp_delete_term()` (`taxonomy.php:2060`) | `delete_terms`, **nao** verificada: a funcao do legado nao a verifica e o nucleo a chama sem ator |
+
+⚠️ **`apagarRotuloDoContexto` ENTROU na superficie com esta tarefa**, fechando a
+pendencia que T003 abriu e T009 reduziu a uma razao. Ela **e** `wp_delete_term()`,
+funcao publica do legado e a linha *"apagar rotulo"* da tabela *Contratos* de
+`plan.md`, com o erro que agora existe: *"rotulo e o padrao do contexto, e a
+recusa vence inclusive o ator de maior poder"*. `removerRotuloDoContexto()`
+**continua fora**, e a razao nao mudou: e o trecho final da funcao, que o legado
+nao expoe, e chamado sozinho ele pula a cascata.
+
+⚠️ **O desfecho `0` entrou com ela, e `0` nao e `false`.** Os tres valores de
+`wp_delete_term()` sao distintos e um chamador os distingue: `false` o par nao
+existe (`:2063`), `0` **o rotulo e o termo padrao** (`:2077` e `:2086`), `true`
+apagou (`:2258`). Em PHP os dois primeiros sao falsos — e e por isso que a tela
+nao os distingue —, mas o valor devolvido e superficie publicada (P8).
+
+**T011 nao acrescentou porta, e a conta segue uma.** Precisou de duas coisas que
+nao estao no banco deste contexto: a decisao de capacidade (`plataforma/autorizacao/`,
+que a regra de dependencia 1 permite importar) e a opcao do termo padrao (por
+ligacao tardia, em `OpcoesNaClassificacao`, que T007 declarou). **E nao acrescentou
+leitura ao armazenamento**: o `case` usa a leitura fundida de T003 e a recusa da
+exclusao nao le nada.
+
+**Nenhum numero novo entrou com T011**, e isso e leitura e nao sorte: os tres
+criterios de US-5 nao tem prazo, contagem nem limite. O unico valor que esta
+tarefa nomeia e `RECUSA_DO_TERMO_PADRAO` (`0`), que e **valor de retorno do
+legado** e nao limite — e nenhum limite de profundidade foi posto na recursao do
+`case`, porque o legado nao tem nenhum (**P6**).
+
+**Uma leitura de opcao foi ECONOMIZADA, e isso e paridade e nao otimizacao.** No
+legado o passo 2 grava `$defaults['default']` e o passo 3 o recebe por
+`wp_parse_args( $args, $defaults )` (`:2100`): a opcao e lida **uma** vez por
+exclusao. Por isso `apagar-rotulo-do-contexto.ts` passou a receber o valor do
+passo 2 em vez de perguntar a opcao outra vez — ler duas vezes emitiria uma
+leitura que o legado nao emite.
+
+Cinco coisas que T011 **nao** fez, e nao e esquecimento:
+
+1. **Nao escreveu a opcao do termo padrao**, e e a metade de `CA-5.3` que parece
+   faltar e nao falta. *"Trocar qual termo e o padrao"* e uma **gravacao em
+   `options`**, e **nenhuma funcao de termo do legado a faz**: quem troca
+   `default_category` e a tela de escrita das opcoes, e quem grava
+   `default_term_{nome}` e `register_taxonomy()` (`taxonomy.php:543`). O que esta
+   tarefa entrega de CA-5.3 e o **efeito**: as duas recusas leem a opcao **por
+   chamada**, por ligacao tardia, e nada guarda estado — assim que o padrao aponta
+   para outro rotulo, o anterior fica apagavel e o novo fica indestrutivel. Ha
+   teste para os dois lados.
+2. 🔴 **Nao portou um terceiro rotulo para o `case`.** `map_meta_cap()` agrupa
+   rotulos por `case` em cascata, e `assign_term` seria o candidato natural —
+   **mas o nome nao aparece em nenhum documento do pacote**: `SCR-044` e `SCR-045`
+   listam `delete_term` e `edit_term`, UC-08 lista os quatro nomes da taxonomia no
+   **plural**, e nenhum criterio de US-5 fala de atribuir. T003 fixou a doutrina
+   (*"P8 proibe remover superficie; **nao autoriza acrescentar**"*), e com o
+   oraculo fora do disco nao ha como conferir. Fica declarado, com teste que fixa
+   os dois nomes portados.
+3. 🔴 **Nao leu uma segunda chave de opcao no `case`.** O pacote enuncia a regra
+   (*"o termo padrao da taxonomia e indestrutivel"*) e nao transcreve a leitura; a
+   chave que esta arvore conhece para esse valor e `chaveDoTermoPadrao()`,
+   ancorada por T001 em `taxonomy.php:2075`/`:2084`. Ler uma chave que o pacote
+   nao nomeia inventaria nome de opcao, e nome de opcao esta na tabela *Nao
+   negociavel*. Para `category` — o **unico** dos oito contextos do nucleo com
+   padrao semeado (`BR-MIGRAR-084`) — a chave e a mesma em qualquer leitura
+   possivel.
+4. **Nao portou o `case` de navegacao da tela de edicao** (`:160`, *"You attempted
+   to edit an item that does not exist"*, e o redirecionamento de `:163`): e tela,
+   nao capacidade, e e **BC-10** com `SCR-045`. Um termo inexistente ja e negado
+   por `permissaoDeEditarRotulo`, porque o `case` devolve `do_not_allow` para
+   objeto que nao existe.
+5. **Nao escreveu os testes do catalogo.** `UT-037-1` a `UT-037-5` sao **T012**,
    que roda em paralelo com esta tarefa.
 
 ## Por que uma porta so
@@ -561,7 +680,7 @@ o barramento encaixe os cinco na posicao do legado. Isto e declaracao, nao
 decisao: **a tensao entre o P2 e o `wont` de `REQ-162` e anterior a esta tarefa e
 nao foi resolvida por ela.**
 
-## O que ninguem decidiu, e que T001, T002, T003, T005, T007 e T009 nao decidiram tampouco
+## O que ninguem decidiu, e que T001, T002, T003, T005, T007, T009 e T011 nao decidiram tampouco
 
 As duas primeiras estao em `spec.md`, secao *Perguntas em aberto*. **As duas
 batiam em T002, e T002 as deixou abertas** — o que ela fez foi reproduzir o
@@ -901,3 +1020,26 @@ contexto nao os tem — esta registrada no metodo, em `armazenamento/termo.ts`. 
 caminho da exclusao o legado emite a leitura do termo **tres** vezes (`:2062`,
 `:2115` e `:2149`) e este porte a emite **duas**, nas duas posicoes em que ha
 consumidor.
+
+**E o que T011 entrega:** a mesma `@cascata` e a mesma `@invariante`, pelo lado da
+**ausencia**. A suite de US-5 afirma que apagar o termo padrao **nao emite
+escrita nenhuma** e que a cascata nem comeca — a unica leitura e a do passo 1, e
+nem os filhos, nem os objetos vinculados, nem a contagem de contextos saem —, que
+e a pos-condicao de UC-08 em forma de teste: *"o termo padrao da taxonomia
+continua existindo"*. O **P5** manda afirmar o conjunto exato do que sumiu, e
+aqui o conjunto e vazio.
+
+Mais quatro afirmacoes que o resto da suite nao teria onde fazer, e as quatro sao
+de **ordem** ou de **ausencia**, porque e nelas que a regra mora: a opcao e lida
+**uma** vez por exclusao (o valor do passo 2 e o `$defaults` do passo 3) e **nao
+e lida** quando o contexto nao declara padrao nem e `category`; a negacao e
+verificada **antes** do atalho do super administrador, logo ele e recusado no
+termo padrao e aceito em todo o resto **sem ter capacidade nenhuma na matriz**; um
+interceptador no ponto de extensao que **conceda** `do_not_allow` nao muda a
+resposta, porque as duas sinteticas sao aplicadas **depois** dele (ADR 0009,
+garantias 1 e 2); e os tres portoes de contexto continuam sem tocar o banco,
+enquanto os de **item** tocam — capacidade sobre objeto nao se decide sem o
+objeto, e a leitura sai antes de qualquer decisao.
+
+Nenhuma diferenca de texto nova contra o legado: T011 nao acrescentou consulta
+alguma ao armazenamento.

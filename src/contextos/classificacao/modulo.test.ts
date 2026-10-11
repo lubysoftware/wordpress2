@@ -1,8 +1,8 @@
 /**
  * Testes da entrega de T001 — *"o modulo carrega com a porta de dados declarada
  * e os oito contextos de classificacao do nucleo registrados, sem regra
- * implementada"* — e da **composicao** de T002, T003, T005, T007 e T009, que
- * acrescentam o armazenamento e as operacoes das quatro primeiras historias a
+ * implementada"* — e da **composicao** de T002, T003, T005, T007, T009 e T011,
+ * que acrescentam o armazenamento e as operacoes das **cinco** historias a
  * superficie do modulo sem acrescentar nenhuma consulta ao carregamento. As tres
  * estruturas em si sao afirmadas em `armazenamento/armazenamento.test.ts` e
  * `armazenamento/esquema.test.ts`.
@@ -13,7 +13,8 @@
  * (`rotulo-e-contexto/us-1-rotulo-e-contexto.test.ts`,
  * `vinculo-de-objeto/us-2-classificar-conteudo.test.ts`,
  * `termo-padrao/us-3-termo-padrao.test.ts`,
- * `manutencao-da-lista/us-4-manutencao-da-lista.test.ts`). Aqui se afirma so o
+ * `manutencao-da-lista/us-4-manutencao-da-lista.test.ts`,
+ * `protecao-do-termo-padrao/us-5-protecao-do-termo-padrao.test.ts`). Aqui se afirma so o
  * que o esqueleto entrega, mais as duas invariantes de arquitetura que ele pode
  * quebrar em silencio: estado de modulo (`EXT-CONTEXTO`, a dimensao **D-A**) e
  * trabalho no carregamento (`EXT-ORDEM`).
@@ -77,7 +78,7 @@ test('o modulo carrega com os oito contextos do nucleo registrados', () => {
   assert.equal(modulo.contextos.listar().length, 8);
 });
 
-test('a superficie do modulo e so o que T001, T002, T003, T005, T007 e T009 entregam', () => {
+test('a superficie do modulo e so o que T001, T002, T003, T005, T007, T009 e T011 entregam', () => {
   const { portas } = portasDeTeste();
 
   const modulo = criarModuloDeClassificacao(portas);
@@ -95,10 +96,11 @@ test('a superficie do modulo e so o que T001, T002, T003, T005, T007 e T009 entr
   // `wp_update_term()` tambem nao verifica (a cobranca e da tela, CA-4.1, T009).
   //
   // ⚠️ `removerRotuloDoContexto` (CA-1.3) **nao** esta nesta lista de proposito:
-  // e o trecho final de `wp_delete_term()`, sem a protecao do termo padrao
-  // (US-5) e sem a cascata (US-4), e publica-la como operacao criaria um caminho
-  // de apagar dado que o legado nao expoe. Ela e exportada pelo modulo, por
-  // `./rotulo-e-contexto/`, e a razao esta no bloco 🔴 do arquivo dela.
+  // e o trecho final de `wp_delete_term()`, e o legado nao o expoe — chamado
+  // sozinho ele pula a cascata e deixa vinculo orfao. Ela e exportada pelo
+  // modulo, por `./rotulo-e-contexto/`, e a razao esta no bloco 🔴 do arquivo
+  // dela. Compare com `apagarRotuloDoContexto`, que **e** a funcao publica e que
+  // entrou com T011.
   //
   // As quatro de T005 sao as de US-2, e a assimetria de permissao entre elas e
   // do legado: so `classificarConteudo` verifica capacidade, porque so o bloco
@@ -122,14 +124,24 @@ test('a superficie do modulo e so o que T001, T002, T003, T005, T007 e T009 entr
   // | `criarRotuloNoContexto` | nao | `wp_insert_term()` nao tem `current_user_can` e o nucleo a chama sem ator |
   // | `reposicionarRotuloNaHierarquia` | nao | `wp_update_term()` tampouco, como `renomearRotulo` de T003 |
   //
-  // ⚠️ `apagarRotuloDoContexto` (CA-4.3, CA-4.4) **nao** esta nesta lista, pela
-  // mesma razao que `removerRotuloDoContexto` nao esta: T009 fechou a cascata e
-  // **nao** a protecao do termo padrao, que e CA-5.1 e CA-5.2, de T011. Publicar
-  // agora exporia um caminho que destroi a categoria padrao, e "apagar dado" esta
-  // na tabela *Nao negociavel*. A razao inteira, com a consequencia concreta que
-  // T011 fecha, esta no bloco 🔴 de
-  // `manutencao-da-lista/apagar-rotulo-do-contexto.ts`.
+  // T011 entrou com **quatro** de US-5, e a assimetria de permissao entre elas e
+  // a mesma das outras historias:
+  //
+  // | operacao | verifica? | onde o legado verifica |
+  // |---|---|---|
+  // | `permissaoDeApagarRotulo` | **sim**, `delete_term` **sobre o termo** | `wp-admin/edit-tags.php:114` (CA-5.1, CA-5.2) |
+  // | `permissaoDeEditarRotulo` | **sim**, `edit_term` sobre o termo | `wp-admin/edit-tags.php:173` |
+  // | `permissaoDeApagarRotulosEmLote` | **sim**, `$tax->cap->delete_terms` (plural) | `wp-admin/edit-tags.php:137` (UC-08, *Excecoes*) |
+  // | `apagarRotuloDoContexto` | nao | `wp_delete_term()` nao tem `current_user_can` e o nucleo a chama sem ator |
+  //
+  // ⚠️ `apagarRotuloDoContexto` **entrou** nesta lista com T011: com o passo 2 no
+  // lugar ela recusa apagar o termo padrao para qualquer chamador, e ela e
+  // `wp_delete_term()`, funcao publica do legado — nao publica-la seria remover
+  // superficie (P8). `removerRotuloDoContexto` (CA-1.3) **continua fora**, e a
+  // razao nao mudou: e o trecho final da funcao, que o legado nao expoe, e
+  // chamado sozinho ele deixa vinculo orfao.
   assert.deepEqual(Object.keys(modulo).sort(), [
+    'apagarRotuloDoContexto',
     'aplicarTermoPadraoNaGravacao',
     'armazenamento',
     'classificacaoNaPublicacao',
@@ -141,7 +153,10 @@ test('a superficie do modulo e so o que T001, T002, T003, T005, T007 e T009 entr
     'nome',
     'nomesDosContextosDoTipoDeObjeto',
     'obterTermo',
+    'permissaoDeApagarRotulo',
+    'permissaoDeApagarRotulosEmLote',
     'permissaoDeCriarRotulo',
+    'permissaoDeEditarRotulo',
     'permissaoDeGerenciarRotulos',
     'portas',
     'recontarUsoDosRotulos',

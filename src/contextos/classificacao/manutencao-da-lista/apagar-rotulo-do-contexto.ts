@@ -30,7 +30,7 @@
  *
  * ---
  *
- * # 🔴 ESTA OPERACAO NAO ESTA NA SUPERFICIE DO MODULO, E A RAZAO E T011
+ * # ⚠️ T011 FECHOU O PASSO 2, E ESTA OPERACAO PASSOU A SER PUBLICADA
  *
  * T003 nao publicou `removerRotuloDoContexto` como operacao de
  * `ModuloDeClassificacao` e escreveu por que, em duas razoes:
@@ -41,32 +41,32 @@
  * >    legado nao tem** (...)
  * > 2. **a cascata e US-4, T009.** (...)
  *
- * **Esta tarefa fecha a razao 2 e nao a razao 1**, e por isso a funcao continua
- * **exportada e nao publicada**. Fecha-la seria implementar `CA-5.1` (*"apagar o
- * termo declarado como padrao de um contexto e recusado, para qualquer ator"*) e
- * `CA-5.2` (*"a recusa vence inclusive o ator de maior poder"*), que sao os
- * criterios de **T011**, cuja propria linha em `tasks.md` depende desta. A tabela
- * *Nao negociavel* da constituicao poe *"apagar dado"* fora do alcance do agente,
- * e publicar aqui um caminho que destroi a categoria padrao e exatamente isso.
+ * **T009 fechou a razao 2 e deixou a 1 aberta; T011 fechou a 1**, com o passo 2
+ * abaixo, e com isso `apagarRotuloDoContexto()` entrou na superficie do modulo —
+ * ela e `wp_delete_term()`, funcao publica do legado, e a tabela *Contratos* de
+ * `plan.md` a lista com o erro que agora existe: *"rotulo e o padrao do contexto,
+ * e a recusa vence inclusive o ator de maior poder"*. `removerRotuloDoContexto()`
+ * **continua fora** da superficie, e isso nao mudou: ela e o rabo da funcao, nao
+ * a funcao, e o legado nao expoe o rabo.
  *
- * ⚠️ **E ha uma consequencia concreta da ausencia do passo 2, que vale escrever
- * para quem pegar T011:** sem ele, quando o rotulo apagado **e** o termo padrao do
- * contexto, o laco de `DB-TRG4` resolve o padrao para o proprio rotulo que esta
- * sendo apagado e **reatribui o objeto ao termo que vai desaparecer em
- * seguida** — deixando o vinculo orfao que o **P5** manda afirmar por teste. No
- * legado isso e inalcancavel, porque o passo 2 recusa antes. T011 fecha o caso
- * com um `if`, e ele vai **antes** do passo 3 desta funcao.
+ * ⚠️ **A consequencia concreta que T009 deixou escrita era esta:** sem o passo 2,
+ * quando o rotulo apagado **e** o termo padrao do contexto, o laco de `DB-TRG4`
+ * resolvia o padrao para o proprio rotulo que estava sendo apagado e
+ * **reatribuia o objeto ao termo que ia desaparecer em seguida** — deixando
+ * vinculo orfao. Com o passo 2 no lugar o caso e inalcancavel, como no legado: a
+ * funcao devolve {@link RECUSA_DO_TERMO_PADRAO} **antes** de emitir comando
+ * algum, e e o que o teste de CA-5.1 afirma por **ausencia** de comando.
  *
  * # OS DEZ PASSOS, e o dono de cada um
  *
  * A ordem e a de `wp_delete_term()`, e ela esta transcrita na tabela de T003 em
- * `../rotulo-e-contexto/remover-rotulo-do-contexto.ts`. O que esta tarefa
- * acrescenta e o corpo dos passos 3, 5, 7 e a chamada do trecho final:
+ * `../rotulo-e-contexto/remover-rotulo-do-contexto.ts`. T009 acrescentou o corpo
+ * dos passos 3, 5, 7 e a chamada do trecho final; **T011 acrescentou o passo 2**:
  *
  * | # | passo | ancora | onde esta |
  * |---|---|---|---|
  * | 1 | `term_exists( $term, $taxonomy )`, e `false` se nao existe | `:2062`-`:2064` | **aqui** |
- * | 2 | `default_category` / `default_term_{nome}`: `return 0` | `:2073`-`:2087` | 🔴 **T011** — ver o bloco acima |
+ * | 2 | `default_category` / `default_term_{nome}`: `return 0` | `:2073`-`:2087` | **T011**, em `../protecao-do-termo-padrao/termo-padrao-indestrutivel.ts`, **chamado aqui** |
  * | 3 | `$args['default']` e `force_default`, e a validacao do padrao informado | `:2089`-`:2098` | **aqui** |
  * | 4 | acao `pre_delete_term` | `:2111` | declarada abaixo, sem barramento |
  * | 5 | reposicionar os filhos no **avo**, em contexto hierarquico | `:2114`-`:2147` | **aqui** |
@@ -164,10 +164,11 @@ import {
 } from '../rotulo-e-contexto/index.js';
 import { substituirVinculosDoObjeto } from '../vinculo-de-objeto/index.js';
 import type { EscopoDeVinculoDeObjeto } from '../vinculo-de-objeto/index.js';
+import { SEM_TERMO_PADRAO } from '../termo-padrao/index.js';
 import {
-  chaveDoTermoPadrao,
-  SEM_TERMO_PADRAO,
-} from '../termo-padrao/index.js';
+  protecaoDoTermoPadrao,
+  RECUSA_DO_TERMO_PADRAO,
+} from '../protecao-do-termo-padrao/termo-padrao-indestrutivel.js';
 import type { ColaboracaoDaExclusaoDeRotulo } from './escopo-de-manutencao-da-lista.js';
 
 /** O que se pede para apagar um rotulo de um contexto. */
@@ -196,41 +197,42 @@ export interface PedidoDeExclusaoDeRotulo {
 }
 
 /**
- * O desfecho, nas formas que `wp_delete_term()` devolve — menos uma.
+ * O desfecho, nas **tres** formas que `wp_delete_term()` devolve.
  *
  * `true` apagou; `false` o par nao existe (ou o contexto nao esta registrado);
+ * {@link RECUSA_DO_TERMO_PADRAO} (`0`) o rotulo **e** o termo padrao do contexto;
  * erro e repasse.
  *
- * ⚠️ **O `0` do legado nao esta aqui**, e a ausencia e a mesma que T003 declarou
- * em `../rotulo-e-contexto/remover-rotulo-do-contexto.ts`: ele e a recusa de
- * apagar o termo padrao (`:2077` e `:2086`), que e **US-5, T011**, e que acontece
- * **antes** do passo 3 desta funcao. Quem fechar T011 acrescenta esse desfecho.
+ * ⚠️ **O `0` entrou com T011**, fechando a ausencia que T003 e T009 declararam
+ * nos dois resultados que escreveram: ele e a recusa de apagar o termo padrao
+ * (`:2077` e `:2086`), que e **US-5**, e nao e outro `false` — ver
+ * `../protecao-do-termo-padrao/termo-padrao-indestrutivel.ts`, secao *O VALOR
+ * DEVOLVIDO E `0`*.
  */
-export type ResultadoDaExclusaoDeRotulo = boolean | ErroDeTermo;
+export type ResultadoDaExclusaoDeRotulo =
+  | boolean
+  | typeof RECUSA_DO_TERMO_PADRAO
+  | ErroDeTermo;
 
 /**
  * Qual rotulo recebe os objetos que ficariam sem termo — o passo 3.
  *
- * A ordem e a do legado: a opcao do contexto primeiro (o passo 2 ja a le, para a
- * protecao que e de T011), e o `$args['default']` informado **por cima**, se
- * existir naquele contexto.
+ * A ordem e a do legado: o padrao do contexto primeiro — **o que o passo 2 ja
+ * leu**, e nao uma segunda leitura — e o `$args['default']` informado **por
+ * cima**, se existir naquele contexto.
  *
- * ⚠️ A chave da opcao e montada por {@link chaveDoTermoPadrao} — `default_category`
- * para `category`, `default_term_{nome}` para os demais —, e **a escolha entre as
- * duas e regra deste caminho, nao detalhe de quem le opcao**: e a mesma divisao
- * que T007 fixou para a regra `P3`. Os dois mecanismos de "padrao" do legado nao
- * se confundem aqui: o argumento `default_term` de `register_taxonomy()` e **nulo
- * nos oito contextos do nucleo**, e o que esta funcao le e a **opcao gravada**.
+ * ⚠️ **O valor do passo 2 chega por argumento, e isso e o legado:** no legado o
+ * passo 2 grava `$defaults['default']` e o passo 3 o recebe por
+ * `wp_parse_args( $args, $defaults )` (`:2100`), logo a opcao e lida **uma** vez
+ * por exclusao. Ler a chave outra vez aqui emitiria uma leitura que o legado nao
+ * emite. A chave e montada por `chaveDoTermoPadrao()`, em T007, e quem a le e
+ * {@link protecaoDoTermoPadrao}.
  */
 function rotuloPadraoDoContexto(
   escopo: EscopoDeVinculoDeObjeto,
-  colaboracao: ColaboracaoDaExclusaoDeRotulo,
+  daOpcao: number,
   pedido: PedidoDeExclusaoDeRotulo,
 ): number {
-  const daOpcao = colaboracao.opcoes.identificadorDoTermoPadrao(
-    chaveDoTermoPadrao(pedido.contexto),
-  );
-
   if (pedido.rotuloPadraoId === undefined) {
     return daOpcao;
   }
@@ -255,13 +257,15 @@ function rotuloPadraoDoContexto(
  * `capacidades.apagarRotulos` (`$tax->cap->delete_terms`), e ela NAO e verificada
  * aqui** — pela mesma razao, com as mesmas ancoras, de T003: `wp_delete_term()`
  * nao tem `current_user_can` no corpo, e quem cobra e a tela
- * (`wp-admin/edit-tags.php:117` para um item e `:137` para a acao em lote, *"antes
- * de tocar qualquer registro"*, UC-08) e a API REST. Os dois portoes da tela
- * passam pelo `case` de capacidade **sobre o termo**, que carrega a protecao do
- * termo padrao e e **T011** — ver `./permissao-na-gestao-de-rotulos.ts`.
+ * (`wp-admin/edit-tags.php:114` para um item e `:137` para a acao em lote, *"antes
+ * de tocar qualquer registro"*, UC-08) e a API REST. Os dois portoes sao de
+ * **T011**, em `../protecao-do-termo-padrao/permissao-sobre-rotulo.ts` — e so o
+ * de item passa pelo `case` de capacidade sobre o termo, o que faz do passo 2
+ * desta funcao a **unica** protecao do termo padrao no caminho do lote.
  *
- * ⚠️ **Leia o bloco 🔴 do cabecalho antes de publicar esta funcao**: ela faz a
- * cascata de US-4 e **nao** cobra a protecao do termo padrao (US-5, T011).
+ * ⚠️ **A recusa do passo 2 e silenciosa e vem antes de qualquer comando**: a
+ * funcao devolve {@link RECUSA_DO_TERMO_PADRAO} sem erro, sem mensagem e sem
+ * tocar o banco (P7).
  */
 export function apagarRotuloDoContexto(
   escopo: EscopoDeVinculoDeObjeto,
@@ -292,12 +296,27 @@ export function apagarRotuloDoContexto(
     return false;
   }
 
-  // Passo 2 (`:2073`-`:2087`) — 🔴 **NAO IMPLEMENTADO: e US-5, T011.** E aqui que
-  // o legado recusa apagar o termo padrao do contexto, com `return 0`, e a
-  // negacao *"vence ate o super administrador"*. Ver o bloco 🔴 do cabecalho.
+  // Passo 2 (`:2073`-`:2087`), **T011**: o termo padrao do contexto nao se apaga,
+  // e a recusa nao consulta ator nenhum (CA-5.1). O valor lido aqui e o
+  // `$defaults['default']` que o passo 3 recebe — uma leitura, nao duas.
+  const protecao = protecaoDoTermoPadrao(
+    registrado,
+    colaboracao.opcoes,
+    pedido.rotuloId,
+  );
+
+  if (protecao.indestrutivel) {
+    // `return 0` (`:2077` e `:2086`) — *"Don't delete the default category"*.
+    // Nenhum comando saiu, e e o que o teste afirma por ausencia.
+    return RECUSA_DO_TERMO_PADRAO;
+  }
 
   // Passo 3: quem recebe os objetos orfanados.
-  const rotuloPadraoId = rotuloPadraoDoContexto(escopo, colaboracao, pedido);
+  const rotuloPadraoId = rotuloPadraoDoContexto(
+    escopo,
+    protecao.padraoDoContexto,
+    pedido,
+  );
   const forcarPadrao = pedido.forcarPadrao ?? false;
 
   // Passo 4: acao `pre_delete_term` (`:2111`) — declarada, sem barramento.
