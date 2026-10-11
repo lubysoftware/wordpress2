@@ -82,12 +82,16 @@ test('a superficie do modulo tem exatamente as operacoes das tarefas fechadas', 
   // decidir a situacao da resposta (`handle_404`) e o atendimento que as poe na
   // ordem do legado (`WP::main`). T003 acrescentou a quarta, a consulta de
   // conteudo (`WP_Query::query`), que e a etapa 3 do atendimento e a entrega de
-  // US-1. As quatro declaram "nenhuma capacidade" na interface do modulo,
-  // porque UC-01 registra que a leitura publica nao verifica capacidade
-  // nenhuma: o portao e o `post_status`, e ele chega em T009.
+  // US-1. T005 acrescentou a quinta, a escolha de apresentacao
+  // (`template-loader.php`), que e a entrega de US-2 e que **nao** e etapa de
+  // `WP::main()`: `wp-blog-header.php:19` a carrega depois de `wp()` retornar.
+  // As cinco declaram "nenhuma capacidade" na interface do modulo, porque UC-01
+  // registra que a leitura publica nao verifica capacidade nenhuma: o portao e o
+  // `post_status`, e ele chega em T009.
   assert.deepEqual(Object.keys(modulo).sort(), [
     'atender',
     'consultarConteudo',
+    'escolherApresentacao',
     'nome',
     'portas',
     'resolverEndereco',

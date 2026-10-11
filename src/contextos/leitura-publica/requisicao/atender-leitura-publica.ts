@@ -17,8 +17,16 @@
  * | 2 | `parse_request()` — resolve o endereco em criterios | `resolverEndereco`, **T001** e **T002** |
  * | 3 | `query_posts()` — executa a consulta principal | `consultarConteudo`, **T003** (US-1); a paginacao em T007 e o portao de estado em T009 |
  * | 4 | `handle_404()` — decide a situacao da resposta | `situacaoDaResposta`, **T001**, com os tres ramos de excecao em **T003** |
- * | 5 | `register_globals()` — publica o resultado para o tema | **T005** (US-2), com a hierarquia de modelos |
+ * | 5 | `register_globals()` — publica o resultado para o tema | `publicarParaOTema`, **T005** (US-2) |
  * | 6 | `send_headers()` — emite os cabecalhos e o codigo | borda HTTP; o 404 por criterio `error` sai daqui (`class-wp.php:455-466`) |
+ *
+ * ⚠️ **A hierarquia de modelos NAO e a etapa 5, e nao esta neste arquivo.**
+ * `WP::main()` termina na acao `wp`; quem escolhe o modelo e
+ * `wp-includes/template-loader.php`, que `wp-blog-header.php:19` carrega
+ * **depois** de `wp()` retornar. T005 trouxe as duas coisas, e elas ficaram onde
+ * o legado as tem: a etapa 5 aqui, em `../apresentacao/publicacao-para-o-tema.ts`,
+ * e a escolha como operacao propria do modulo, em
+ * `../apresentacao/escolher-apresentacao.ts`.
  *
  * Tres propriedades dessa ordem que este arquivo preserva desde o esqueleto, e
  * que sao faceis de perder depois:
@@ -46,6 +54,11 @@
  * `atender` e que nao tem como diverge-las.
  */
 
+import type { ContextoDaApresentacao } from '../apresentacao/contexto-da-apresentacao.js';
+import {
+  publicarParaOTema,
+  type PublicacaoParaOTema,
+} from '../apresentacao/publicacao-para-o-tema.js';
 import {
   consultaMarcadaComoNaoEncontrada,
   consultarConteudo,
@@ -91,6 +104,17 @@ export interface OpcoesDoAtendimento {
   readonly consulta?: OpcoesDaConsultaDeConteudo;
   /** Repassado a etapa 4. */
   readonly situacao?: OpcoesDaSituacao;
+  /**
+   * Repassado a etapa 5.
+   *
+   * ⚠️ So **um** campo deste contexto e lido aqui, `dadosDaConta`, e so no ramo
+   * de arquivo de autor (`class-wp.php:680-682`). Os outros sao da escolha de
+   * apresentacao, que roda depois do atendimento — ver o cabecalho deste
+   * arquivo. O contexto e o mesmo tipo porque no legado sao as mesmas funcoes
+   * globais na mesma requisicao, e porque quem chama `atender` nao tem como
+   * diverge-los.
+   */
+  readonly apresentacao?: ContextoDaApresentacao;
   /** `wp`, no fim, sempre. */
   readonly aoFimDoAtendimento?: readonly ObservadorDoAtendimento[];
 }
@@ -109,6 +133,16 @@ export interface AtendimentoDaLeitura {
    */
   readonly consulta?: ConsultaDeConteudo;
   readonly resposta: RespostaDaLeitura;
+  /**
+   * O que a etapa 5 publicou para o tema (`WP::register_globals()`).
+   *
+   * Ausente pela mesma razao de {@link AtendimentoDaLeitura.consulta}: quando
+   * `do_parse_request` recusa, o legado pula as etapas 3, 4 **e 5** inteiras
+   * (`class-wp.php:824-828`), e nenhum global e publicado. O tema que lesse
+   * `$posts` nesse caminho encontraria o que a requisicao anterior deixou — no
+   * legado, porque o processo morre a cada resposta, isso e ausencia.
+   */
+  readonly publicacao?: PublicacaoParaOTema;
 }
 
 /**
@@ -120,9 +154,9 @@ export interface AtendimentoDaLeitura {
  * papel. O portao de `post_status` entra em T009 (US-4), dentro da consulta —
  * **nao** aqui, na porta de entrada.
  *
- * Com T003 as etapas 2, 3 e 4 existem. A etapa 5 nao esta no corpo desta funcao
- * porque nao existe nesta arvore — e quem a acrescentar tem de faze-lo **na
- * posicao marcada**, nao no fim.
+ * Com T003 as etapas 2, 3 e 4 existem, e T005 acrescentou a 5 **na posicao
+ * marcada**, dentro do `if ( $parsed )` e depois do zeramento de predicados. A
+ * etapa 6 continua fora desta arvore: ela e borda HTTP.
  */
 export function atenderLeituraPublica(
   pedido: EnderecoPedido,
@@ -139,6 +173,7 @@ export function atenderLeituraPublica(
 
   // Etapas 3, 4 e 5 — todas dentro do `if ( $parsed )` do legado.
   let consulta: ConsultaDeConteudo | undefined;
+  let publicacao: PublicacaoParaOTema | undefined;
   let resposta = SITUACAO_NAO_DECIDIDA;
   if (resolucao.resolvida) {
     // Etapa 3 — a consulta principal, antes da situacao: e o resultado dela que
@@ -167,13 +202,17 @@ export function atenderLeituraPublica(
       consulta = consultaMarcadaComoNaoEncontrada(consulta);
     }
 
-    // Etapa 5 (T005): o registro do resultado para o tema entra AQUI.
+    // Etapa 5 (`class-wp.php:827`) — publica o resultado para o tema. Le a
+    // consulta **ja zerada** pelo `set_404()` da linha acima, que e o estado que
+    // o legado publica.
+    publicacao = publicarParaOTema(consulta, opcoes.apresentacao ?? {});
   }
 
   const atendimento: AtendimentoDaLeitura = Object.freeze({
     resolucao,
     ...(consulta === undefined ? {} : { consulta }),
     resposta,
+    ...(publicacao === undefined ? {} : { publicacao }),
   });
 
   // Etapa 6 (borda HTTP) acontece aqui, fora do `if`.
