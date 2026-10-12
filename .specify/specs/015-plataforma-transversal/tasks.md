@@ -5,7 +5,7 @@
 - [x] **T001** Levantar a instalação executável do legado como oráculo de paridade
       *entrega:* o legado, na mesma versão, roda em ambiente isolado e responde às consultas que os testes de paridade comparam, conforme a resposta 16 de `questions.md`
       *satisfaz:* — (infraestrutura)
-- [ ] **T002** Preparar o esqueleto da camada transversal
+- [x] **T002** Preparar o esqueleto da camada transversal
       *entrega:* registro de operação, tradução, sanitização e camada de dados carregam como módulos próprios, com as portas declaradas e nenhuma regra implementada
       *satisfaz:* — (infraestrutura)
       *depende de:* T001
