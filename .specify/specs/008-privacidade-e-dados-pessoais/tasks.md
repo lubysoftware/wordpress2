@@ -5,7 +5,7 @@
 - [x] **T001** Preparar o esqueleto do módulo de privacidade
       *entrega:* o módulo carrega com as portas de dados, de relógio, de envio de e-mail e de sistema de arquivos declaradas, e o registro de provedores de dado pessoal vazio e inspecionável
       *satisfaz:* — (infraestrutura)
-- [ ] **T002** Portar a solicitação como registro de conteúdo com os seus quatro estados
+- [x] **T002** Portar a solicitação como registro de conteúdo com os seus quatro estados
       *entrega:* a solicitação existe como tipo de conteúdo próprio, com os quatro estados do legado e a chave de confirmação guardada com resumo criptográfico, lida e gravada pela porta de dados
       *satisfaz:* — (infraestrutura)
       *depende de:* T001
