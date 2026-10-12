@@ -2,12 +2,12 @@
  * Modulo de retencao e descarte — a feature `005-retencao-e-descarte`.
  *
  * Tarefas fechadas aqui: **T001** (o esqueleto — as tres portas e o prazo de
- * retencao) e **T002** (os marcadores de lixeira como metadado, em
- * `./armazenamento/`). E **nenhuma regra de negocio implementada**. Descartar,
- * suspender comentario, restaurar, avisar que apagar nao tem volta, coletar o
- * que venceu, expirar rascunho automatico, tolerar estado inconsistente e
- * reparentar filhos entram nas tarefas delas (T003 em diante), e a leitura
- * obrigatoria de cada uma esta em `./README.md`.
+ * retencao), **T002** (os marcadores de lixeira como metadado, em
+ * `./armazenamento/`) e **T003** (o descarte para a lixeira, US-1, em
+ * `./descarte/`). Suspender comentario, restaurar, avisar que apagar nao tem
+ * volta, coletar o que venceu, expirar rascunho automatico, tolerar estado
+ * inconsistente e reparentar filhos entram nas tarefas delas (T005 em diante), e
+ * a leitura obrigatoria de cada uma esta em `./README.md`.
  *
  * ## A qual bounded context este modulo pertence — e sao dois
  *
@@ -52,6 +52,12 @@ import {
   PRAZO_DE_RETENCAO_DE_FABRICA,
   type PrazoDeRetencao,
 } from './configuracao/index.js';
+import {
+  descartar,
+  type ContextoDeDescarte,
+  type PedidoDeDescarte,
+  type ResultadoDoDescarte,
+} from './descarte/index.js';
 import type {
   PortaDeDados,
   PortaDeFilaAgendada,
@@ -61,6 +67,7 @@ import type {
 export * from './portas/index.js';
 export * from './configuracao/index.js';
 export * from './armazenamento/index.js';
+export * from './descarte/index.js';
 
 /** As tres portas de que este modulo depende, na forma em que ele as recebe. */
 export interface PortasDeRetencaoEDescarte {
@@ -86,18 +93,19 @@ export interface OpcoesDeRetencaoEDescarte {
  *
  * Cada historia acrescenta aqui a sua operacao, com a declaracao explicita de
  * permissao que o **P4** da constituicao exige, e nenhuma antes da propria tarefa.
- * Hoje ha tres coisas, e **nenhuma delas e operacao**: as portas e o prazo de
- * retencao (T001) e o armazenamento dos marcadores (T002). O armazenamento nao
- * declara permissao porque nao decide nada — ele le e grava metadado, e quem
- * cobra a capacidade e a operacao que o chama.
+ * Hoje ha quatro coisas e **uma delas e operacao**: as portas e o prazo de
+ * retencao (T001), o armazenamento dos marcadores (T002) e o **descarte** (T003,
+ * US-1). O armazenamento nao declara permissao porque nao decide nada — ele le e
+ * grava metadado, e quem cobra a capacidade e a operacao que o chama.
  *
  * As operacoes que a tabela *Contratos* de `plan.md` nomeia, com a permissao que o
- * pacote declara para cada uma — **citadas, nao decididas aqui**, para que a
- * tarefa que construir cada uma nasca com a declaracao que o P4 cobra:
+ * pacote declara para cada uma — a primeira **declarada e construida** por T003,
+ * as tres seguintes **citadas, nao decididas aqui**, para que a tarefa que
+ * construir cada uma nasca com a declaracao que o P4 cobra:
  *
  * | operacao | historia | tarefa | permissao, como o pacote a declara |
  * |---|---|---|---|
- * | descartar para a lixeira | US-1 | T003 | `delete_post` do registro, *"resolvida conforme autoria e estado"* (UC-09) |
+ * | descartar para a lixeira | US-1 | **T003, feita** | `delete_post` do registro, *"resolvida conforme autoria e estado"* (UC-09) |
  * | restaurar | US-3 | T007 | decidida **pelo estado anterior gravado no descarte** (CA-3.5, UC-10) |
  * | apagar em definitivo | US-8 | T017 | `delete_post`, com o reparenteamento de filhos e anexos (UC-09, fluxo alternativo) |
  * | coletar o que venceu | US-5 | T011 | **nenhuma.** UC-11 e literal: *"a coleta roda sem usuario autenticado e sem verificacao de capacidade: o prazo e a autorizacao"* |
@@ -119,6 +127,39 @@ export interface ModuloDeRetencaoEDescarte {
    * (T002). Le e grava **somente** pela porta de dados.
    */
   readonly armazenamento: ArmazenamentoDeRetencao;
+
+  /**
+   * Tira o conteudo do ar sem perde-lo, guardando o estado que ele tinha e o
+   * instante do descarte (US-1, T003). E `wp_trash_post()`
+   * (`wp-includes/post.php:4084`).
+   *
+   * **Permissao exigida: `delete_post` daquele conteudo** — a meta-capacidade
+   * com o objeto, e nao uma cadeia fixa. Ela e **traduzida** antes de ser
+   * comparada (`PERM-3`), e e a traducao que resolve os tres criterios de
+   * permissao desta historia: por **autoria e estado** (CA-1.3), negando a
+   * **versao anterior** a qualquer ator, inclusive ao super administrador
+   * (CA-1.4), e trocando ou somando a capacidade das paginas de **funcao
+   * especial** — `manage_options` na pagina inicial e na de conteudos,
+   * `manage_privacy_options` somada na de politica de privacidade (CA-1.5). A
+   * recusa e **valor**, com o texto e o numero que a superficie do legado
+   * devolve; ver `descarte/permissao-de-descarte.ts`.
+   *
+   * ⚠️ **Com a lixeira desligada esta operacao APAGA EM DEFINITIVO**, na
+   * primeira linha, e o ator nao e avisado da diferenca — `R1`/BR-MIGRAR-030 e
+   * UC-09 (*"a mesma acao, dois comportamentos irreconciliaveis"*). O aviso que
+   * CA-4.2 cobra e **T009**; a cascata de exclusao, com o reparenteamento de
+   * filhos e anexos, e **T017**. As duas entram pelo contexto, no ponto exato em
+   * que o legado as chama.
+   *
+   * O contexto chega por argumento, e nao pela composicao, porque identidade,
+   * matriz de papeis e estado de rede sao escopo de REQUISICAO (`EXT-CONTEXTO`,
+   * BR-MIGRAR-105) — e porque a colaboracao com BC-01 (ler o conteudo e gravar o
+   * estado) e de **ligacao tardia** (AD-10, regra de dependencia 3).
+   */
+  descartar(
+    contexto: ContextoDeDescarte,
+    pedido: PedidoDeDescarte,
+  ): ResultadoDoDescarte;
 }
 
 /**
@@ -145,5 +186,8 @@ export function criarModuloDeRetencaoEDescarte(
     // Compor o armazenamento monta nome de tabela e nada mais: nenhuma consulta
     // sai daqui, e nenhum DDL — esta feature nao acrescenta tabela.
     armazenamento: criarArmazenamentoDeRetencao(portas.dados),
+    // A operacao entra por referencia, sem nada resolvido: tudo o que ela decide
+    // vem do contexto que o chamador monta por requisicao (`EXT-CONTEXTO`).
+    descartar,
   };
 }

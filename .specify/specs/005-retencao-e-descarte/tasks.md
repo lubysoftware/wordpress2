@@ -9,7 +9,7 @@
       *entrega:* o estado anterior e o instante do descarte são gravados e lidos como metadado do registro, para conteúdo e para comentário, pela porta de dados
       *satisfaz:* — (infraestrutura)
       *depende de:* T001
-- [ ] **T003** Descartar conteúdo para a lixeira guardando o estado anterior e o instante (US-1)
+- [x] **T003** Descartar conteúdo para a lixeira guardando o estado anterior e o instante (US-1)
       *entrega:* o comportamento de US-1 existe e os critérios CA-1.1, CA-1.2, CA-1.3, CA-1.4, CA-1.5 passam contra o sistema novo
       *satisfaz:* CA-1.1, CA-1.2, CA-1.3, CA-1.4, CA-1.5
       *depende de:* T001, T002
