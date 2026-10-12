@@ -5,7 +5,7 @@
 - [x] **T001** Preparar o esqueleto do módulo de superfícies programáticas
       *entrega:* o despachante de rotas carrega com o registro de rotas vazio e inspecionável, e a porta de dados declarada
       *satisfaz:* — (infraestrutura)
-- [ ] **T002** Declarar o formato de esquema de rota e o de operação nomeada
+- [x] **T002** Declarar o formato de esquema de rota e o de operação nomeada
       *entrega:* os dois formatos existem como declaração, com validação de parâmetro ainda vazia, e o registro de uma rota sem declaração de permissão reproduz o aviso de uso indevido do legado
       *satisfaz:* — (infraestrutura)
       *depende de:* T001
