@@ -6,18 +6,20 @@
  * tabela de regras de traducao como dado, o casamento do endereco contra ela e a
  * coleta dos criterios diretos, em `./traducao-de-endereco/`), **T003** (US-1:
  * a resolucao do endereco numa consulta de conteudo, em `./consulta/`, com os
- * tres ramos de excecao do `handle_404`) e **T005** (US-2: a hierarquia
- * declarada de modelos e a etapa 5 do atendimento, em `./apresentacao/`). A
- * paginacao (T007), o portao de `post_status` (T009), o 404 do tema (T011), a
- * senha de conteudo (T013), a pre-busca (T015) e a macro textual (T017) entram
+ * tres ramos de excecao do `handle_404`), **T005** (US-2: a hierarquia
+ * declarada de modelos e a etapa 5 do atendimento, em `./apresentacao/`) e
+ * **T015** (US-7: a declaracao de pre-busca do proximo destino, em
+ * `./pre-busca/`). A paginacao (T007), o portao de `post_status` (T009), o 404
+ * do tema (T011), a senha de conteudo (T013) e a macro textual (T017) entram
  * nas tarefas delas. A leitura obrigatoria de quem pegar a tarefa seguinte e
  * `./README.md`.
  *
  * **Onde este modulo mora, e por que nao numa pasta de `bounded context`.** Esta
  * feature nao e um contexto do desenho: ela atravessa `BC-01` (a consulta e a
- * macro textual), `plataforma/rotas` (a traducao de endereco) e
- * `plataforma/tema` (a hierarquia de modelos), e `target_architecture.md` nao
- * declara mapa de feature para pasta. A pasta leva o nome da feature, como
+ * macro textual), `plataforma/rotas` (a traducao de endereco),
+ * `plataforma/tema` (a hierarquia de modelos) e `BC-07` (a pre-busca, que
+ * `topology_decision.md` funde em `BC-07-apresentacao`), e
+ * `target_architecture.md` nao declara mapa de feature para pasta. A pasta leva o nome da feature, como
  * `001-identidade-e-acesso` fez com a dela, por tres razoes: a tarefa nomeia *"o
  * modulo de leitura publica"*; `BC-01` e tambem o destino da feature `002`, que
  * esta sendo construida em paralelo, e duas features escrevendo a mesma pasta e
@@ -54,6 +56,11 @@ import {
 import type { CriteriosDaConsulta } from './consulta/criterios-da-consulta.js';
 import type { PortaDeDados } from './portas/index.js';
 import {
+  declararPreBusca,
+  type DeclaracaoDaPreBusca,
+  type OpcoesDaPreBusca,
+} from './pre-busca/declarar-pre-busca.js';
+import {
   atenderLeituraPublica,
   type AtendimentoDaLeitura,
   type OpcoesDoAtendimento,
@@ -74,6 +81,7 @@ export * from './portas/index.js';
 export * from './traducao-de-endereco/index.js';
 export * from './consulta/index.js';
 export * from './apresentacao/index.js';
+export * from './pre-busca/index.js';
 export * from './requisicao/endereco-pedido.js';
 export * from './requisicao/resolver-endereco.js';
 export * from './requisicao/situacao-da-resposta.js';
@@ -97,8 +105,9 @@ export interface PortasDeLeituraPublica {
  * | `atender` | — (infraestrutura) | T001 | **nenhuma capacidade**, declarada |
  * | `consultarConteudo` | **US-1** | T003 | **nenhuma capacidade**, declarada |
  * | `escolherApresentacao` | **US-2** | T005 | **nenhuma capacidade**, declarada |
+ * | `declararPreBusca` | **US-7** | T015 | **nenhuma capacidade**, declarada |
  *
- * **As cinco declaram "nenhuma", e nesta feature isso e a regra e nao a
+ * **As seis declaram "nenhuma", e nesta feature isso e a regra e nao a
  * ausencia dela.** UC-01 e literal: *"nao ha verificacao de capacidade. O portao
  * e o `post_status`"* — o ator e o visitante, que por definicao nao tem papel. As
  * duas unicas portas de autorizacao desta feature chegam depois, e nenhuma delas
@@ -107,6 +116,13 @@ export interface PortasDeLeituraPublica {
  * o atestado de senha de conteudo em T013 (US-6), que e um dos cinco pontos que
  * BR-MIGRAR-098 (`PERM-12`) registra como decidindo acesso **sem consultar o
  * modelo de capacidades**.
+ *
+ * ⚠️ **`declararPreBusca` le `is_user_logged_in()` e isso NAO e excecao a
+ * tabela acima.** A pergunta e "ha alguem autenticado", e o legado a usa para
+ * **desligar** a pre-busca de quem esta autenticado (`:28`), nunca para
+ * conceder acesso a quem quer que seja. Tratar a leitura como camada de
+ * autorizacao poria autorizacao numa operacao que nao tem nenhuma; a razao
+ * completa esta em `pre-busca/configuracao-da-pre-busca.ts`.
  */
 export interface ModuloDeLeituraPublica {
   readonly nome: 'leitura-publica';
@@ -193,6 +209,30 @@ export interface ModuloDeLeituraPublica {
   ): ApresentacaoEscolhida;
 
   /**
+   * Declara ao navegador quais destinos podem ser pre-buscados e com que
+   * agressividade (`wp-includes/speculative-loading.php:330`), que e a entrega
+   * de **US-7**.
+   *
+   * **Permissao exigida: nenhuma, e a declaracao e o ponto** (P4) — ver o
+   * cabecalho desta interface, inclusive a nota sobre `is_user_logged_in()`.
+   *
+   * ⚠️ **Nao e etapa de `atender` nem de `escolherApresentacao`**, e isso e
+   * fidelidade e nao desenho: `default-filters.php:367` a pendura em
+   * `wp_footer`, logo ela roda quando o tema emite o rodape — depois de tudo
+   * que as outras cinco operacoes enxergam.
+   *
+   * 🔴 **Na instalacao de fabrica ela nao declara nada**, porque
+   * `permalink_structure` nasce em texto vazio
+   * (`wp-admin/includes/schema.php:443`) e a configuracao fica ausente. E o
+   * comportamento, nao lacuna — ver `pre-busca/configuracao-da-pre-busca.ts`.
+   *
+   * Nao recebe a consulta nem o endereco: `speculative-loading.php` nao le
+   * `$wp_query` em nenhuma das suas 343 linhas. O que decide a declaracao e a
+   * instalacao, e ela chega no contexto.
+   */
+  declararPreBusca(opcoes?: OpcoesDaPreBusca): DeclaracaoDaPreBusca;
+
+  /**
    * Atende uma leitura publica inteira, na ordem do legado (`WP::main`).
    *
    * **Permissao exigida: nenhuma, e a declaracao e o ponto** (P4).
@@ -223,6 +263,7 @@ export function criarModuloDeLeituraPublica(
     situacaoDaResposta,
     consultarConteudo,
     escolherApresentacao,
+    declararPreBusca,
     atender: atenderLeituraPublica,
   };
 }
