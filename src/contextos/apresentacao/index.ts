@@ -1,14 +1,16 @@
 /**
  * Modulo de apresentacao — BC-07 de `target_architecture.md`.
  *
- * Esqueleto da feature `009-apresentacao-e-personalizacao`, tarefa **T001**. O que
- * existe aqui e exatamente o que T001 entrega: *"personalizacao, menus e
- * componentes de area carregam no mesmo passo, com as portas de dados e de
- * cliente externo declaradas, porque o ciclo de dependencia entre eles nao permite
- * ordem interna"*. **Nenhuma regra de negocio esta implementada.** O conjunto de
- * alteracoes como tipo de conteudo e a configuracao do tema como dado entram em
- * **T002**, e cada historia na tarefa dela (T003 em diante). A leitura obrigatoria
- * de quem pegar a tarefa seguinte esta em `./README.md`.
+ * Feature `009-apresentacao-e-personalizacao`, tarefas fechadas **T001** e
+ * **T002**. O que existe aqui e exatamente o que as duas entregam: T001,
+ * *"personalizacao, menus e componentes de area carregam no mesmo passo, com as
+ * portas de dados e de cliente externo declaradas, porque o ciclo de dependencia
+ * entre eles nao permite ordem interna"*; T002, *"o conjunto de alteracoes existe
+ * como tipo de conteudo proprio e a configuracao declarada pelo tema e lida como
+ * dado, pela porta de dados, com a mesma forma do legado"*. **Nenhuma regra de
+ * negocio esta implementada**, e nenhuma operacao esta exposta: cada historia
+ * entra na tarefa dela (T003 em diante). A leitura obrigatoria de quem pegar a
+ * tarefa seguinte esta em `./README.md`.
  *
  * A pasta e `contextos/apresentacao/` porque e assim que `target_architecture.md`
  * nomeia BC-07 no esboco de arvore; a feature se chama
@@ -37,16 +39,19 @@
  * - **Nao guarda estado de modulo.** BR-MIGRAR-105 (`EXT-CONTEXTO`) e AD-02 poem
  *   identidade, consulta corrente e conexao no escopo da REQUISICAO. Por isso as
  *   portas chegam por argumento e nao existe instancia compartilhada neste
- *   arquivo: duas composicoes nao se enxergam. Nesta feature isso tem peso proprio
- *   — numa rede o identificador do site entra **dentro** do nome da tabela, e a
- *   aparencia e configuracao **por site**: um modulo com estado trocaria o tema de
- *   um site pelo do outro.
+ *   arquivo: duas composicoes nao se enxergam, e o armazenamento de cada uma
+ *   nasce da porta dela. Nesta feature isso tem peso proprio — numa rede o
+ *   identificador do site entra **dentro** do nome da tabela, e a aparencia e
+ *   configuracao **por site**: um modulo com estado trocaria o tema de um site
+ *   pelo do outro.
  * - **Nao resolve nada no carregamento.** O modulo nao consulta dados, nao faz
- *   chamada externa e **nao chama a ligacao tardia** ao ser criado. A ordem de
- *   arranque e contrato publico (BR-MIGRAR-106, `EXT-ORDEM`), e trabalho feito na
- *   importacao e trabalho fora da ordem. Compor as tres areas e ligar uma a outra
- *   e tudo que a composicao faz, e `modulo.test.ts` afirma que nenhuma porta foi
- *   tocada.
+ *   chamada externa e **nao chama a ligacao tardia** ao ser criado; compor o
+ *   armazenamento monta nome de tabela e nada mais, e **nenhum tipo de conteudo
+ *   se registra aqui** — o registro de `customize_changeset` e dado
+ *   (`armazenamento/tipo-do-conjunto.ts`), lido por quem monta o arranque. A
+ *   ordem de arranque e contrato publico (BR-MIGRAR-106, `EXT-ORDEM`), e trabalho
+ *   feito na importacao e trabalho fora da ordem. `modulo.test.ts` afirma que
+ *   nenhuma porta foi tocada.
  *
  * O registro e escrito a mao de proposito: a Lacuna 1 de `pending_decisions.md`
  * fixou *"nenhum framework opinativo... sem container de DI, sem ORM, sem ciclo de
@@ -54,6 +59,10 @@
  * framework com ciclo de vida proprio disputa com ela.
  */
 
+import {
+  criarArmazenamentoDaApresentacao,
+  type ArmazenamentoDaApresentacao,
+} from './armazenamento/index.js';
 import { criarAreaDeComponentesDeArea } from './componentes-de-area/index.js';
 import type {
   AreaDeComponentesDeArea,
@@ -65,6 +74,7 @@ import { criarAreaDeMenus } from './menus/index.js';
 import { criarAreaDePersonalizacao } from './personalizacao/index.js';
 import type { PortaDeClienteExterno, PortaDeDados } from './portas/index.js';
 
+export * from './armazenamento/index.js';
 export * from './portas/index.js';
 export * from './ciclo-de-apresentacao.js';
 export * from './personalizacao/index.js';
@@ -82,7 +92,8 @@ export interface PortasDeApresentacao {
  *
  * Cada historia acrescenta aqui a sua operacao, com a declaracao explicita de
  * permissao que o **P4** da constituicao exige, e nenhuma antes da propria tarefa.
- * Hoje ha duas coisas, as duas de T001: as portas e as tres areas do ciclo.
+ * Hoje ha tres coisas, e nenhuma e operacao: as portas e as tres areas do ciclo
+ * (T001) e o armazenamento (T002), que nao decide nada.
  *
  * As nove operacoes que a tabela *Contratos* de `plan.md` nomeia, com a permissao
  * que o pacote declara para cada uma — **citadas, nao decididas aqui**, para que a
@@ -107,6 +118,16 @@ export interface PortasDeApresentacao {
 export interface ModuloDeApresentacao extends AreasDaApresentacao {
   readonly nome: 'apresentacao';
   readonly portas: PortasDeApresentacao;
+
+  /**
+   * A forma de armazenamento do conjunto de alteracoes e da configuracao do tema
+   * (T002). Le e grava **somente** pela porta de dados.
+   *
+   * **Nao e operacao, e por isso nao declara permissao:** ele nao decide nada,
+   * nao recusa nada e nao autoriza nada. A linha de `tasks.md` e literal —
+   * `satisfaz: — (infraestrutura)`.
+   */
+  readonly armazenamento: ArmazenamentoDaApresentacao;
 }
 
 /**
@@ -158,6 +179,9 @@ export function criarModuloDeApresentacao(
   return {
     nome: 'apresentacao',
     portas,
+    // Compor o armazenamento monta nome de tabela e nada mais: nenhuma consulta
+    // sai daqui (`EXT-ORDEM`, BR-MIGRAR-106).
+    armazenamento: criarArmazenamentoDaApresentacao(portas.dados),
     personalizacao,
     menus,
     componentesDeArea,

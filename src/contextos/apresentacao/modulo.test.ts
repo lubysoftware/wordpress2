@@ -9,6 +9,10 @@
  * T001 entrega, mais as tres invariantes de arquitetura que um esqueleto quebra em
  * silencio: estado de modulo (`EXT-CONTEXTO`), trabalho no carregamento
  * (`EXT-ORDEM`) e o ciclo resolvido cedo demais (BR-DESCARTAR-010).
+ *
+ * A entrega de **T002** tem suite propria — `armazenamento/armazenamento.test.ts`
+ * —, e aqui ela aparece em duas afirmacoes so: o armazenamento esta na superficie
+ * do modulo, e **compor o modulo continua sem tocar porta nenhuma**.
  */
 
 import assert from 'node:assert/strict';
@@ -109,12 +113,14 @@ test('a superficie do modulo tem exatamente o que as tarefas fechadas entregam',
   // constituicao cobra, "toda operacao exposta nova nasce com declaracao
   // explicita de permissao".
   //
-  // T001: nenhuma operacao — as duas portas e as tres areas. As nove operacoes
-  // que a tabela *Contratos* de `plan.md` nomeia entram em T003, T005, T009,
-  // T011, T013, T017, T023 e T025, cada uma com a permissao declarada. A que o P4
-  // mais cobra e a separacao entre salvar e aplicar (US-2), que `plan.md` chama de
-  // "o contrato central da feature".
+  // T001 e T002: nenhuma operacao — as duas portas e as tres areas (T001) e o
+  // armazenamento (T002), que nao decide nada. As nove operacoes que a tabela
+  // *Contratos* de `plan.md` nomeia entram em T003, T005, T009, T011, T013,
+  // T017, T023 e T025, cada uma com a permissao declarada. A que o P4 mais cobra
+  // e a separacao entre salvar e aplicar (US-2), que `plan.md` chama de "o
+  // contrato central da feature".
   assert.deepEqual(Object.keys(modulo).sort(), [
+    'armazenamento',
     'componentesDeArea',
     'menus',
     'nome',

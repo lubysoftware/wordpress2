@@ -1,9 +1,10 @@
 # Modulo de apresentacao — BC-07, feature `009-apresentacao-e-personalizacao`
 
 Tarefas fechadas com nota de entrega neste arquivo: **T001** (esqueleto, as duas
-portas e as tres areas do ciclo). Este arquivo e a leitura obrigatoria de quem
-pegar a tarefa seguinte: ele diz o que ja esta decidido, o que esta decidido **em
-outro lugar**, e o que **ninguem decidiu**.
+portas e as tres areas do ciclo) e **T002** (o conjunto de alteracoes como tipo de
+conteudo proprio e a configuracao do tema como dado). Este arquivo e a leitura
+obrigatoria de quem pegar a tarefa seguinte: ele diz o que ja esta decidido, o que
+esta decidido **em outro lugar**, e o que **ninguem decidiu**.
 
 > 🔴 **Antes de qualquer coisa, se a sua tarefa e T007 (US-3, informar o estado
 > gravado):** **CA-3.3 contradiz o comportamento que o P1 manda reproduzir**, e
@@ -38,19 +39,96 @@ outro lugar**, e o que **ninguem decidiu**.
 | `componentes-de-area/area-de-componentes-de-area.ts` | a area dos widgets em sidebars — US-7 e US-9 |
 | `modulo.test.ts` | afirma a entrega de T001 e as invariantes que um esqueleto quebra em silencio |
 
-**Nenhuma regra de negocio esta implementada**, e nenhuma operacao esta exposta. A
-superficie do modulo e `{ nome, portas, personalizacao, menus, componentesDeArea }`
-e a de cada area e `{ nome, noCiclo }` — `modulo.test.ts` congela as quatro listas
-de proposito: elas crescem **na tarefa de cada historia**, com a declaracao
-explicita de permissao que o **P4** cobra.
+## O que T002 entrega, e so isso
 
-**Nenhum numero mora neste modulo.** T001 nao pede ponto de configuracao, e os
-numeros desta feature entram nas tarefas que os usam, cada um com o teste de borda
-que o **P6** exige — o tempo limite de 5 s e os 5 redirecionamentos da chamada
-externa (T027), o prazo de um dia do cache do catalogo de fontes (T027), o teto de
-167 caracteres da chave desse cache (T027). Os valores de fabrica estao **citados
-em prosa** no cabecalho da porta, para que quem os for usar nao os invente. Numero
-que aparece aqui antes da tarefa dele e numero sem teste de borda.
+> *o conjunto de alteracoes existe como tipo de conteudo proprio e a configuracao
+> declarada pelo tema e lida como dado, pela porta de dados, com a mesma forma do
+> legado*
+> — `.specify/specs/009-apresentacao-e-personalizacao/tasks.md`, T002
+
+As duas estruturas da secao *Modelo de dados* do `plan.md` que sao banco nesta
+tarefa, e **nenhuma das duas tem tabela propria**:
+
+| arquivo em `armazenamento/` | o que e |
+|---|---|
+| `tipo-do-conjunto.ts` | o registro de `customize_changeset` transcrito de `post.php:220`-`:264`, como **dado**, e a resolucao de capacidade que ele produz |
+| `estado-do-conjunto.ts` | `SM-CHANGESET`: os cinco estados, os **quatro** aceitos na escrita, a lixeira como destino e o grafo de transicoes |
+| `conjunto-de-alteracoes.ts` | a linha de `posts`, o identificador (UUID em `post_name`), o valor gravado em **JSON** e a unica escrita que este contexto faz em `posts` por conta propria |
+| `configuracao-do-tema.ts` | `AGG-Tema` pelo lado do dado: o tema ativo e as modificacoes, com a cadeia de recurso de `get_theme_mods()` inteira |
+| `opcao.ts` | a linha de `options`, com a sequencia de comandos de `get`/`add`/`update`/`delete_option` e o marcador de carga automatica |
+| `chaves-e-tabelas.ts` | os nomes de tabela, de tipo, de opcao e de modificacao — nenhum se monta a mao fora dali |
+| `leitura-de-linha.ts`, `porta-falsa.ts` | a leitura de coluna e o duplo que **registra comando** |
+| `armazenamento.test.ts` | 50 afirmacoes de forma, byte e **sequencia de comandos** |
+
+**Nenhuma regra de negocio esta implementada, e nenhuma operacao esta exposta**: a
+superficie do modulo cresceu um campo (`armazenamento`), e `modulo.test.ts`
+continua congelando as quatro listas. O armazenamento nao decide, nao recusa e nao
+autoriza nada — `satisfaz: — (infraestrutura)`.
+
+**Dois achados de forma que mudam o byte, e que um porte distraido troca:**
+
+1. 🔴 **O conjunto guarda o valor em JSON, nao no formato serializado do PHP**
+   (`class-wp-customize-manager.php:2921`), com `JSON_UNESCAPED_SLASHES` e
+   `JSON_PRETTY_PRINT` — e **sem** `JSON_UNESCAPED_UNICODE`, logo todo caractere
+   fora de ASCII sai como `\uXXXX` minusculo. As **outras** duas estruturas
+   (`theme_mods_{folha}` e a opcao de componentes por area) guardam arranjo no
+   formato nativo do PHP. E conjunto vazio grava `[]`, nao `{}`.
+2. **`theme_mods_{folha}` tem a folha de estilo DENTRO do nome da opcao**, e e
+   isso que faz dois temas nunca colidirem e que torna *"a configuracao do tema
+   anterior permanece nas opcoes"* (UC-32) verdade sem codigo nenhum.
+
+⚠️ **Uma consequencia declarada, nao um defeito:** sem cache de objeto — porta de
+AD-08 que esta feature so declara em **T025** —, a leitura que `update_option()`
+faz para comparar o valor antigo sai como **consulta**, onde no legado ela e
+acerto do grupo `options`. A sequencia de **escrita** e identica, que e o que a
+area 3 compara (*"snapshot + sequencia de comandos"*), e o cenario de paridade
+roda *"com o cache de objeto desligado nas duas metades"*. Esta escrito no
+cabecalho de `armazenamento/opcao.ts` e afirmado nos testes que programam a mesma
+linha duas vezes.
+
+### A divisao que T002 fez — e que ajusta uma nota de T001
+
+T001 escreveu, no cabecalho de `portas/index.ts`, que a porta de **sistema de
+arquivos** entraria *"em T002, T027"*, para *"ler a configuracao declarada pelo
+tema, que e arquivo no tema"*. **T002 nao a declarou**, e o motivo esta aqui para
+que a proxima onda nao a procure:
+
+| o que o `plan.md` lista em *Modelo de dados* | onde vive | quem porta |
+|---|---|---|
+| *"configuracao do tema"* — o tema ativo e as modificacoes | `options` | **T002**, pela porta de dados, que e o que a linha de `tasks.md` nomeia |
+| *"configuracao declarada pelo tema: arquivo no tema, lido como dado"* | `style.css` e o contrato declarativo de estilos, no diretorio do tema | **T025** (US-12, *"o contrato declarativo do tema e resolvido numa folha de estilo"*) e **T031** (US-15) |
+
+Duas razoes, as duas de texto do pacote: a entrega de T002 diz **"pela porta de
+dados"**, com essas palavras; e no vocabulario do pacote *"configuracao do tema"* e
+o que esta gravado em opcao — UC-32 (*"permanece **nas opcoes**, nao apagada"*),
+CA-9.2, CA-10.3, CA-5.4, CA-7.2 e os casos `UT-103-2` e `UT-105-3` do catalogo
+usam a expressao nesse sentido. Nenhuma tarefa desta feature resolve o contrato
+declarativo antes de T025, e declarar a porta agora seria superficie que nenhuma
+linha usa. **Quem pegar T025 declara a porta de sistema de arquivos ali**, com os
+tres pontos em que `get_theme_mods()` e `remove_theme_mods()` recorreriam ao
+cabecalho de `style.css` quando `current_theme` nao existe
+(`wp-includes/theme.php:1033` e `:1168`) — nesses pontos o Nome do tema chega a
+este armazenamento **por argumento**, e nao por leitura de disco.
+
+**Nenhuma regra de negocio esta implementada**, e nenhuma operacao esta exposta. A
+superficie do modulo e
+`{ nome, portas, armazenamento, personalizacao, menus, componentesDeArea }` — o
+ultimo campo entrou em T002 — e a de cada area e `{ nome, noCiclo }`;
+`modulo.test.ts` congela as quatro listas de proposito: elas crescem **na tarefa
+de cada historia**, com a declaracao explicita de permissao que o **P4** cobra.
+
+**Um numero mora neste modulo, e e o da tarefa que o usa.** T001 nao pediu ponto
+de configuracao nenhum; **T002 traz o primeiro** — o teto de **150000 bytes**
+acima do qual a carga automatica de uma opcao e desligada por heuristica
+(`wp-includes/option.php:1362`, filtro de fabrica em
+`default-filters.php:299`), em `armazenamento/opcao.ts`, com o teste de borda que
+o **P6** exige (no teto aceita, um byte acima recusa). Os outros numeros desta
+feature entram nas tarefas que os usam, cada um com o teste de borda dele — o
+tempo limite de 5 s e os 5 redirecionamentos da chamada externa (T027), o prazo
+de um dia do cache do catalogo de fontes (T027), o teto de 167 caracteres da
+chave desse cache (T027). Os valores de fabrica estao **citados em prosa** no
+cabecalho da porta, para que quem os for usar nao os invente. Numero que aparece
+aqui antes da tarefa dele e numero sem teste de borda.
 
 ⚠️ **E o numero que o legado NAO tem tambem e regra.** A area de inativos de
 componentes e *"um deposito sem retencao"* (UC-31) e a constituicao poe *"introduzir
@@ -98,9 +176,10 @@ ligacao tardia como o idioma deste porte. `modulo.test.ts` afirma que a ligacao
   por simetria seria *acrescentar* divida herdada onde o legado nao a tem.
 
 **As tres bordas de AD-08 que esta feature nao declarou** estao nomeadas, com a
-tarefa de cada uma, no cabecalho de `portas/index.ts`: sistema de arquivos (T002,
-T027), cache de objeto (T025) e e-mail (**nenhuma** historia desta feature envia
-e-mail).
+tarefa de cada uma, no cabecalho de `portas/index.ts`: sistema de arquivos (ali
+escrito como *"T002, T027"*; **T002 nao a declarou**, e a secao *A divisao que
+T002 fez* acima diz por que — ela e de **T025**, **T027** e **T031**), cache de
+objeto (T025) e e-mail (**nenhuma** historia desta feature envia e-mail).
 
 **As portas sao sincronas** (AD-04), e a porta de dados **nao tem transacao** — que
 nesta feature e o contrato: `switch_theme()` grava opcao por opcao em sequencia
@@ -226,12 +305,26 @@ US-11 e US-12 so faz sentido com ele"*.
   pelo navegador"* (US-13); so o JSON do catalogo passa pela porta de saida.
 - **Migracao de dado.** `plan.md`, *Migracao de dados*: *"nada vem do sistema
   velho (resposta 2). O tema padrao da instalacao nova e ativado como o instalador
-  do legado ativa, e nenhum conjunto de alteracoes existe"*.
+  do legado ativa, e nenhum conjunto de alteracoes existe"*. ⚠️ **O que T002
+  portou de parecido nao e migracao de dado:** a localizacao obsoleta
+  `mods_{Nome}` e lida e apagada **pelo legado**, em quatro caminhos
+  (`wp-includes/theme.php:1036`, `:1038`-`:1039`, `:820`, `:1171`), e o **P8**
+  mais a resposta 14 mandam portar o que o legado tem — *"o descarte vale como
+  nao mudar, nunca como nao portar"*. Numa instalacao nova aquela opcao
+  simplesmente nao existe, o que e um **estado**, nao ausencia de codigo.
+- **O registro do tipo de conteudo acontecendo por efeito de carregamento.** A
+  declaracao de `customize_changeset` e **dado** (`armazenamento/tipo-do-conjunto.ts`):
+  quem a registra e o arranque, cuja ordem e contrato publico (`EXT-ORDEM`,
+  BR-MIGRAR-106, e a tabela *Nao negociavel* da constituicao).
+- **Transacao em volta da troca de tema.** `switch_theme()` grava opcao por opcao
+  em sequencia e, interrompida, deixa **parte** gravada; e desse estado parcial
+  que US-9 depende. O legado mede zero `START TRANSACTION` em 1.467 arquivos
+  (BR-MIGRAR-104).
 
 ## Como esta entrega se confere
 
 - `npm run typecheck` e `npm test` — as 8 afirmacoes de T001 estao em
-  `modulo.test.ts`.
+  `modulo.test.ts` e as 50 de T002 em `armazenamento/armazenamento.test.ts`.
 - Pela paridade, e aqui a cobertura e **desigual entre as tres areas**:
 
 | area | cenario de paridade | situacao |
@@ -247,5 +340,20 @@ quem mantem `parity_specs.md`; para T011 a T020 o oraculo e o contrato de tela m
 os casos do catalogo `backlog/tests.md`, copiados e nao reconstruidos.
 
 A metade de PT-019 que depende de T001 e **nenhuma**: o esqueleto nao tem estado a
-transicionar. Ela comeca a ser conferivel em T002, quando o conjunto de alteracoes
-passa a existir como tipo de conteudo.
+transicionar. Com **T002** ela comeca a ser conferivel, e o que ja da para
+conferir e o que nao da esta separado:
+
+| o que `PT-019` cobra | com T002 |
+|---|---|
+| *"as duas o gravam na mesma tabela do conteudo editorial"* | conferivel — `{site}posts` com `post_type = 'customize_changeset'` |
+| *"as duas usam um conjunto de estados proprio, diferente do editorial"* | conferivel — `estado-do-conjunto.ts`, com os cinco estados e os quatro aceitos na escrita |
+| *"nenhuma das duas aplica a maquina editorial ao changeset"* | conferivel — `transicaoPermitida()` recusa `publish → draft`, que o conteudo editorial aceita |
+| *"cada transicao dispara os mesmos gatilhos, na mesma ordem"* | 🔴 **nao** — gatilho e ponto de extensao, e o barramento de *hooks* (REQ-162) esta em `do-not-rewrite.md`. Os nomes estao declarados nos arquivos que os emitiriam |
+| *"publicar o changeset aplica os valores e encerra o ciclo de vida dele"* | **nao** — aplicar valores e **T005**; T002 entrega o comando que leva o registro a lixeira, nao a decisao de emiti-lo |
+| *"o changeset abandonado segue a politica de retencao do legado"* | **nao** — a coleta e a varredura de rascunho automatico da feature `005` (T013), e **nenhum prazo nasce neste modulo** |
+
+E a area 3 da Decisao 2 (*"efeito no banco... snapshot + sequencia de
+comandos"*), que `LACUNA-IN-12` aponta para UC-32 — *"trocar o tema ativo
+**escreve opcao** — e area 3"* —, passa a ter contra o que ser conferida: a
+sequencia de comandos de cada operacao de opcao esta afirmada por teste,
+**inclusive as tres que nao emitem comando nenhum**.

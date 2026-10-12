@@ -5,7 +5,7 @@
 - [x] **T001** Preparar o esqueleto dos três módulos de apresentação, juntos
       *entrega:* personalização, menus e componentes de área carregam no mesmo passo, com as portas de dados e de cliente externo declaradas, porque o ciclo de dependência entre eles não permite ordem interna
       *satisfaz:* — (infraestrutura)
-- [ ] **T002** Portar a alteração de aparência como registro de conteúdo e a configuração do tema como dado
+- [x] **T002** Portar a alteração de aparência como registro de conteúdo e a configuração do tema como dado
       *entrega:* o conjunto de alterações existe como tipo de conteúdo próprio e a configuração declarada pelo tema é lida como dado, pela porta de dados, com a mesma forma do legado
       *satisfaz:* — (infraestrutura)
       *depende de:* T001
