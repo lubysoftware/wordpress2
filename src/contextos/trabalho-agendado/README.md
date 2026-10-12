@@ -1,9 +1,10 @@
 # Modulo de trabalho agendado — feature `011-trabalho-agendado`
 
 Tarefas fechadas com nota de entrega neste arquivo: **T001** (esqueleto, as quatro
-portas e a fila vazia). Este arquivo e a leitura obrigatoria de quem pegar a
-tarefa seguinte: ele diz o que ja esta decidido, o que esta decidido **em outro
-lugar**, e o que **ninguem decidiu**.
+portas e a fila vazia) e **T002** (a fila gravada e lida na linha `cron` da tabela
+de opcoes, e a trava de tempo do legado). Este arquivo e a leitura obrigatoria de
+quem pegar a tarefa seguinte: ele diz o que ja esta decidido, o que esta decidido
+**em outro lugar**, e o que **ninguem decidiu**.
 
 > 🔴 **Antes de qualquer coisa: tres das seis historias desta feature estao em
 > conflito aberto, e as tarefas delas NAO COMECAM.** `tasks.md` abre com a
@@ -39,6 +40,9 @@ lugar**, e o que **ninguem decidiu**.
 | `modulo.test.ts` | afirma a entrega de T001 e as invariantes que um esqueleto quebra em silencio |
 | `fila/fila-agendada.test.ts` | afirma a forma do dado, a fila vazia e o congelamento dela |
 
+Os arquivos que **T002** acrescentou — `configuracao/`, `armazenamento/` e mais tres
+em `fila/` — estao na secao *O que T002 entrega*.
+
 **Nenhuma regra de negocio esta implementada**, e nenhuma operacao esta exposta. A
 superficie do modulo e `{ nome, portas, fila }`, e `modulo.test.ts` a congela
 nessas tres chaves de proposito: a lista cresce **na tarefa de cada historia**,
@@ -52,6 +56,11 @@ desta feature — **60 segundos** de trava e o **descarte dela depois de 10 minu
 — entram com **T002**, que e a tarefa que os implementa e que escreve o teste de
 borda que o **P6** exige (*"no ultimo instante aceita, um instante depois
 recusa"*). Numero que aparece antes da tarefa dele e numero sem teste de borda.
+
+> Isso era verdade ao fim de T001. Com **T002** os dois numeros passaram a morar em
+> `configuracao/trava-da-fila.ts`, com o teste de borda em
+> `configuracao/trava-da-fila.test.ts` — e **com uma leitura corrigida**: ver
+> *🔴 Os 10 minutos nao sao idade da trava* abaixo.
 
 ## As quatro portas, e por que sao estas
 
@@ -116,9 +125,137 @@ chaves do arranjo sao ignoradas"* (`wp-includes/cron.php:239`), e isso vale para
 para a identidade — `array( 'a' => 1 )` e `array( 1 )` sao eventos **diferentes**
 na fila.
 
-**O que a fila ainda NAO faz, e de quem e:** gravar e ler no ponto de configuracao
-e a trava sao **T002**; avancar a fila e **T003**; a exclusao entre processos e
-**T005**; reagendar o recorrente antes de executar e **T011**.
+**O que a fila ainda NAO faz, e de quem e:** ~~gravar e ler no ponto de
+configuracao e a trava sao **T002**~~ — fechadas, ver a secao seguinte; avancar a
+fila e **T003**; a exclusao entre processos e **T005**; reagendar o recorrente
+antes de executar e **T011**.
+
+## O que T002 entrega
+
+> *a fila e gravada e lida no mesmo ponto de configuracao do legado, e a trava de
+> 60 segundos com descarte depois de 10 minutos existe e e verificavel com relogio
+> controlado*
+> — `.specify/specs/011-trabalho-agendado/tasks.md`, T002
+
+| arquivo | o que e |
+|---|---|
+| `configuracao/trava-da-fila.ts` | os **dois numeros**, com o valor de fabrica e a aritmetica de cada um |
+| `fila/estrutura-gravada.ts` | a estrutura gravada: versao, chave `md5`, conversao da versao 1, ordem, por e tirar ocorrencia |
+| `fila/comparacao-natural.ts` | `strnatcasecmp()` portado — e a ordem da fila |
+| `fila/trava-do-disparo.ts` | a trava como valor: a chave de 22 casas, o `(float)` do PHP e as **duas** decisoes |
+| `armazenamento/chaves-e-tabelas.ts` | a tabela, os nomes de opcao, a chave de cache, o carregamento automatico |
+| `armazenamento/fila-em-opcao.ts` | `_get_cron_array()` e `_set_cron_array()`: a linha `cron` |
+| `armazenamento/trava-em-transiente.ts` | `_get_cron_lock()`, `get_transient()`, `set_transient()`, `delete_transient()` |
+| `armazenamento/leitura-de-linha.ts` | leitura de coluna e comparacao de bytes |
+| `armazenamento/porta-falsa.ts` | os duplos de dados e de cache, que **registram comando** |
+
+A superficie do modulo cresceu em duas chaves — `travaDaFila` (o numero em vigor) e
+`armazenamento` (as duas moradas) — e **nenhuma delas e operacao de historia**: o
+armazenamento le e grava dado e nao decide autorizacao nenhuma, que e o que o
+**P4** pede que esteja escrito. As seis operacoes da tabela *Contratos* continuam
+nas tarefas delas.
+
+**O campo `fila` saiu da superficie, e foi T001 que escreveu a substituicao:** *"T002
+traz a leitura e a gravacao pela porta de dados, e e esperado que a operacao de
+leitura substitua este campo quando chegar"*. Ele nao podia virar a fila lida — isso
+seria consultar o banco no carregamento e guardar o valor lido em estado de modulo,
+as duas coisas que `EXT-CONTEXTO` e `EXT-ORDEM` proibem e que o proprio T001 proibiu
+no mesmo paragrafo. A fila agora vem de `armazenamento.fila.obter()`, uma operacao, e
+`FILA_VAZIA` continua sendo o valor que ela devolve quando a opcao nao existe.
+
+### 🔴 Os 10 minutos nao sao idade da trava: sao adiantamento
+
+A prosa do pacote diz *"a trava e um transiente de 60 segundos, descartado se passar
+de 10 minutos"* — `spec.md`, BR-MIGRAR-053 (`A9`) e UC-39 usam as mesmas palavras —, e
+a leitura natural dela e *"trava com mais de 10 minutos de idade e descartada"*. **O
+codigo faz outra coisa** (`wp-includes/cron.php:917`):
+
+```php
+$lock = (float) get_transient( 'doing_cron' );
+
+if ( $lock > $gmt_time + 10 * MINUTE_IN_SECONDS ) {
+    $lock = 0;
+}
+```
+
+A comparacao e `$lock > $gmt_time + 600`: descarta-se a trava que esta **mais de dez
+minutos no FUTURO**. Trava **velha** nao e descartada por esta linha — a de baixo, de
+60 segundos, ja a deixa passar.
+
+**T002 portou o codigo, pelo P1** (*"o comportamento observavel do legado e a
+especificacao"*, e a ancora e o codigo). Nao foi tratado como conflito entre fontes
+porque nao e: a prosa das tres paginas descreve o mesmo `:917`, imprecisamente, e
+nenhuma delas e criterio de aceite — T002 e infraestrutura e nao satisfaz CA nenhum.
+Fica registrado aqui, no cabecalho de `configuracao/trava-da-fila.ts` e num teste de
+borda proprio, porque e armadilha: quem "consertar" a direcao da comparacao troca o
+produto.
+
+### Os dois freios sao dois, e nao se unificam
+
+O mesmo numero de 60 segundos e cobrado em dois lugares com aritmetica diferente:
+
+| onde | o que faz | ancora |
+|---|---|---|
+| antes de **emitir** o disparo | descarta a trava adiantada, depois recusa se a trava tem menos de 60 s | `wp-includes/cron.php:915`-`924` |
+| ao **tomar** a trava no endpoint | recusa se a trava e verdadeira no PHP **e** tem menos de 60 s; **nao** descarta adiantada | `wp-cron.php:98` |
+
+A consequencia e observavel: uma trava gravada com meia hora de adiantamento libera o
+emissor e continua travando o endpoint. As duas funcoes existem com nome proprio em
+`fila/trava-do-disparo.ts` para que ninguem as unifique mais tarde "porque sao a mesma
+trava".
+
+### O que T002 mediu no oraculo, e que o pacote nao tinha
+
+O oraculo executavel da resposta 16 (`scripts/oraculo`, PHP 8.3) estava no ar, e foi
+contra ele que cada vetor desta tarefa saiu — medido, nao deduzido. O que ficou
+fechado:
+
+- **a formatacao de 22 casas.** `porta-de-relogio.ts` deixou pedido em T001 que *"quem
+  escrever o adaptador confere a formatacao contra o oraculo antes de afirmar
+  paridade"*. `sprintf( '%.22F', $v )` e `Number.prototype.toFixed( 22 )` coincidem nos
+  cinco valores medidos (inclusive `0.1` e `1.0E-7`). **A outra metade da pergunta
+  continua aberta:** quantas casas o relogio do runtime informa e do adaptador, e duas
+  chaves iguais por truncamento sao duas chaves que se confundem;
+- **a ordem de `strnatcasecmp`.** `fila-agendada.ts` registrou em T001 que conferir
+  isso era de T002. Para instante Unix positivo ela coincide com a numerica; para
+  instante **negativo** nao (`-1, -5, -10`), e `'05'` **empata** com `'5'`. O porte
+  do algoritmo foi conferido par a par contra o oraculo — 42 cadeias escolhidas
+  pelas bordas, 1.764 pares, **sinal identico nos 1.764**;
+- **os bytes da fila gravada**, inclusive a fila vazia (`a:1:{s:7:"version";i:2;}`, e
+  nao `a:0:{}`), a conversao da versao 1 e o par acrescentar/remover que PT-005 cobra;
+- **as degradacoes do PHP 8.3** sobre fila malformada: nivel ocupado por escalar
+  **lanca** (`Cannot use a scalar value as an array`, `Cannot unset string offsets`),
+  nulo e `false` viram arranjo na escrita, e instante de valor nulo **desaparece** ao
+  desagendar porque `empty( null )` e verdadeiro.
+
+### O que T002 NAO reproduz, e por que
+
+- **O cache de opcoes.** No legado as duas linhas tem carregamento automatico ligado,
+  logo chegam juntas numa consulta so (`wp-includes/option.php:627`) e `get_option()`
+  as serve do cache dali em diante. Aqui sai **uma leitura por linha**, com o mesmo
+  texto que `get_option()` usa sem cache (`:206`). E diferenca de **sequencia de
+  comandos**, nao de efeito, e ela existe porque o registro de opcoes e `015`
+  (`plataforma/opcoes`, REQ-170) — o mesmo caminho e a mesma nota de
+  `identidade-e-acesso/armazenamento/repositorio-de-papeis.ts`. Tambem ficam de fora,
+  pela mesma razao, a manutencao de `notoptions` e `alloptions` (`:968`-`:1005`) e a
+  releitura de `autoload` quando o chamador nao o declara (`:953`, que nao se aplica:
+  aqui ele e sempre declarado).
+- **`wp_installing()`.** Os tres caminhos de transiente abrem com
+  `wp_using_ext_object_cache() || wp_installing()`. A primeira metade chega pela porta
+  de cache; a segunda **nao existe nesta arvore** (nao ha instalador — e `015` e
+  `010`), e inventar uma bandeira de instalacao aqui seria declarar estado que o pacote
+  nao deu a este modulo. Consequencia estreita e declarada: durante a instalacao, o
+  legado guarda a trava no cache mesmo sem cache externo.
+- **As guardas e os pontos de extensao de agendar.** `wp_schedule_event()` valida
+  instante inteiro positivo (`:254`) e recorrencia existente (`:267`), tem a janela de
+  dez minutos do evento duplicado (`:135`-`:160`) e dispara `pre_schedule_event` e
+  `schedule_event` (`:100`, `:188`). T002 entrega a **estrutura** e a **gravacao**; as
+  guardas pertencem a quem expuser a operacao, os intervalos de fabrica sao **T011** e
+  o barramento de ponto de extensao e REQ-162, que `do-not-rewrite.md` poe fora de
+  escopo.
+- **Exclusao real entre processos**, que e **T005** e divergencia: ver a lista de *O
+  que este modulo nao vai ter*. `trava-em-transiente.ts` oferece ler, gravar e
+  remover — as tres operacoes que o legado faz — e **nao** oferece gravar-se-ausente.
 
 ## O conflito que T001 declarou e nao decidiu
 
@@ -217,12 +354,23 @@ fazer** (disparar).
 
 ## Como esta entrega se confere
 
-- `npm run typecheck` e `npm test` — as afirmacoes de T001 estao em
-  `modulo.test.ts` (8) e `fila/fila-agendada.test.ts` (6).
+- `npm run typecheck` e `npm test`. As afirmacoes de T001 estao em `modulo.test.ts`
+  e `fila/fila-agendada.test.ts` (6); as de **T002** sao **57 testes**, em
+  `configuracao/trava-da-fila.test.ts` (6), `fila/trava-do-disparo.test.ts` (8),
+  `fila/comparacao-natural.test.ts` (8), `fila/estrutura-gravada.test.ts` (17) e
+  `armazenamento/armazenamento.test.ts` (18), mais as 2 de superficie que
+  `modulo.test.ts` ganhou (10).
+- Contra o **oraculo**: `sh scripts/oraculo/levantar.sh` e, com ele no ar,
+  `docker exec oraculo-wp-712-legado-1 php -r '...'`. Todo vetor de bytes, toda
+  ordem e toda degradacao afirmada nos testes de T002 saiu dali — e e assim que o
+  proximo vetor se obtem, em vez de se deduzir.
 - Pela paridade: **PT-005**
   (`.specify/migration/parity_tests/05-agendador-e-loopback.feature`), que e a
-  **fatia 5, fatia propria por mandato do paradigma**. A metade dele que depende
-  de T001 e a **forma** do dado e a superficie do disparo; a metade que depende da
-  fila gravada, da trava e da execucao vem com T002, T003 e T005 — e os cenarios de
-  US-1 sao cobrados dos dois lados do conflito, que e por que eles nao comecam
-  antes da decisao.
+  **fatia 5, fatia propria por mandato do paradigma**. T001 cobriu a **forma** do
+  dado e a superficie do disparo. **T002 fecha os dois cenarios de armazenamento**
+  — *"a fila e uma lista em opcao, lida e escrita como o legado a le e escreve"*
+  (inclusive *"a ordem das tarefas dentro da estrutura e a mesma nas duas"*) e a
+  metade de *"a trava de tempo do disparo e o unico freio, e e a do legado"* que
+  nao depende de emitir disparo. O que falta dele depende da execucao (T003) e da
+  concorrencia (T005) — e os cenarios de US-1 sao cobrados dos dois lados do
+  conflito, que e por que eles nao comecam antes da decisao.
