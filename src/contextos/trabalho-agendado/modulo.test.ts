@@ -1,7 +1,11 @@
 /**
- * Testes da entrega de T001: *"o modulo carrega com as portas de dados, de
+ * Testes da entrega de T001 — *"o modulo carrega com as portas de dados, de
  * relogio, de cache e de cliente externo declaradas, e a fila existe como dado
- * inspecionavel e vazio"*.
+ * inspecionavel e vazio"* — e da superficie que **T002** acrescenta: a trava em
+ * vigor e o armazenamento das duas linhas de opcao. O que T002 entrega de
+ * comportamento e afirmado onde ele mora: `armazenamento/armazenamento.test.ts`,
+ * `fila/estrutura-gravada.test.ts`, `fila/trava-do-disparo.test.ts`,
+ * `fila/comparacao-natural.test.ts` e `configuracao/trava-da-fila.test.ts`.
  *
  * Nao sao os testes de nenhuma historia — esses sao T004, T006, T008, T010, T012
  * e T014 de `tasks.md`, um por caso de `backlog/tests.md`, e os tres primeiros
@@ -143,13 +147,26 @@ test('a superficie do modulo tem exatamente o que as tarefas fechadas entregam',
   // constituicao cobra, "toda operacao exposta nova nasce com declaracao
   // explicita de permissao".
   //
-  // T001: nenhuma operacao — as quatro portas e a fila, que e dado e nao
-  // operacao. As seis operacoes que a tabela *Contratos* de `plan.md` nomeia
-  // entram nas tarefas delas, com a autorizacao declarada na interface do modulo
-  // — inclusive a de avancar a fila, que UC-39 declara como NENHUMA ("o endpoint
-  // da fila e publico e nao autenticado; o unico freio e uma trava de tempo de 60
-  // segundos"), e que o P4 manda escrever justamente por isso.
-  assert.deepEqual(Object.keys(modulo).sort(), ['fila', 'nome', 'portas']);
+  // T001: as quatro portas. T002: a trava em vigor e o armazenamento das duas
+  // linhas de opcao — e **nenhuma operacao de historia**: o armazenamento le e
+  // grava dado, e nao decide autorizacao nenhuma. As seis operacoes que a tabela
+  // *Contratos* de `plan.md` nomeia entram nas tarefas delas, com a autorizacao
+  // declarada na interface do modulo — inclusive a de avancar a fila, que UC-39
+  // declara como NENHUMA ("o endpoint da fila e publico e nao autenticado; o
+  // unico freio e uma trava de tempo de 60 segundos"), e que o P4 manda escrever
+  // justamente por isso.
+  //
+  // O campo `fila` que T001 publicou saiu aqui, e foi T001 que escreveu a
+  // substituicao: "T002 traz a leitura e a gravacao pela porta de dados, e e
+  // esperado que a operacao de leitura substitua este campo quando chegar". Ele
+  // nao podia virar a fila lida sem tocar o banco no carregamento, que e o que o
+  // teste de `EXT-ORDEM` abaixo proibe.
+  assert.deepEqual(Object.keys(modulo).sort(), [
+    'armazenamento',
+    'nome',
+    'portas',
+    'travaDaFila',
+  ]);
 });
 
 test('criar o modulo nao toca em porta nenhuma (EXT-ORDEM: nada se resolve no carregamento)', () => {
@@ -203,16 +220,25 @@ test('duas composicoes nao compartilham estado (EXT-CONTEXTO, BR-MIGRAR-105)', (
   assert.equal(segunda.toques.selecionar.length, 0);
 });
 
-test('a fila do modulo existe, e esta vazia', () => {
-  const { portas } = portasDeTeste();
+test('a fila do modulo existe, e esta vazia (T001) — agora lida da opcao (T002)', () => {
+  const { portas, toques } = portasDeTeste();
 
   const modulo = criarModuloDeTrabalhoAgendado(portas);
 
-  assert.deepEqual(modulo.fila, FILA_VAZIA);
-  assert.equal(modulo.fila.length, 0);
-  // Ler a fila nao consulta banco nem cache: ela e dado, e T001 nao a le de
-  // lugar nenhum. Quem a trouxer da linha `cron` da tabela de opcoes e T002.
-  assert.ok(Object.isFrozen(modulo.fila));
+  // A porta falsa deste arquivo nao devolve linha nenhuma, que e a instalacao em
+  // que nada foi agendado: `_get_cron_array()` devolve `array()` quando a opcao
+  // nao existe (`wp-includes/cron.php:1262`-`1265`).
+  const leitura = modulo.armazenamento.fila.obter();
+
+  assert.deepEqual(leitura.fila, FILA_VAZIA);
+  assert.equal(leitura.fila.length, 0);
+  assert.ok(Object.isFrozen(FILA_VAZIA));
+
+  // E e LEITURA, nao campo: o comando sai agora, e nao no carregamento. A linha
+  // consultada e a `cron` da tabela de opcoes deste site.
+  assert.equal(toques.selecionar.length, 1);
+  assert.deepEqual(toques.selecionar[0]?.parametros, ['cron']);
+  assert.deepEqual(toques.escrever, []);
 });
 
 test('o cache informa se e externo, e o modulo nao decide isso', () => {
@@ -254,4 +280,36 @@ test('o disparo devolve a falha como valor, sem lancar (P7, AD-07)', () => {
 
   assert.equal(resultado.emitido, true);
   assert.ok(!('resposta' in resultado));
+});
+
+test('a trava em vigor e a de fabrica, e a composicao e o ponto que a altera (T002, P6)', () => {
+  const { portas } = portasDeTeste();
+
+  // `WP_CRON_LOCK_TIMEOUT` e `MINUTE_IN_SECONDS`
+  // (`wp-includes/default-constants.php:399` e `:158`), e os dez minutos sao os
+  // `10 * MINUTE_IN_SECONDS` de `wp-includes/cron.php:917`. No legado as duas
+  // coisas se alteram redefinindo constante ANTES do arranque, logo o ponto
+  // equivalente no alvo e o argumento da composicao.
+  assert.deepEqual(criarModuloDeTrabalhoAgendado(portas).travaDaFila, {
+    tempoLimiteEmSegundos: 60,
+    descarteDoAdiantamentoEmSegundos: 600,
+  });
+
+  const comOutraTrava = criarModuloDeTrabalhoAgendado(portas, {
+    travaDaFila: {
+      tempoLimiteEmSegundos: 120,
+      descarteDoAdiantamentoEmSegundos: 600,
+    },
+  });
+  assert.equal(comOutraTrava.travaDaFila.tempoLimiteEmSegundos, 120);
+});
+
+test('o armazenamento do modulo tem as duas moradas desta feature, e so elas', () => {
+  const { portas } = portasDeTeste();
+
+  const { armazenamento } = criarModuloDeTrabalhoAgendado(portas);
+
+  // Duas linhas da tabela de opcoes, nenhuma tabela propria: `plan.md` registra
+  // que a fila e "uma unica linha de configuracao", e a trava e a outra.
+  assert.deepEqual(Object.keys(armazenamento).sort(), ['fila', 'trava']);
 });

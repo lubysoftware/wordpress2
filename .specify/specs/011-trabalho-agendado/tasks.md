@@ -7,7 +7,7 @@
 - [x] **T001** Preparar o esqueleto do módulo de fila agendada
       *entrega:* o módulo carrega com as portas de dados, de relógio, de cache e de cliente externo declaradas, e a fila existe como dado inspecionável e vazio
       *satisfaz:* — (infraestrutura)
-- [ ] **T002** Portar a fila como lista em configuração nomeada, com a trava de tempo do legado
+- [x] **T002** Portar a fila como lista em configuração nomeada, com a trava de tempo do legado
       *entrega:* a fila é gravada e lida no mesmo ponto de configuração do legado, e a trava de 60 segundos com descarte depois de 10 minutos existe e é verificável com relógio controlado
       *satisfaz:* — (infraestrutura)
       *depende de:* T001
