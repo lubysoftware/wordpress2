@@ -3,21 +3,24 @@
 Epico EP-13 do backlog: *"o que o sistema expoe a programas: API, abilities,
 feeds, sitemaps"*. Tarefas fechadas com nota de entrega neste arquivo: **T001**
 (esqueleto, o despachante com o registro de rotas vazio e inspecionavel, e a
-porta de dados).
+porta de dados) e **T002** (os dois formatos de declaracao, o ato de registrar, e
+o aviso de uso indevido da rota sem declaracao de permissao).
 
 Este arquivo e a leitura obrigatoria de quem pegar a tarefa seguinte: ele diz o
 que ja esta decidido, o que esta decidido **em outro lugar**, e o que **ninguem**
 decidiu.
 
-> 🔴 **Se a sua tarefa e T002 ou T003, leia o item 1 de *O que ninguem decidiu*
-> antes da primeira linha.** Ha uma frase de `UC-44` que manda **nao** copiar a
-> falha aberta da camada de rotas, e a constituicao, `BR-HUMANA-008`, a `spec.md`
-> e o cenario de paridade mandam copiar. T001 topou nisso e **nao resolveu**:
-> T001 nao implementa camada de autorizacao nenhuma.
+> 🔴 **Se a sua tarefa e T003, leia o item 1 de *O que ninguem decidiu* antes da
+> primeira linha.** Ha uma frase de `UC-44` que manda **nao** copiar a falha
+> aberta da camada de rotas, e a constituicao, `BR-HUMANA-008`, a `spec.md` e o
+> cenario de paridade mandam copiar. **T002 preservou**, porque e o que o pacote
+> manda e o que a propria linha da tarefa pede — e o conflito **continua aberto**:
+> T003 executa a declaracao de permissao e topa nele de novo.
 
 > 🔴 **Se a sua tarefa e T007, leia o item 2.** No legado o registro de rotas
 > **nao nasce vazio** — o construtor semeia duas rotas meta, e uma delas,
-> `/batch/v1`, nao tem historia nenhuma neste pacote.
+> `/batch/v1`, nao tem historia nenhuma neste pacote. **T002 nao as semeou**: o
+> formato ja existe, o que falta e a funcao de cada uma.
 
 > 🔴 **Se a sua tarefa e T009, leia o item 3.** CA-4.4 pede *"prazo de retencao
 > declarado"* para um registro que o legado nao tem, e a tabela *Nao negociavel*
@@ -70,6 +73,8 @@ superficies-programaticas/
     └── despachante-de-rotas.ts      o que o carrega, e a ORDEM do atendimento
 ```
 
+O que **T002** acrescentou esta na arvore da secao seguinte.
+
 `criarModuloDeSuperficiesProgramaticas(portas)` devolve
 `{ nome, portas, despachante }` e **mais nada**. Operacao de dominio entra na
 tarefa da historia dela, com a declaracao de permissao que o P4 exige — a tabela
@@ -110,18 +115,21 @@ Tres propriedades de `get_routes()` que ja estao documentadas em
    que declarou opcao. T001 nao reproduz a ordem porque nao tem o que
    normalizar; quem fechar T002 decide se reproduz o acoplamento ou se declara a
    divergencia — e, se declarar, precisa da referencia que o P1 cobra.
+   ✅ **T002 decidiu: reproduz.** A referencia que uma divergencia exigiria nao
+   existe — `questions.md` nao tem resposta sobre isto, nao ha ADR, e as tres
+   divergencias autorizadas da constituicao sao outras. Tem teste do antes e do
+   depois.
 
-### Por que `registrar` nao existe
+### Por que `registrar` nao existia, e onde ele esta agora
 
-Porque registrar e a entrega de **T002**: *"o registro de uma rota sem declaracao
-de permissao reproduz o aviso de uso indevido do legado"*. O que se registra e
-uma declaracao no formato que T002 define, e T001 nao define formato nenhum.
+Em T001 nao existia porque registrar e a entrega de **T002**, e o que se registra
+e uma declaracao no formato que T002 define. `DeclaracaoDeRota` e
+`DeclaracaoDeOpcaoDeRota` ficaram `never` **de proposito**: enquanto o formato nao
+existia, o compilador nao deixava nada entrar no registro.
 
-`DeclaracaoDeRota` e `DeclaracaoDeOpcaoDeRota` marcam os dois lugares e sao
-`never` **de proposito**: enquanto o formato nao existe, o compilador nao deixa
-nada entrar no registro. "Vazio" deixa de ser afirmacao do teste e passa a ser
-propriedade do tipo. **Trocar esses dois `never` pelas interfaces e a primeira
-linha de T002.**
+✅ **T002 trocou os dois `never` pelas interfaces** — era a primeira linha da
+tarefa — e `registrar` existe em **duas camadas**, porque no legado sao duas.
+Ver a secao seguinte.
 
 ### Por que uma porta so, sendo cinco as bordas de AD-08
 
@@ -142,6 +150,15 @@ A entrega nomeia uma: *"a porta de dados declarada"*.
 
 Quando uma tarefa adiante precisar de outra borda, ela declara a porta na tarefa
 dela, como T002 de BC-05 fez com o prefixo base.
+
+**T002 nao acrescentou porta, e o aviso de uso indevido nao e uma.** Ele chega
+como funcao opcional — `RelatorDeUsoIndevido`, de `plataforma/autorizacao/`, a
+mesma forma que `contextos/conteudo` ja usa — e e **so escrita**: nenhuma
+ramificacao consulta o resultado dela, que e o que o **P7** cobra. Ausente, o
+registro decide igual, e ha teste disso nas duas metades. O tipo mora em
+`plataforma/autorizacao/` por ter nascido ali; declarar uma terceira copia da
+mesma forma de tres campos seria pior do que o import de plataforma, que a regra
+de dependencia 1 permite.
 
 ### As duas invariantes com teste proprio
 
@@ -174,6 +191,154 @@ Dois pontos dela que se perdem com facilidade:
 - **Antes de casar a rota existe um desvio**, `rest_pre_dispatch` (`:1079`): se
   devolver qualquer coisa nao vazia, **aquilo passa a ser a resposta** — sem
   casar rota, sem permissao e sem validar parametro.
+
+---
+
+## O que T002 entregou
+
+A linha da tarefa: *"os dois formatos existem como declaracao, com validacao de
+parametro ainda vazia, e o registro de uma rota sem declaracao de permissao
+reproduz o aviso de uso indevido do legado"*. `satisfaz: — (infraestrutura)`:
+**T002 nao fecha criterio de aceite nenhum** e nao implementa regra de negocio de
+historia nenhuma.
+
+```
+superficies-programaticas/
+├── despacho/
+│   ├── esquema-de-rota.ts           O FORMATO 1: tratador, esquema de argumento,
+│   │                                 atalhos de metodo, os dois conjuntos de default
+│   ├── esquema-de-rota.test.ts      21 testes
+│   ├── validacao-de-parametro.ts    declarada e VAZIA — T005 a preenche
+│   ├── registro-de-rotas.ts         + `registrar` (o METODO: nao avisa nada)
+│   └── registro-de-rota-de-api.ts   + a FUNCAO: seis avisos, e o de I7 nao recusa
+└── operacao-nomeada/
+    ├── esquema-de-operacao-nomeada.ts       O FORMATO 2: operacao e categoria
+    ├── esquema-de-operacao-nomeada.test.ts  21 testes
+    └── registro-de-operacoes-nomeadas.ts    os dois registros, e eles falham FECHADOS
+```
+
+`criarModuloDeSuperficiesProgramaticas(portas)` continua devolvendo
+`{ nome, portas, despachante }` e **mais nada**: T002 e infraestrutura, e a
+tabela de operacoes do `index.ts` cresce **na tarefa de cada historia**, que e o
+que o **P4** cobra.
+
+### As duas camadas de registro, e a razao de serem duas
+
+| camada | no legado | confere? | aqui |
+|---|---|---|---|
+| o **metodo** | `WP_REST_Server::register_route()` (`class-wp-rest-server.php:899`) | **nada** | `RegistroDeRotas.registrar` |
+| a **funcao** | `register_rest_route()` (`wp-includes/rest-api.php:34`) | seis coisas, seis avisos | `registrarRotaDeApi()` |
+
+O proprio legado documenta o desvio em `rest-api.php:37`-`:40`: quem precisa de
+rota sem espaco de nome *"chama `WP_REST_Server::register_route` direto"* — e com
+isso contorna os seis avisos. Juntar as duas num lugar fecharia um caminho
+publicado (P8).
+
+### 🔴 O aviso de `I7`, que e a entrega desta tarefa
+
+Rota registrada pela funcao **sem** declaracao de permissao **entra**, e o aviso
+sai com o texto do legado, que ensina a liberacao explicita
+(`rest-api.php:122`-`:133`, versao `5.5.0`). Tres detalhes com teste:
+
+1. **`permissao: null` tambem avisa**, porque `isset()` e falso para nulo.
+   Declarar a permissao como nula nao e declarar.
+2. **O caminho no aviso nao tem a barra inicial** (`:128`), e o caminho com que a
+   rota e registrada tem (`:153`).
+3. **O indice de espaco de nome que o proprio nucleo registra nao tem declaracao
+   de permissao e nao gera aviso nenhum**, porque ele entra pelo metodo
+   (`class-wp-rest-server.php:900`-`:921`). E o caso mais limpo da falha aberta.
+
+O conflito do item 1 de *O que ninguem decidiu* **nao foi resolvido**: T002
+preservou, que e o que o pacote manda e o que a linha da tarefa pede, e preservar
+nao exige referencia. Fechar exigiria, e a referencia nao existe.
+
+### Os quatro achados de T002, que nao estavam escritos em lugar nenhum
+
+1. **Sao DOIS conjuntos de default para o tratador, e `methods` os separa.** A
+   funcao mescla `'GET'` (`rest-api.php:108`); o leitor mescla `''`
+   (`class-wp-rest-server.php:978`). Rota registrada pela funcao sem metodo
+   declarado responde a `GET`; rota semeada direto no armazem, sem metodo,
+   **desaparece do indice** (`:1707`). O **P6** manda cada numero de fabrica
+   viver no seu ponto, e sao dois pontos.
+2. **Os dois armazens NAO concordam sempre, e o legado recorta pelo segundo.**
+   T001 implementou o recorte por espaco de nome a partir do indice `$namespaces`
+   e pediu a esta tarefa que conferisse: **nao concordam.** O legado recorta com
+   `wp_list_filter( $endpoints, array( 'namespace' => $ns ) )` (`:961`), pelo
+   valor estampado nos argumentos (`:926`). Com o mesmo caminho registrado sob
+   dois espacos de nome, o indice fica com ele nas duas listas e o estampado so
+   com o ultimo — logo `get_routes( <primeiro> )` **nao** o devolve. Como o
+   recorte alimenta o mapa da superficie, cuja saida e byte a byte pela area 1 de
+   `parity_specs.md`, T002 passou a recortar pelo estampado. Tem teste.
+3. **`required` tem duas formas no mesmo formato**, e o legado aceita as duas:
+   `true` na propria propriedade (draft 3, e e tambem a forma do parametro de
+   topo, `class-wp-rest-request.php:917`) e lista de nomes dentro do esquema do
+   objeto (draft 4). Escolher uma recusaria esquema que hoje passa.
+4. **Chave presente com nulo vence o default**, porque `wp_parse_args()` e
+   `array_merge( $defaults, $args )` — e `show_in_index: null` **esconde** a
+   rota, ja que o indice testa com `empty()` (`:1662`). Por isso a normalizacao
+   pergunta se a chave existe, e nao se o valor e nulo.
+
+E um quinto, que vale para as duas metades: **`empty()` e verdadeiro para `'0'`**.
+Espaco de nome `0`, caminho `0` e rotulo `0` sao recusados pelo legado, e um porte
+que so comparasse com texto vazio registraria o que ele recusa.
+
+### 🔴 As duas camadas de autorizacao agora estao lado a lado, com os defaults opostos
+
+E o que `PERM-11` (BR-MIGRAR-097) queria tornar visivel — *"hoje elas moram em
+pastas separadas e ninguem ve a divergencia"*:
+
+| | camada de rotas | camada de operacao nomeada |
+|---|---|---|
+| declaracao de permissao ausente | **atende**, e avisa | **recusa**, e a operacao nao existe |
+| regra | `I7` / BR-MIGRAR-074 | `I4` / BR-MIGRAR-071 |
+| onde | `despacho/registro-de-rota-de-api.ts` | `operacao-nomeada/` |
+| avisos que recusam | 2 de 6 (espaco de nome e caminho vazios) | **8 de 8** |
+
+Nenhuma das duas foi "corrigida" na direcao da outra. Os dois arquivos de teste
+afirmam o par, e o cabecalho de cada um aponta para o outro.
+
+### Duas ordens de conferencia que surpreendem, e estao reproduzidas
+
+1. **A categoria e conferida antes do formato** da operacao
+   (`class-wp-abilities-registry.php:142` contra `:174`): declaracao sem rotulo
+   **e** com categoria inexistente sai com a mensagem da categoria.
+2. **Categoria vazia cai na mensagem de "nao registrada"**, nao na de formato,
+   porque o portao e `isset( $args['category'] )` e `isset('')` e verdadeiro.
+
+E a ordem **entre** os dois registros de operacao e contrato: o legado garante
+que o de categorias e inicializado primeiro, *"para permitir que categorias sejam
+registradas antes das operacoes que dependem delas"* (`:299`). Por isso
+`criarRegistroDeOperacoesNomeadas()` **recebe** o registro de categorias e nao o
+cria: `EXT-ORDEM` (BR-MIGRAR-106) e a tabela *Nao negociavel* poem a ordem de
+arranque fora do que este agente muda.
+
+### Por que "validacao de parametro vazia" e um campo, e nao um comentario
+
+Uma funcao que devolvesse "valido" sem conferir nada seria uma mentira que T003
+poderia acreditar. `ConferenciaDeParametros` tem o campo `conferido`, e em T002
+ele e **`false`**: quem usar o resultado sem olha-lo esta usando uma conferencia
+que nao aconteceu. **T005** passa a devolver `true`, e a tabela do que ele tem de
+cobrir, criterio por criterio e com a ancora de cada parte, esta no cabecalho de
+`despacho/validacao-de-parametro.ts`.
+
+### O que T002 declarou e NAO emitiu
+
+Todos pelo mesmo motivo — o barramento de ganchos nao tem tarefa neste pacote,
+REQ-162 esta em `do-not-rewrite.md` — e todos no arquivo que os emitiria, como
+T001 fez com `rest_endpoints`:
+
+| ponto | ancora | onde esta declarado |
+|---|---|---|
+| o aviso de registro de rota fora de `rest_api_init` | `rest-api.php:82` | `avisoDeRegistroForaDoGancho()` |
+| os dois avisos de registro de operacao fora do gancho, que **recusam** | `abilities-api.php:291` | `MENSAGENS_DE_AVISO_DE_GANCHO_DE_OPERACAO` |
+| `wp_json_schema_allowed_keywords`, que muda o que a superficie publica | `json-schema.php:68` | `PALAVRAS_CHAVE_DE_ESQUEMA_PUBLICADAS` |
+| `wp_register_ability_args` e `wp_register_ability_category_args` | `class-wp-abilities-registry.php:139` | comentario na posicao exata de cada `registrar` |
+
+E um que nao e gancho: **o escape de `esc_html()`** nas mensagens que interpolam
+nome (`:101`, `:149`, `:205`, `:265`). Aqui o nome entra cru, porque `esc_html()`
+e de `plataforma/formatacao/`, feature `015` — o mesmo tratamento que
+`contextos/conteudo` registrou para as tres entradas de requisicao dele. Para
+nome que casa com o padrao nao ha diferenca; para o nome recusado pelo padrao, ha.
 
 ---
 
@@ -238,6 +403,13 @@ declaracao de permissao. Ate alguem decidir, o que o pacote manda e preservar, e
 quem preservar **nao** precisa de referencia nenhuma; quem fechar precisa da
 referencia que o P1 cobra, e ela nao existe.
 
+> **Onde T002 deixou isto.** Preservado, e o conflito continua aberto. A propria
+> linha da tarefa manda reproduzir o aviso, e a tabela dos sete artefatos esta no
+> cabecalho de `despacho/registro-de-rota-de-api.ts`, junto com a declaracao de
+> divida herdada que o cenario `@divida-herdada` cobra das duas metades. **T003
+> topa nisso de novo**, e com mais consequencia: e ele que executa a declaracao
+> de permissao e decide o que acontece quando ela nao existe.
+
 ### 2. 🔴 No legado o registro nao nasce vazio, e uma das duas rotas meta nao tem historia
 
 O construtor (`class-wp-rest-server.php:103-160`, com o comentario
@@ -252,6 +424,14 @@ T001 nao semeia nenhuma das duas, e a razao e de divisao de tarefa: as duas tem
 esquema de argumento declarado, e *"o formato de esquema de rota"* e a entrega de
 **T002**. Semear aqui exigiria inventar o formato uma tarefa antes de quem o
 especifica.
+
+**T002 tambem nao semeou, e agora por outro motivo.** O formato existe —
+`despacho/esquema-de-rota.ts` —, e o que falta e a **funcao** de cada uma:
+`get_index` e T007 (US-3) e `serve_batch_request_v1` nao tem tarefa. Semear com
+funcao nula trocaria o registro vazio que `modulo.test.ts` afirma por duas rotas
+que nao respondem. Quem fechar T007 semeia `/` com a funcao na mao — o formato ja
+esta pronto para isso, e `declaracaoDoIndiceDeEspacoDeNome()` e o exemplo de como
+uma rota meta e montada.
 
 **A pendencia e `/batch/v1`.** E superficie publicada, e o P8 e absoluto: *"nao
 remova funcao, constante, tabela, rota, superficie nem comportamento
@@ -358,14 +538,69 @@ Nenhuma e de T001; ficam listadas porque cada uma cai numa tarefa adiante:
    **ausencia** de um comportamento, e *"nao ha o que construir para
    satisfaze-los"*. Sao conferidos na revisao de superficie.
 
+### 7. 🔴 Como uma classe propria de operacao nomeada chega num alvo sem classes de PHP
+
+`ability_class` e argumento publicado do registro de operacao
+(`abilities-api.php:283`-`:286`): quem registra pode pedir que o nucleo instancie
+**outra** classe, que estenda `WP_Ability`.
+
+T002 declarou o campo, porque remove-lo seria remover superficie publicada (P8),
+e reproduziu o efeito dele que e decidivel: **as duas funcoes exigidas deixam de
+ser exigidas**, porque o legado so as confere quando
+`get_class( $this ) === self::class` (`class-wp-ability.php:302` e `:309`). Tem
+teste.
+
+O que **nao** foi reproduzido e a conferencia do valor: o legado recusa o registro
+quando a classe nao estende `WP_Ability`
+(`class-wp-abilities-registry.php:159`), e isso exige resolver um nome de classe
+de PHP. A mensagem esta guardada em
+`MENSAGENS_DE_RECUSA_DE_OPERACAO_NOMEADA.classeInvalida` para que ninguem a
+reescreva. **Decidir a forma e de T013**, que e a tarefa que executa a operacao e
+portanto a unica que sabe o que uma "classe propria" precisa poder trocar. Nao e
+descarte: nao esta em `do-not-rewrite.md` nem em `discard_log.md`.
+
+### 8. 🔴 Tres caminhos do legado que o formato tipado torna inalcancaveis
+
+Nenhum e descarte. Estao aqui porque sao consequencia do formato que T002
+declarou, e porque quem um dia expuser estes registros a um chamador sem tipo —
+e o slot de entrega desta stack e *"compilado para JavaScript"*, logo todo
+chamador de terceiro e sem tipo — tem de decidir sobre eles.
+
+1. **A promocao de tratador unico por `isset( $args['callback'] )`**
+   (`rest-api.php:102`-`:105`). No legado `$args` e um vetor so, em que chave
+   numerica e tratador e chave nao numerica e opcao da rota. Como o portao e
+   `isset`, um tratador unico declarado com `'callback' => null` **nao** e
+   promovido — e entao `callback` e `methods` viram **opcoes da rota**, nenhum
+   tratador e registrado, e a rota existe sem atender nada.
+   `ArgumentosDeRegistroDeRota` separa os dois e o caminho deixa de existir.
+2. **`name` nos argumentos da operacao sobrescrevendo o nome do registro.**
+   `$this->name` e atribuido antes de `prepare_properties()`
+   (`class-wp-ability.php:181`) e o laco de atribuicao o sobrescreve se a chave
+   vier nos argumentos, porque `property_exists()` e verdadeiro para ela
+   (`:186`). Uma operacao registrada sob `a/b` pode responder `get_name() ===
+   'c/d'`. `DeclaracaoDeOperacaoNomeada` nao tem campo de nome.
+3. **A conferencia de "argumento que nao e vetor"** (`rest-api.php:136`-`:150`).
+   Esta **mantida em execucao**, mesmo sendo inalcancavel por chamador com
+   tipos, porque o aviso e contrato para quem estende — e a ressalva de
+   BR-MIGRAR-091 — e porque remove-la trocaria o aviso por um erro de tipo mais
+   adiante e menos informativo. O mesmo vale para o aviso de campo desconhecido
+   na declaracao de operacao (`class-wp-ability.php:187`).
+
 ---
 
 ## Como conferir esta entrega
 
 ```sh
-npm test            # a suite inteira; 8 testes sao de T001
+npm test            # a suite inteira; 8 testes sao de T001 e 42 de T002
 node --test dist/contextos/superficies-programaticas/modulo.test.js
+node --test dist/contextos/superficies-programaticas/despacho/esquema-de-rota.test.js
+node --test dist/contextos/superficies-programaticas/operacao-nomeada/esquema-de-operacao-nomeada.test.js
 ```
+
+⚠️ **T002 mexeu num teste de T001**, e so nele: o molde do mapa de rotas em
+`modulo.test.ts` era `never`, e passou a ser `TratadorDeRota`. Era a troca que o
+proprio T001 pediu — *"trocar esses dois `never` pelas interfaces e a primeira
+linha de T002"*. As oito assercoes de T001 continuam valendo e continuam verdes.
 
 A paridade desta area se prova por dois arquivos de
 `.specify/migration/parity_tests/`:
@@ -389,3 +624,12 @@ que o duplo substitui, e **um registro por composicao** — que e o que o cenari
 `@concorrencia` de `18-...feature` cobra, *"a decisao de cada uma corresponde a
 sua propria identidade... nenhuma resposta contem dado da outra conta"*, e a
 unica linha da metrica primaria com tolerancia zero **sem excecao**.
+
+O que T002 acrescenta a prova de paridade e o **texto**: os seis avisos do
+registro de rota e os oito dos registros de operacao estao em constante, com a
+versao do legado, em ingles, e com teste que afirma cada mensagem. Quando o
+oraculo executavel existir, a comparacao daqueles textos e um `diff`, nao uma
+releitura. E o cenario `@divida-herdada` cobra uma coisa que ja esta feita: *"esta
+divergencia de default esta declarada como divida herdada nas duas metades"* — a
+metade nova e o cabecalho de `despacho/registro-de-rota-de-api.ts` mais o item 1
+de *O que ninguem decidiu*.

@@ -2,15 +2,24 @@
  * Modulo de superficies programaticas — feature `013-superficies-programaticas`,
  * epico EP-13.
  *
- * Esqueleto, tarefa **T001**. O que existe aqui e o que T001 entrega: *"o
- * despachante de rotas carrega com o registro de rotas vazio e inspecionavel, e
- * a porta de dados declarada"*. **Nenhuma regra de negocio esta implementada.**
- * O formato de declaracao de rota e o de operacao nomeada entram em T002, o
- * despacho em T003, a validacao de parametro em T005, o mapa da superficie em
- * T007, o registro de acesso em T009, o token de sessao de navegador em T011, a
- * execucao de operacao nomeada em T013, o mapa do site em T015, os feeds em
- * T017 e a representacao embutivel em T019. A leitura obrigatoria de quem pegar
- * a tarefa seguinte e `./README.md`.
+ * Esqueleto de **T001** mais os dois formatos de **T002**. O que existe aqui:
+ * *"o despachante de rotas carrega com o registro de rotas vazio e
+ * inspecionavel, e a porta de dados declarada"* (T001) e *"os dois formatos
+ * existem como declaracao, com validacao de parametro ainda vazia, e o registro
+ * de uma rota sem declaracao de permissao reproduz o aviso de uso indevido do
+ * legado"* (T002). **Nenhuma regra de negocio de historia esta implementada.**
+ * O despacho entra em T003, a validacao de parametro de verdade em T005, o mapa
+ * da superficie em T007, o registro de acesso em T009, o token de sessao de
+ * navegador em T011, a execucao de operacao nomeada em T013, o mapa do site em
+ * T015, os feeds em T017 e a representacao embutivel em T019. A leitura
+ * obrigatoria de quem pegar a tarefa seguinte e `./README.md`.
+ *
+ * ⚠️ **T002 nao acrescentou operacao ao modulo, e isso e de proposito.** Ele
+ * declarou formato e registro, que sao infraestrutura (`satisfaz: —`), e a
+ * tabela de `ModuloDeSuperficiesProgramaticas` abaixo cresce **na tarefa de cada
+ * historia**, nunca antes — e o que o **P4** cobra. As duas camadas de registro
+ * de T002 sao criadas por quem compoe: o registro de rotas pelo despachante, e
+ * o de operacoes nomeadas por T013, que e a tarefa que as executa.
  *
  * **Onde este modulo mora, e por que a pasta leva o nome da feature.** Esta
  * feature nao e um contexto do desenho: ela atravessa dois. As historias US-1 a
@@ -55,6 +64,7 @@ import type { PortaDeDados } from './portas/index.js';
 
 export * from './portas/index.js';
 export * from './despacho/index.js';
+export * from './operacao-nomeada/index.js';
 
 /**
  * A porta de que este modulo depende, na forma em que ele a recebe.
@@ -70,7 +80,8 @@ export interface PortasDeSuperficiesProgramaticas {
  *
  * Cada historia acrescenta aqui a sua operacao, com a declaracao explicita de
  * permissao que o P4 da constituicao exige, e **nenhuma antes da propria
- * tarefa**. Hoje ha duas coisas, as duas de T001: a porta e o despachante.
+ * tarefa**. Hoje ha duas coisas, as duas de T001: a porta e o despachante — e
+ * T002, que e infraestrutura, nao acrescentou nenhuma.
  *
  * A tabela abaixo e a secao *Contratos* de `plan.md` cruzada com a permissao que
  * a `spec.md` e os casos de uso declaram para cada historia. Ela esta aqui como

@@ -24,10 +24,10 @@ import {
   criarModuloDeSuperficiesProgramaticas,
   criarRegistroDeRotas,
   type Consulta,
-  type DeclaracaoDeRota,
   type PortaDeDados,
   type PortasDeSuperficiesProgramaticas,
   type ResultadoDeEscrita,
+  type TratadorDeRota,
 } from './index.js';
 
 /** Conta os toques na porta, para afirmar que o modulo nao a usa ainda. */
@@ -150,12 +150,14 @@ test('o que `rotas()` devolve e copia, e nao o armazem (class-wp-rest-server.php
   const segunda = registro.rotas();
   assert.notEqual(primeira, segunda);
 
-  // O molde do tipo e `never`, logo a unica lista que entra e a vazia: e assim
-  // que "vazio" e propriedade do tipo e nao so afirmacao deste teste. A
+  // ⚠️ **T002 trocou o molde deste teste.** Em T001 o elemento do mapa era
+  // `never`, e era o compilador que garantia o registro vazio; T002 declarou o
+  // formato, logo "vazio" volta a ser afirmacao do teste — e e a assercao de
+  // `registro.rotas().size` do teste acima, mais esta, que a sustentam. A
   // assercao de tipo abaixo existe para alcancar o `set` que a interface de
-  // leitura esconde — e o unico lugar desta entrega que a usa.
-  const vazia: readonly DeclaracaoDeRota[] = [];
-  (primeira as Map<string, readonly DeclaracaoDeRota[]>).set(
+  // leitura esconde.
+  const vazia: readonly TratadorDeRota[] = [];
+  (primeira as Map<string, readonly TratadorDeRota[]>).set(
     '/wp/v2/posts',
     vazia,
   );
