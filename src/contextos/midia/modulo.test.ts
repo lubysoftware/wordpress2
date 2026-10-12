@@ -206,11 +206,14 @@ test('a superficie do modulo tem exatamente o que as tarefas fechadas entregaram
 
   // Esta lista cresce NA TAREFA DE CADA HISTORIA, nunca antes: e o que o P4 da
   // constituicao cobra, "toda operacao exposta nova nasce com declaracao
-  // explicita de permissao". T001 e T002: nenhuma operacao: as portas e o dado
-  // dos tamanhos de fabrica (T001) e o armazenamento (T002), que nao decide
-  // nada. A pauta do que entra em cada tarefa esta na tabela do `index.ts`.
+  // explicita de permissao". T001 e T002 nao trouxeram operacao nenhuma: as
+  // portas e o dado dos tamanhos de fabrica (T001) e o armazenamento (T002),
+  // que nao decide nada. **T003** trouxe a primeira, `enviarArquivo`, com as
+  // duas capacidades de CA-1.1 declaradas na interface. A pauta do que entra em
+  // cada tarefa esta na tabela do `index.ts`.
   assert.deepEqual(Object.keys(modulo).sort(), [
     'armazenamento',
+    'enviarArquivo',
     'nome',
     'portas',
     'tamanhosDeFabrica',
