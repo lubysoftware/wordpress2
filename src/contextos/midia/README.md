@@ -1,10 +1,11 @@
 # Modulo de midia — BC-04
 
 Feature `006-biblioteca-de-midia`. Tarefas fechadas com nota de entrega neste
-arquivo: **T001** (esqueleto, as tres portas e os tamanhos de fabrica) e **T002**
-(a forma de armazenamento do anexo e das derivadas). Este arquivo e a leitura
-obrigatoria de quem pegar a tarefa seguinte: ele diz o que ja esta decidido, o
-que esta decidido **em outro lugar**, e o que **ninguem** decidiu.
+arquivo: **T001** (esqueleto, as tres portas e os tamanhos de fabrica), **T002**
+(a forma de armazenamento do anexo e das derivadas) e **T003** (o envio com
+validacao do tipo real, US-1). Este arquivo e a leitura obrigatoria de quem pegar
+a tarefa seguinte: ele diz o que ja esta decidido, o que esta decidido **em outro
+lugar**, e o que **ninguem** decidiu.
 
 A pasta e `contextos/midia/` porque e assim que `target_architecture.md` nomeia
 BC-04 no esboco de arvore. BC-04 e a fusao de `midia-e-anexos` com
@@ -16,6 +17,13 @@ mesmo artefato em disco e compartilham o modo de falha de `M4`"*.
 > arquivo as derivadas saem quando houve reducao na ingestao. T001 topou nisso ao
 > ancorar a porta de processamento de imagem e **nao resolveu**. Esta na secao
 > *O que T001 encontrou aberto*, e e o primeiro item.
+
+> 🔴 **E se a sua tarefa encosta na permissao do envio (T005, T019):** a
+> `spec.md` e a arvore analisada **discordam** sobre o que acontece com quem nao
+> pode editar o conteudo de destino — CA-1.1 diz que o envio e exigido, e duas
+> das tres superficies do legado **descartam o destino e seguem** em vez de
+> recusar. T003 reproduziu os dois comportamentos e **nao resolveu**. Esta na
+> secao *O que T003 encontrou aberto*.
 
 ---
 
@@ -134,6 +142,103 @@ reescrita de `P2` acontece no caminho de **aplicacao**
 direto na tabela, sem informar estado, nasce no estado que `P2` diz que o anexo
 nunca tem. Nenhum caminho deste modulo insere linha direto, e a leitura **nao
 corrige** o que ja esta assim no banco.
+
+---
+
+## O que T003 entrega, e so isso
+
+A linha da tarefa: *"o comportamento de US-1 existe e os criterios CA-1.1,
+CA-1.2, CA-1.3, CA-1.4, CA-1.5 e CA-1.6 passam contra o sistema novo"*. E a
+**primeira operacao** deste modulo, e por isso a primeira com declaracao
+explicita de permissao (P4): `ModuloDeMidia.enviarArquivo`.
+
+No legado sao duas funcoes encadeadas — `media_handle_upload()`
+(`wp-admin/includes/media.php:296`), que monta o registro, e
+`_wp_handle_upload()` (`wp-admin/includes/file.php:809`), que valida e grava o
+arquivo —, mais as tres superficies que as chamam.
+
+| arquivo | o que e | criterios |
+|---|---|---|
+| `envio/permissao-de-envio.ts` | as duas verificacoes de capacidade, e as **tres** superficies do legado | CA-1.1, CA-1.6 |
+| `envio/tipos-de-arquivo-permitidos.ts` | as 93 entradas de `wp_get_mime_types()`, a lista permitida e a decisao pela extensao | CA-1.2 |
+| `envio/tipo-real-do-arquivo.ts` | o confronto entre o tipo da extensao e o detectado no conteudo | CA-1.2, CA-1.3 |
+| `envio/nome-de-arquivo-unico.ts` | a sanitizacao do nome e os **tres** lacos de colisao | CA-1.4 |
+| `envio/area-de-envios.ts` | a subpasta de ano e mes, e as duas mensagens de falha | CA-1.5 |
+| `envio/contexto-de-envio.ts` | o contexto da operacao, com os seis colaboradores | — |
+| `envio/enviar-arquivo.ts` | o fluxo, na ordem do legado | os seis |
+| `envio/us-1-enviar-arquivo.test.ts` | os 33 testes da entrega | os seis |
+
+### As cinco decisoes de T003 que a proxima tarefa precisa conhecer
+
+1. **A ligacao com BC-01 que T002 deixou nomeada esta declarada, e e
+   `ConteudoNaMidia`.** Duas chamadas: `get_post( $post_id )` e
+   `wp_insert_attachment()`. O envio **nao** grava a linha de `posts`, pela razao
+   que T002 escreveu — o unico caminho de escrita do legado passa por
+   `wp_insert_post()`, que leva quatro pontos de extensao, a reescrita de `P2`, a
+   unicidade do identificador na URL e a gravacao do `guid`. O pedido vai sem
+   `post_status`, e e `P2` que o resolve em `inherit` do lado de BC-01
+   (`gravacao/estado-na-gravacao.ts`, que ja existe).
+2. **O caminho que atravessa a ligacao e ABSOLUTO.** `wp_insert_attachment()`
+   recebe o caminho absoluto (`media.php:426`) e quem relativiza e
+   `update_attached_file()` → `_wp_relative_upload_path()`
+   (`wp-includes/post.php:885` e `:900`), **dentro** de `wp_insert_post()`. Logo a
+   relativizacao e de BC-01. O que T003 resolve sao os caminhos para os quais
+   tem porta: a pasta de destino e o destino do `mover`.
+3. **A superficie do envio e dado da chamada**, e nao configuracao: ela decide a
+   **consequencia** da segunda verificacao de capacidade. Ver o conflito aberto
+   abaixo.
+4. **O relogio entrou no modulo, e nao virou prazo.** T001 registrou que BC-04
+   nao tinha porta de relogio porque *"esta feature nao tem prazo nenhum: os
+   numeros dela sao medida em pixel"*, e deixou a saida escrita. O instante de
+   `RelogioNoEnvio` serve a **uma** coisa — a subpasta `/AAAA/MM` da area de
+   envios — e nenhum numero novo nasceu com ele (P6).
+5. **Quatro funcoes de `wp-includes/formatting.php` chegam injetadas**, em
+   `TextoNoEnvio` e `escaparHtml`: `remove_accents()`, `wp_is_valid_utf8()`,
+   `sanitize_title_with_dashes()`, `sanitize_text_field()` e `esc_html()`. Nenhuma
+   e implementada aqui, pelo mesmo motivo e com o mesmo aviso que BC-01 declarou
+   para `sanitize_title()` e `sanitize_key()`: elas sao de `plataforma/` (feature
+   015) e **nenhuma tarefa deste pacote as constroi**. Uma versao aproximada de
+   `remove_accents()` produz **outro nome de arquivo**, e nome de arquivo e
+   endereco publico.
+
+### Dois achados do legado que a `spec.md` nao diz, e que um porte perde
+
+Os dois estao fixados por teste, com 🔴 ou ⚠️ no comentario, porque sao
+exatamente onde a intuicao conserta o legado sem querer.
+
+1. **O titulo do anexo sai do nome CRU; o nome do arquivo sai do sanitizado.**
+   `media_handle_upload()` le `$_FILES[...]['name']`, tira a extensao e passa por
+   `sanitize_text_field()` (`media.php:313`-`:316`); `sanitize_file_name()` roda
+   **so** dentro de `wp_unique_filename()`. Logo `ferias no mar.jpg` produz o
+   titulo `ferias no mar` e o arquivo `ferias-no-mar.jpg`. Quem usar o nome em
+   disco para o titulo troca o que a biblioteca de midia exibe.
+2. **A troca de `%20` e `+` por traco em `sanitize_file_name()` e
+   inalcancavel com a lista de caracteres de fabrica.** Os dois caracteres estao
+   em `$special_chars` e sao **removidos** na linha anterior
+   (`formatting.php:2073`-`:2074`), logo `minha%20foto.jpg` vira
+   `minha20foto.jpg` e nao `minha-foto.jpg`. Nao e codigo morto no geral — a
+   lista e ponto de extensao (`sanitize_file_name_chars`, P2) e uma extensao pode
+   retirar `%` dela —, mas e o comportamento de fabrica, e e endereco publico.
+
+### O que T003 NAO portou, com o motivo de cada coisa
+
+Nenhum dos quatro e esquecimento: os quatro estao **nomeados no lugar exato do
+fluxo**, que e o que o P2 e o P8 cobram de quem nao implementa.
+
+| o que | ancora | por que |
+|---|---|---|
+| os **cinco** pontos de extensao do caminho — `wp_handle_upload_prefilter`, `wp_handle_upload_overrides`, `pre_move_uploaded_file`, `wp_handle_upload`, `wp_unique_filename` | `file.php:838`, `:864`, `:1012`, `:1073`; `functions.php:2832` | o barramento que os dispara e `REQ-162`, em `do-not-rewrite.md` — escopo **recusado**, nao pendente |
+| a composicao da **descricao do anexo de audio** | `media.php:327`-`:389` | sao **dez** `msgid` traduziveis e duas chamadas a `number_format_i18n()`, e `plataforma/traducao/` nao existe nesta arvore. Chega **injetada** (`MetadadoDeArquivoNoEnvio.descricaoDeAudio`) para o comportamento ser alcancavel; omitida, **a descricao fica vazia**, e isso e divergencia declarada |
+| o ajuste de permissao do arquivo gravado (`stat` + `chmod`) | `file.php:1046` | a porta de T001 **nao tem** operacao de permissao, e acrescenta-la e decisao de quem portar o adaptador. Nenhum criterio de US-1 depende dela |
+| o cabecalho `X-WP-Upload-Attachment-ID` | `media.php:437` | e resposta HTTP, e nao ha porta de HTTP neste modulo (ver a secao das portas) |
+
+E o que **nao e de T003 por ser de outra tarefa**: a geracao de derivadas, que e
+onde `media_handle_upload()` termina (`:444`), e **T007**; a reducao na ingestao
+e T009; o relato da falha e T011; e o registro do envio sem filtro (CA-9.4) e
+T019. O mecanismo que nega `unfiltered_upload` por omissao **ja existia** em
+`plataforma/autorizacao/revogacao-por-constante.ts`, e por isso CA-9.1 e CA-9.3
+fecham sem codigo novo — o `if` do legado que faz a pergunta esta portado onde ele
+esta no legado, dentro da validacao de tipo.
 
 ---
 
@@ -288,6 +393,64 @@ leituras: ela devolve dimensao, nome, tipo e tamanho em bytes, e nunca os bytes.
 
 ---
 
+## 🔴 O que T003 encontrou aberto, e NAO resolveu
+
+### CA-1.1 diz "exige", e duas das tres superficies do legado nao exigem
+
+**Nao e ambiguidade: sao duas afirmacoes opostas sobre o mesmo passo.**
+
+- **A `spec.md` diz exigencia.** CA-1.1, literal: *"o envio exige a capacidade de
+  enviar arquivo e, quando ha conteudo de destino, a de editar aquele
+  conteudo"*. UC-12 repete no campo *Autorizacao* e no passo 2, e `UT-056-1` do
+  catalogo chama o caso de *"recusa o envio de quem nao pode enviar **ou** nao
+  pode editar o conteudo de destino"*.
+- **A arvore analisada recusa numa superficie e descarta o destino nas outras
+  duas.** As tres fazem as **duas** perguntas; o que elas fazem com a segunda
+  resposta e diferente:
+
+| superficie | `upload_files` | `edit_post` do destino | ancora |
+|---|---|---|---|
+| tela de envio de midia | `wp_die()` | **`$post_id = 0`** e segue | `wp-admin/media-new.php:15` e `:24` |
+| envio assincrono, navegador | `wp_die()` | **`$post_id = 0`** e segue | `wp-admin/async-upload.php:34` e `:108` |
+| envio assincrono do editor | JSON `success: false` | **recusa** com texto proprio | `wp-admin/includes/ajax-actions.php:2617` e `:2633` |
+
+O trecho das duas primeiras e literal e identico nas duas:
+
+```php
+if ( ! get_post( $post_id ) || ! current_user_can( 'edit_post', $post_id ) ) {
+    $post_id = 0;
+}
+```
+
+Quem nao pode editar o destino **nao e recusado**: o anexo nasce **sem pai** — e
+passa a ter visibilidade propria, que e o CA-2.3 de **US-2**, por um caminho que
+o ator nao escolheu.
+
+**O que T003 fez, e o que ela nao fez.** Ela nao escolheu um lado:
+`SuperficieDeEnvio` diz de onde a chamada veio e os **tres** desfechos do legado
+sao devolvidos como sao (`autorizado`, `destino-descartado`, `recusado`), com os
+textos do legado. CA-1.6 fecha de qualquer forma, porque o criterio cobra que as
+superficies *"apliquem as mesmas duas verificacoes"* — e as tres aplicam, por
+**uma** funcao, que e o que o teste afirma. O que **nao** foi feito e acrescentar
+recusa a uma superficie que nao a tem: o P1 exige que *"toda divergencia tenha
+uma referencia a resposta de `questions.md` ou ao ADR que a autorizou"*, e
+nenhuma existe — as tres autorizadas sao o tempo limite do adaptador de IA, a
+minimizacao do servico de reputacao e o ambiente-oraculo.
+
+Mesmo precedente e mesma postura de
+`contextos/conteudo/publicacao/permissao-de-publicacao.ts`, onde CA-1.1 pedia
+*"recusa explicita na tela"* e o painel do legado **rebaixava** o estado em vez
+de recusar. **Quem pegar T005 (US-2) e T019 (US-9) encosta nisto:** T005 porque o
+anexo sem pai e o caminho de CA-2.3, e T019 porque CA-9.4 pede registro *"com
+conta, arquivo e instante"* de um envio que pode ter chegado por qualquer das
+tres superficies.
+
+A analise completa, com as tres diferencas menores preservadas (a ordem da
+leitura do destino, o `absint()` e o nonce), esta no cabecalho de
+`envio/permissao-de-envio.ts`.
+
+---
+
 ## O que este modulo nao vai ter, por decisao de outra pessoa
 
 - **Lixeira de midia.** `REQ-051` (*"dar lixeira a midia pelo mesmo comportamento
@@ -351,6 +514,25 @@ O que **T002** acrescenta a essa lista:
   primeira metade — `SELECT meta_id ... WHERE post_id = ? ` e o par
   `SELECT * ... WHERE meta_id = ?` / `DELETE` — estao em `metadado.ts`, com o
   espaco final da cadeia do legado preservado.
+
+O que **T003** acrescenta a essa lista:
+
+- O cenario **`@composicao`** passa a ter **sequencia** para comparar, que era o
+  que faltava: *"a sequencia de operacoes registrada e identica a do oraculo"* e
+  *"nenhuma operacao a mais e executada"*.
+  `envio/us-1-enviar-arquivo.test.ts` afirma a sequencia inteira de um envio sem
+  colisao, operacao por operacao, na ordem — inclusive as **quatro** perguntas de
+  nome alternativo que a conversao HEIC/HEIF do editor obriga.
+- O cenario do **nome em conflito** fecha por aqui: *"as duas gravam com o mesmo
+  nome final"*, *"o sufixo aplicado e identico nas duas"* e *"quando o envio e
+  repetido tres vezes, a sequencia de nomes gerada e identica nas duas"* — o
+  ultimo e um teste proprio, com o disco crescendo entre os envios.
+- O cenario **`@concorrencia`** continua **sem fechar**, e isso e do legado:
+  entre o calculo do nome unico e o `move_uploaded_file()` nao ha trava nenhuma,
+  logo *"dois envios simultaneos do mesmo nome nao se sobrescrevem"* nao e
+  garantido por este codigo e nao era no legado. Esta declarado no cabecalho de
+  `nomeDeArquivoUnico()`; introduzir trava seria introduzir comportamento que o
+  produto nao tem.
 
 ⚠️ `parity_specs.md` registra que a suite de *characterization tests* **nao
 existe** nesta arvore, e que a paridade de tela tem de ser derivada secao por

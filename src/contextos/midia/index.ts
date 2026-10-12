@@ -1,17 +1,21 @@
 /**
  * Modulo de midia — BC-04 de `target_architecture.md`.
  *
- * Feature `006-biblioteca-de-midia`, tarefas fechadas **T001** e **T002**. O que
- * existe aqui e o que as duas entregam: T001, *"o modulo carrega com as portas
- * de dados, de sistema de arquivos e de processamento de imagem declaradas, e os
- * tamanhos de fabrica do legado registrados como dado"*; T002, *"o anexo existe
- * como registro de conteudo com estado herdado, e o metadado que descreve as
- * derivadas e gravado e lido pela porta de dados com a mesma forma do legado"*.
- * **Nenhuma regra de negocio esta implementada.** O envio com validacao de tipo,
- * a heranca de visibilidade, a geracao de derivadas, a reducao na ingestao, o
- * relato de falha, a escolha da derivada, a transformacao, o descarte do arquivo
- * e o contorno do filtro entram nas tarefas delas (T003 em diante), e a leitura
- * obrigatoria de cada uma esta em `./README.md`.
+ * Feature `006-biblioteca-de-midia`, tarefas fechadas **T001**, **T002** e
+ * **T003**. O que existe aqui e o que as tres entregam: T001, *"o modulo carrega
+ * com as portas de dados, de sistema de arquivos e de processamento de imagem
+ * declaradas, e os tamanhos de fabrica do legado registrados como dado"*; T002,
+ * *"o anexo existe como registro de conteudo com estado herdado, e o metadado
+ * que descreve as derivadas e gravado e lido pela porta de dados com a mesma
+ * forma do legado"*; T003, *"o comportamento de US-1 existe e os criterios
+ * CA-1.1 a CA-1.6 passam contra o sistema novo"*.
+ *
+ * **A unica regra de negocio implementada e a de US-1** — o envio com validacao
+ * do tipo real do arquivo, em `envio/`. A heranca de visibilidade, a geracao de
+ * derivadas, a reducao na ingestao, o relato de falha, a escolha da derivada, a
+ * transformacao, o descarte do arquivo e o contorno do filtro com registro
+ * entram nas tarefas delas (T005 em diante), e a leitura obrigatoria de cada uma
+ * esta em `./README.md`.
  *
  * A pasta e `contextos/midia/` porque e assim que `target_architecture.md`
  * nomeia BC-04 no esboco de arvore; a feature se chama `006-biblioteca-de-midia`
@@ -37,6 +41,12 @@ import {
   criarArmazenamentoDeMidia,
   type ArmazenamentoDeMidia,
 } from './armazenamento/index.js';
+import {
+  enviarArquivo,
+  type ContextoDeEnvio,
+  type PedidoDeEnvio,
+  type ResultadoDoEnvio,
+} from './envio/index.js';
 import type {
   PortaDeDados,
   PortaDeProcessamentoDeImagem,
@@ -48,6 +58,7 @@ import {
 } from './tamanhos/index.js';
 
 export * from './armazenamento/index.js';
+export * from './envio/index.js';
 export * from './portas/index.js';
 export * from './tamanhos/index.js';
 
@@ -63,8 +74,9 @@ export interface PortasDeMidia {
  *
  * Cada historia acrescenta aqui a sua operacao, com a declaracao explicita de
  * permissao que o P4 da constituicao exige, e nenhuma antes da propria tarefa.
- * Hoje ha tres coisas, e nenhuma e operacao: as portas e os tamanhos de
- * fabrica, de T001, e o armazenamento, de T002.
+ * Hoje ha quatro coisas: as portas e os tamanhos de fabrica, de T001, o
+ * armazenamento, de T002, e **uma** operacao, de T003 — {@link
+ * ModuloDeMidia.enviarArquivo}.
  *
  * A tabela abaixo e o que a secao *Contratos* de `plan.md` lista, com a
  * capacidade que a `spec.md` cobra em cada uma. Ela esta aqui como **pauta**, e
@@ -73,7 +85,7 @@ export interface PortasDeMidia {
  *
  * | operacao | historia | tarefa | permissao, como o pacote a declara |
  * |---|---|---|---|
- * | enviar arquivo | US-1 | T003 | `upload_files`, mais `edit_post` do destino quando ha destino — UC-12 nomeia as duas, CA-1.1 as cobra |
+ * | enviar arquivo ✔ | US-1 | T003 | `upload_files`, mais `edit_post` do destino quando ha destino — UC-12 nomeia as duas, CA-1.1 as cobra |
  * | gerar derivadas | US-3 | T007 | o pacote nao declara nenhuma; CA-3.3 pede uma acao explicita para regerar, e quem a expor declara a dela (P4) |
  * | servir derivada | US-6 | T013 | nenhuma: a historia e do visitante, e a rastreabilidade dela aponta UC-01 |
  * | transformar imagem | US-7 | T015 | *"a capacidade de editar aquele anexo"* (CA-7.1), sem que o pacote a nomeie |
@@ -94,6 +106,40 @@ export interface ModuloDeMidia {
    * `satisfaz: — (infraestrutura)`.
    */
   readonly armazenamento: ArmazenamentoDeMidia;
+
+  /**
+   * Coloca um arquivo na biblioteca, validando o **tipo real** dele (US-1,
+   * T003). E `media_handle_upload()` com `_wp_handle_upload()` dentro
+   * (`wp-admin/includes/media.php:296` e `wp-admin/includes/file.php:809`), e e
+   * o fluxo principal de UC-12.
+   *
+   * **Permissao exigida: `upload_files`, mais `edit_post` do conteudo de destino
+   * quando ha destino** — as duas que UC-12 nomeia e que CA-1.1 cobra. A recusa
+   * e **valor**, com os textos do legado.
+   *
+   * ⚠️ **A consequencia da segunda pergunta depende da superficie, e isso e o
+   * legado, nao uma brecha.** Duas das tres superficies do envio **descartam o
+   * destino** e seguem — o anexo nasce sem pai — e so o envio assincrono do
+   * editor recusa. CA-1.1 lido como *"toda superficie recusa"* divergiria do
+   * legado em duas das tres, e a divergencia esta registrada, com as ancoras das
+   * tres, em `envio/permissao-de-envio.ts`. Esta tarefa **nao a resolve**:
+   * {@link PedidoDeEnvio.superficie} diz de onde a chamada veio e os tres
+   * desfechos do legado sao devolvidos como sao.
+   *
+   * **O que esta operacao NAO faz:** nao gera derivada (T007), nao reduz imagem
+   * na ingestao (T009), nao relata falha de processamento (T011) e nao registra
+   * o envio sem filtro de tipo (T019, CA-9.4). Os quatro pontos estao nomeados
+   * no lugar exato do fluxo, em `envio/enviar-arquivo.ts`.
+   *
+   * O contexto chega por argumento, e nao pela composicao, porque identidade,
+   * matriz de papeis e estado de rede sao escopo de REQUISICAO (AD-02,
+   * BR-MIGRAR-105) — e porque a colaboracao com BC-01, que e quem grava a linha
+   * do anexo, e de ligacao tardia (AD-10, regra de dependencia 3).
+   */
+  enviarArquivo(
+    contexto: ContextoDeEnvio,
+    pedido: PedidoDeEnvio,
+  ): ResultadoDoEnvio;
 
   /**
    * Os seis tamanhos de fabrica do legado, na ordem dele (`M2`,
@@ -128,6 +174,7 @@ export function criarModuloDeMidia(portas: PortasDeMidia): ModuloDeMidia {
     // Compor o armazenamento monta nome de tabela e nada mais: nenhuma consulta
     // sai daqui (`EXT-ORDEM`, BR-MIGRAR-106).
     armazenamento: criarArmazenamentoDeMidia(portas.dados),
+    enviarArquivo,
     tamanhosDeFabrica: TAMANHOS_DE_IMAGEM_DE_FABRICA,
   };
 }

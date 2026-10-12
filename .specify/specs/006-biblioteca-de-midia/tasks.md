@@ -9,7 +9,7 @@
       *entrega:* o anexo existe como registro de conteúdo com estado herdado, e o metadado que descreve as derivadas é gravado e lido pela porta de dados com a mesma forma do legado
       *satisfaz:* — (infraestrutura)
       *depende de:* T001
-- [ ] **T003** Enviar arquivo para a biblioteca validando o tipo real do arquivo (US-1)
+- [x] **T003** Enviar arquivo para a biblioteca validando o tipo real do arquivo (US-1)
       *entrega:* o comportamento de US-1 existe e os critérios CA-1.1, CA-1.2, CA-1.3, CA-1.4, CA-1.5, CA-1.6 passam contra o sistema novo
       *satisfaz:* CA-1.1, CA-1.2, CA-1.3, CA-1.4, CA-1.5, CA-1.6
       *depende de:* T001, T002
