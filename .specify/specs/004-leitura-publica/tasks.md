@@ -57,7 +57,7 @@
       *entrega:* 8 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-043-1, UT-043-2, UT-043-3, UT-043-4, UT-043-5, UT-043-6, UT-043-7, UT-043-8), com o mesmo dado de entrada, ação e resultado esperado. Os 2 testes de regra de negócio (UT-043-7, UT-043-8) entram na mesma suíte.
       *satisfaz:* CA-6.1, CA-6.2, CA-6.3, CA-6.4, CA-6.5, CA-6.6
       *depende de:* T013
-- [ ] **T015** Pré-buscar o próximo destino de navegação antes do clique (US-7)
+- [x] **T015** Pré-buscar o próximo destino de navegação antes do clique (US-7)
       *entrega:* o comportamento de US-7 existe e os critérios CA-7.1, CA-7.2, CA-7.3 passam contra o sistema novo
       *satisfaz:* CA-7.1, CA-7.2, CA-7.3
       *depende de:* T001, T002, T005

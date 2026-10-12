@@ -6,8 +6,10 @@ de dados, a resolucao de endereco e a resposta de endereco inexistente),
 **T002** (a tabela de regras de traducao como dado, o casamento do endereco
 contra ela e a coleta dos criterios diretos), **T003** (US-1: a resolucao do
 endereco numa consulta de conteudo, com os predicados de tipo de consulta e os
-tres ramos de excecao do `handle_404`) e **T005** (US-2: a hierarquia declarada
-de modelos, as sete saidas de `template-loader.php` e a etapa 5 do atendimento).
+tres ramos de excecao do `handle_404`), **T005** (US-2: a hierarquia declarada
+de modelos, as sete saidas de `template-loader.php` e a etapa 5 do atendimento)
+e **T015** (US-7: a declaracao de pre-busca do proximo destino, com as oito
+exclusoes, as dez recusas de `add_rule` e o prefixador de padrao de endereco).
 
 Este arquivo e a leitura obrigatoria de quem pegar a tarefa seguinte: ele diz o
 que ja esta decidido, o que esta decidido **em outro lugar**, e o que ninguem
@@ -15,7 +17,7 @@ decidiu.
 
 ---
 
-## 🔴 O que quem pega T007, T009, T011, T013, T015 ou T017 precisa saber antes de escrever a primeira linha
+## 🔴 O que quem pega T007, T009, T011, T013 ou T017 precisa saber antes de escrever a primeira linha
 
 ### 0. Numa instalacao nova a tabela de regras esta VAZIA, e isso muda como se le o resto
 
@@ -421,6 +423,117 @@ mesclado de T003: T005 nao o alargou. Quem le o conteudo dele passa pelo
 reconhecedor `objetoConsultadoNoTema()`, e a **resolucao** — qual colaborador
 produz qual objeto — continua fora deste modulo, no repositorio.
 
+## O que T015 entregou
+
+```
+leitura-publica/pre-busca/
+├── padrao-de-endereco.ts         `WP_URL_Pattern_Prefixer` inteira: os sete contextos, o escape e o prefixo
+├── configuracao-da-pre-busca.ts  a configuracao, os defaults do nucleo e do hospedeiro, e as tres listas de valores permitidos
+├── contexto-da-pre-busca.ts      as colaboracoes tardias desta etapa
+├── regras-de-pre-busca.ts        `WP_Speculation_Rules`: o coletor, as dez recusas e a forma de saida
+├── declarar-pre-busca.ts         a montagem e a saida: as oito exclusoes, as condicoes da regra do nucleo e o que vai para a borda
+└── index.ts                      o barril da area
+```
+
+Fora da pasta nova, T015 mexeu em dois arquivos, e so neles: `index.ts` (a
+operacao nova e a area nova no barril) e `modulo.test.ts` (a superficie, que
+passou de cinco operacoes a seis).
+
+A entrega em uma frase conferivel: num site com enderecos amigaveis e sem
+ninguem autenticado, a declaracao sai com o padrao do proprio site, a
+agressividade `conservative` e **oito** padroes de exclusao prefixados pela
+instalacao; com os enderecos amigaveis de fabrica — texto vazio — ela nao sai.
+
+### 🔴 Tres coisas que T015 **nao** e, e as tres surpreendem
+
+1. **Numa instalacao nova a pre-busca nasce DESLIGADA, e isso e o achado da
+   tarefa.** `wp_get_speculation_rules_configuration()` abre com
+   `if ( ! is_user_logged_in() && get_option( 'permalink_structure' ) )`
+   (`wp-includes/speculative-loading.php:28`), e o instalador semeia
+   `permalink_structure` como **texto vazio**
+   (`wp-admin/includes/schema.php:443`) — o mesmo fato de que a secao 0 deste
+   arquivo depende. Logo, na premissa deste porte (instalacao nova de site
+   unico, resposta 2), a pagina **nao declara pre-busca nenhuma**, e
+   `wp_print_speculation_rules()` retorna em `:333` sem imprimir. Em instalacao
+   de rede o default e outro (`schema.php:576`) e a declaracao aparece.
+   ⚠️ **Consequencia:** o ramo de exclusao de consulta de `:224` — o padrao que
+   casa `nonce` — so e alcancavel quando um interceptador **forca** a
+   configuracao. Nao e codigo morto, mas tambem nao e caminho de fabrica.
+2. **A declaracao nao e etapa de `atender` nem de `escolherApresentacao`.**
+   `wp-includes/default-filters.php:367` a pendura em `wp_footer`, com
+   prioridade default: ela roda quando o tema emite o rodape, isto e **depois**
+   de tudo que as outras cinco operacoes enxergam. Por isso ela e **operacao
+   propria** do modulo, pela mesma razao que `escolherApresentacao` o e. O
+   gancho e a prioridade saem como dado (`GANCHO_DA_DECLARACAO`,
+   `PRIORIDADE_DA_DECLARACAO`), porque `plataforma/barramento/` nao existe nesta
+   arvore e a posicao de disparo e contrato publico (P2).
+3. **`is_user_logged_in()` nao e camada de autorizacao, e a declaracao de
+   permissao desta operacao continua "nenhuma capacidade".** A pergunta e "ha
+   alguem autenticado", e o legado a usa para **desligar** um recurso, nunca
+   para conceder acesso. Trata-la como autorizacao poria autorizacao numa
+   operacao que UC-01 registra como nao tendo nenhuma.
+
+### O que fica fora da declaracao, e por quatro mecanismos diferentes
+
+CA-7.2 pede tres grupos — administracao, saida de sessao, acao com efeito — e o
+legado os cobre por **quatro** mecanismos, nao um. Quem for conferir paridade
+precisa olhar os quatro:
+
+| o que o criterio pede | como o legado o tira | legado |
+|---|---|---|
+| administracao | o padrao `/wp-admin/*` no contexto `site` | `speculative-loading.php:208` |
+| saida de sessao | o padrao `/wp-*.php` no contexto `site`, que pega `wp-login.php` — e a saida de sessao do legado e `wp-login.php?action=logout` | `:207` |
+| acao com efeito, por endereco | **toda** consulta com enderecos amigaveis (`:222`); so a que contenha `nonce` sem eles (`:224`) | `:216-225` |
+| acao com efeito, por marcacao | `a[rel~="nofollow"]`, mais `.no-{modo}` e `.no-{modo} a` | `:275-286` |
+
+E tres garantias que o filtro nao consegue furar (`:244-260`, com os tres
+comentarios numerados do proprio legado): `array_merge` poe as oito base
+**primeiro**, `array_unique` nao deixa duplicar, `array_values` reindexa. O
+docblock do filtro e literal: *"those cannot be modified using the filter"*
+(`:233-234`).
+
+| o que surpreende | onde |
+|---|---|
+| o filtro recebe a lista **vazia**, nao as oito base — e e por isso que nao consegue remove-las | `:241` |
+| o que o filtro devolve e nao e texto desaparece em silencio | `:242` |
+| em `prerender` a classe `.no-prefetch` **tambem** exclui, porque pre-renderizar implica pre-buscar | `:290-296` |
+| `rel="nofollow"` esta reinterpretado: significa "nao transfira autoridade" e vale como "nao especule". Um link patrocinado perde a pre-busca | `:275-280` |
+| `'immediate'` e agressividade **valida** e recusada em tres pontos diferentes: no saneamento, no default do hospedeiro e em `add_rule` | `:92`, `:135` e `class-wp-speculation-rules.php:193` |
+| identificador de regra de **um** caractere e invalido (a expressao usa `+`, nao `*`) | `class-wp-speculation-rules.php:255` |
+| 🔴 `template` e `stylesheet` estao **trocados** no prefixador: `template` recebe `get_stylesheet_directory_uri()` e vice-versa | `class-wp-url-pattern-prefixer.php:118-119` |
+
+### ⚠️ Uma ancora da `spec.md` nao e desta historia, e a certa esta na mesma linha
+
+A tabela de rastreabilidade da `spec.md` registra para US-7 duas ancoras:
+`wp-includes/speculative-loading.php:330` e `wp-includes/functions.php:1612`. A
+primeira esta certa — e `wp_print_speculation_rules()`. A segunda **nao e desta
+historia**: `functions.php:1612` e `do_feed()`, e ela aparece na lista
+*"Implementado em"* de UC-01 junto com `functions.php:1349` (`wp()`), de onde o
+par foi copiado. As ancoras do modulo de pre-busca, conferidas no legado em
+disco, sao:
+
+| o que | ancora |
+|---|---|
+| a configuracao, o default e a sobreposicao | `speculative-loading.php:26`, `:124`, `:158` |
+| a montagem e a saida | `:195`, `:330` |
+| a estrutura e as validacoes | `class-wp-speculation-rules.php:73`, `:224`, `:236`, `:254`, `:269`, `:284`, `:296` |
+| o prefixador | `class-wp-url-pattern-prefixer.php:64`, `:111`, `:132` |
+| a posicao na pagina | `default-filters.php:367` |
+| a saida em elemento de script | `script-loader.php:3021`, `:3079` |
+
+Isto e **divergencia de documento, nao de comportamento**: nenhuma spec e nenhum
+documento de migracao afirma coisa diferente do que o legado faz aqui, logo nao
+ha conflito a parar. Fica registrado porque quem conferir paridade por
+`functions.php:1612` vai conferir o feed.
+
+### As tres lacunas que T015 declarou, e por que nenhuma delas e decisao
+
+| lacuna | onde | de quem e |
+|---|---|---|
+| a codificacao em JSON (`wp_json_encode` com `JSON_HEX_TAG \| JSON_UNESCAPED_SLASHES`) e a montagem do `<script type="speculationrules">` | `pre-busca/declarar-pre-busca.ts` | da plataforma e da borda: `wp_json_encode` tem limite de profundidade e saneamento de texto invalido proprios (`functions.php:4443`), e `wp_print_inline_script_tag` passa pelo filtro `wp_inline_script_attributes` e pelo `WP_HTML_Tag_Processor` (`script-loader.php:3021` e `:3079`). `DeclaracaoDaPreBusca` entrega o **valor**, as duas bandeiras **por nome** e o atributo do elemento — nada mais e nada menos. Mesma fronteira que T005 declarou para o portao de inclusao e que o README ja declarava para `wp_get_nocache_headers()` |
+| `is_array()` sobre o retorno do filtro de configuracao: o alvo nao distingue arranjo de objeto | `pre-busca/configuracao-da-pre-busca.ts` | do oraculo executavel (`ESC-ORACULO`, resposta 16). A fronteira observavel esta reproduzida — escalar cai no default inteiro (`:74-79`), estrutura e saneada campo a campo —, e so instancia de classe divergiria |
+| os sete caminhos da instalacao chegam como **caminho**, nao como endereco: `wp_parse_url( ..., PHP_URL_PATH )` nao e portado aqui | `pre-busca/padrao-de-endereco.ts` | de `plataforma/opcoes`, de BC-04 (uploads) e de `plataforma/tema` (feature 009). O default `CAMINHOS_SEM_PATH` e o que o proprio legado produz de endereco sem caminho (`(string) null` mais `trailingslashit`), e **nao** e um esboco — e tambem nao e o valor de fabrica, que nunca chega la porque a configuracao e ausente antes |
+
 ## O que esta decidido em outro lugar
 
 - **A ordem das etapas do atendimento** e contrato publico (BR-MIGRAR-106,
@@ -472,9 +585,33 @@ produz qual objeto — continua fora deste modulo, no repositorio.
   ser a ligacao tardia que T005 declarou. `parity_specs.md` registra a mesma
   lacuna como `LACUNA-IN-09`, *"os 3 temas e os 2 plugins empacotados entram no
   porte?"*.
-- **O lado cliente da pre-busca de navegacao** (US-7) esta ausente desta arvore
-  (lacuna L4 de `soul.md`); a resposta 15 manda construir a partir do repositorio
-  de origem.
+- **O lado cliente da pre-busca de navegacao** (US-7). ⚠️ **Continua aberta
+  depois de T015, e nada na arvore a resolve** — mas ela **nao bloqueou** a
+  tarefa, e vale registrar por que, porque quem chegar aqui vai refazer a
+  pergunta.
+
+  A pergunta aberta da `spec.md` diz que *"metade do comportamento do modulo
+  correspondente do legado esta no lado cliente, ausente desta arvore (lacuna L4
+  de `soul.md`)"*, e que a resposta 15 manda construir a partir do repositorio
+  de origem. Conferido no legado: **nao ha lado cliente deste modulo a buscar**.
+  Uma busca por `speculation` em `wp-includes/js/` e `wp-admin/js/` devolve
+  **zero** arquivo, e a unica ocorrencia fora dos tres arquivos de servidor e um
+  comentario do analisador de HTML
+  (`wp-includes/html-api/class-wp-html-tag-processor.php:4324`). Quem consome a
+  declaracao e **o navegador**, pela Speculation Rules API, e o legado registra
+  isso como degradacao graciosa: *"For browsers that do not support speculation
+  rules yet, the `script[type="speculationrules"]` tag will be ignored"*
+  (`speculative-loading.php:325`).
+
+  Logo os tres criterios de US-7 sao sobre a declaracao **emitida pelo
+  servidor**, e os tres sao conferiveis sem o repositorio de origem — e e isso
+  que `pre-busca/us-7-pre-buscar-proximo-destino.test.ts` afirma. O que
+  **continua** sem resposta, e nao e desta tarefa nem do agente: se o ganho
+  parcial por desenho — a API e suportada so em navegadores baseados em Chromium
+  — entra em algum criterio de paridade, e se a feature 009 ao trazer o
+  repositorio de origem muda algo aqui. ⚠️ A pergunta **nao** foi marcada como
+  resolvida em `spec.md` nem em `index.md`: aquele pacote e gerado, e resolver
+  pergunta aberta nao e do agente de codificacao.
 - **O conflito do card de descarte REQ-046** (gerenciador de lista de links e
   indice OPML) esta registrado e **nao resolvido** na secao *Fora de escopo* da
   `spec.md`. Nada nesta arvore o resolve, e a tabela `links` nao e tocada por este
@@ -489,8 +626,10 @@ produz qual objeto — continua fora deste modulo, no repositorio.
 
 Esta feature **nao** e um `bounded context` de `target_architecture.md`: ela
 atravessa `BC-01` (a consulta e a macro textual), `plataforma/rotas` (a traducao
-de endereco) e `plataforma/tema` (a hierarquia de modelos), e aquele artefato nao
-declara mapa de feature para pasta. A pasta leva o nome da feature, como
+de endereco), `plataforma/tema` (a hierarquia de modelos) e — desde T015 —
+`BC-07` (a pre-busca: `topology_decision.md` funde o modulo
+`speculative-loading` em `BC-07-apresentacao`, com os outros onze de estilo `D`),
+e aquele artefato nao declara mapa de feature para pasta. A pasta leva o nome da feature, como
 `001-identidade-e-acesso` fez com a dela, por tres razoes: a tarefa nomeia *"o
 modulo de leitura publica"*; `BC-01` e tambem o destino da feature `002`, que esta
 sendo construida em paralelo, e duas features escrevendo a mesma pasta e conflito
@@ -530,7 +669,17 @@ caminho do arquivo.
   porte "limpo" apaga em silencio (o laco por candidato, o candidato recusado que
   nao tenta o diretorio seguinte, a regra que sai sem consultar o tema, o
   `remove_filter` do anexo, o arranjo interpolado como `Array`).
+- `pre-busca/us-7-pre-buscar-proximo-destino.test.ts` — os testes de T015: os
+  tres criterios de aceite de US-7, as oito exclusoes na ordem do legado com o
+  prefixo de uma instalacao em subdiretorio, os quatro mecanismos de exclusao de
+  CA-7.2, as dez recusas de `add_rule`, a sobreposicao do default por constante
+  e por ambiente, os tres pontos de extensao novos, e os quirks que um porte
+  "limpo" apaga em silencio (o `null` que desliga contra o `false` que nao
+  desliga, o `'auto'` resolvido depois do filtro, a troca de `template` por
+  `stylesheet`, o identificador de um caractere, a quebra de linha aceita no fim
+  do identificador, o padrao cru prefixado duas vezes, o `(array)` que embrulha
+  e o `array_filter` que descarta em silencio).
 
-Nenhum caso `UT-0xx` de `backlog/tests.md` e afirmado nas quatro: esses sao das
+Nenhum caso `UT-0xx` de `backlog/tests.md` e afirmado nas cinco: esses sao das
 tarefas de teste de cada historia (T004, T006, T008, T010, T012, T014, T016,
 T018).
