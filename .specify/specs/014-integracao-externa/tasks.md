@@ -5,7 +5,7 @@
 - [x] **T001** Preparar o esqueleto da borda de saída
       *entrega:* a porta de cliente externo e a de envio de e-mail existem com uma implementação cada, e toda chamada de saída do sistema passa por elas, sem nenhuma política de prazo ou de repetição definida
       *satisfaz:* — (infraestrutura)
-- [ ] **T002** Portar o catálogo de endereços externos como dado declarado
+- [x] **T002** Portar o catálogo de endereços externos como dado declarado
       *entrega:* os endereços dos serviços externos estão num registro único e inspecionável, com o esquema de cada um explícito, de modo que a pergunta "quantos canais nascem sem cifra" tenha resposta por consulta e não por varredura de código
       *satisfaz:* — (infraestrutura)
       *depende de:* T001

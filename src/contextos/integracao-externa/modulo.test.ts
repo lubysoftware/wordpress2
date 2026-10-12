@@ -120,7 +120,7 @@ test('o modulo carrega com as duas portas declaradas', () => {
   assert.equal(modulo.portas.email, portas.email);
 });
 
-test('a superficie do modulo tem exatamente o que T001 entregou', () => {
+test('a superficie do modulo tem exatamente o que T001 e T002 entregaram', () => {
   const { portas } = duplos();
 
   const modulo = criarModuloDeIntegracaoExterna(portas);
@@ -128,8 +128,15 @@ test('a superficie do modulo tem exatamente o que T001 entregou', () => {
   // Esta lista cresce NA TAREFA DE CADA HISTORIA, nunca antes: e o que o P4 da
   // constituicao cobra, "toda operacao exposta nova nasce com declaracao
   // explicita de permissao". T001: nenhuma operacao, nenhum dado, so as portas.
-  // O catalogo de enderecos (T002) e o primeiro dado a entrar aqui.
-  assert.deepEqual(Object.keys(modulo).sort(), ['nome', 'portas']);
+  // T002 acrescentou `catalogo`, que e o dado que aquela tarefa anunciava — e
+  // continua nao havendo OPERACAO nenhuma aqui, logo nenhuma permissao a
+  // declarar. As consultas ao catalogo recebem a fonte por argumento e vivem em
+  // `catalogo/consultas.ts`, fora desta interface.
+  assert.deepEqual(Object.keys(modulo).sort(), [
+    'catalogo',
+    'nome',
+    'portas',
+  ]);
 });
 
 test('criar o modulo nao toca em porta nenhuma (EXT-ORDEM: nada se resolve no carregamento)', () => {
@@ -399,13 +406,18 @@ test('nenhum prazo, nenhuma repeticao e nenhum limite nascem em T001', () => {
   const modulo = criarModuloDeIntegracaoExterna(portas);
 
   // A entrega termina em "sem nenhuma politica de prazo ou de repeticao
-  // definida". Nao ha onde um numero se esconder: o modulo tem duas chaves, e
-  // nenhuma delas e dado. Os valores de fabrica do legado (5 s, 5
+  // definida". Nao ha onde um numero se esconder: as portas sao duas e o dado de
+  // T002 e um catalogo de ENDERECOS. Os valores de fabrica do legado (5 s, 5
   // redirecionamentos, 30 s do construtor de prompt de IA) entram em T011, cada
   // um "num ponto de configuracao nomeado, com o valor de fabrica do legado"
   // (P6) — e a divergencia autorizada pela resposta 18 tem de ser citada no
-  // codigo que a exercer (P1).
-  assert.deepEqual(Object.keys(modulo).sort(), ['nome', 'portas']);
+  // codigo que a exercer (P1). Que nenhuma LINHA do catalogo traga numero e
+  // afirmado na suite propria de T002, campo por campo.
+  assert.deepEqual(Object.keys(modulo).sort(), [
+    'catalogo',
+    'nome',
+    'portas',
+  ]);
   assert.deepEqual(Object.keys(modulo.portas).sort(), [
     'clienteExterno',
     'email',

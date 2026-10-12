@@ -2,8 +2,9 @@
 
 Feature `014-integracao-externa`. Tarefas fechadas com nota de entrega neste
 arquivo: **T001** (esqueleto da borda de saida: as duas portas e uma
-implementacao de cada). Este arquivo e a leitura obrigatoria de quem pegar a
-tarefa seguinte: ele diz o que ja esta decidido, o que esta decidido **em outro
+implementacao de cada) e **T002** (o catalogo de enderecos externos como dado
+declarado). Este arquivo e a leitura obrigatoria de quem pegar a tarefa
+seguinte: ele diz o que ja esta decidido, o que esta decidido **em outro
 lugar**, e o que **ninguem** decidiu.
 
 A pasta e `contextos/integracao-externa/` porque e assim que
@@ -49,6 +50,10 @@ historia nenhuma, e nao implementa regra de negocio nenhuma.
 | `index.ts` | a composicao: `criarModuloDeIntegracaoExterna(portas)` |
 | `modulo.test.ts` | os 13 testes da entrega, e nada de historia |
 
+**A composicao ganhou uma chave em T002** — `catalogo` —, e ela e **dado, nao
+operacao**: nenhuma permissao e declarada porque nao ha operacao exposta nova. O
+teste de superficie passou a afirmar tres chaves.
+
 **O que a composicao NAO faz, e os testes afirmam:** nao guarda estado de modulo
 (`EXT-CONTEXTO`, BR-MIGRAR-105 — e aqui isso tem cenario de paridade proprio, o
 `@concorrencia` de `PT-017`: *"o estado de rebaixamento de canal de um nao afeta
@@ -57,6 +62,110 @@ criar o modulo nao faz chamada de saida, nao manda e-mail e nao le
 configuracao).
 
 **Nenhuma dependencia nova entrou em `package.json`.** Ver a secao seguinte.
+
+---
+
+## O que T002 entrega, e so isso
+
+A linha da tarefa: *"os enderecos dos servicos externos estao num registro unico
+e inspecionavel, com o esquema de cada um explicito, de modo que a pergunta
+'quantos canais nascem sem cifra' tenha resposta por consulta e nao por varredura
+de codigo"*. `satisfaz: — (infraestrutura)`, como T001: **nenhum criterio de
+aceite fecha aqui e nenhuma regra de negocio esta implementada**. O `plan.md` diz
+a mesma coisa na tabela de modelo de dados — *"o catalogo de servicos externos
+[estava] espalhado pelo codigo, com o endereco escrito em cada ponto de
+chamada"*.
+
+| arquivo | o que e |
+|---|---|
+| `catalogo/endereco-externo.ts` | a forma de uma linha: o motivo de cada campo e de cada valor de enumeracao |
+| `catalogo/catalogo-de-enderecos.ts` | o dado: **19** servicos de saida e **54** enderecos, cada um com ancora `arquivo:linha` |
+| `catalogo/consultas.ts` | as consultas, inclusive a da pergunta da entrega. Recebem o catalogo **por argumento** |
+| `catalogo/catalogo-de-enderecos.test.ts` | os 14 testes da entrega, e nada de historia |
+
+### A aritmetica das 54 linhas, para quem for conferir
+
+A `spec.md` conta *"29 integracoes e 64 endpoints"*; dessas 29, **19 sao de
+saida**, com **50 linhas de endpoint**. Daquelas 50:
+
+- **−4** porque sao superficie de **entrada** deste sistema, e nao endereco de
+  terceiro: o gatilho de webhook e o de alerta do servico de reputacao,
+  `pingback.ping` recebido em `/xmlrpc.php` e o POST recebido em
+  `/wp-trackback.php`.
+- **+7** porque o feixe de loopback foi aberto: o artefato o conta em 3 linhas, e
+  dentro delas o campo de verificacao de certificado **nao e uniforme** — ha
+  chamada que exige (`wp-admin/includes/upgrade.php:541`, `wp-admin/admin.php:84`,
+  `class-wp-site-health.php:3419`) e chamada que desliga pelo valor de fabrica do
+  filtro (`wp-includes/cron.php:993`, `class-wp-site-health.php:2231`, `:3291`,
+  `:3615`). Uma linha so teria de escolher um valor, e escolher seria afirmar
+  errado sobre metade dos pontos.
+- **+1** porque os dois feeds do painel sao enderecos literais distintos, com
+  ponto de extensao proprio cada (`dashboard_primary_feed` em
+  `wp-admin/includes/dashboard.php:1563`, `dashboard_secondary_feed` em `:1601`).
+
+### A pergunta da entrega, e a resposta que ela tem
+
+| recorte | quantos nascem sem cifra |
+|---|---|
+| servico de infraestrutura (`api-wordpress-org`) | **13** — o numero da regra de negocio de US-1 e de `BR-MIGRAR-115` |
+| nucleo clonado inteiro | **16** |
+| catalogo inteiro, com a extensao empacotada | **21** |
+
+Os tres estao afirmados na suite, **nome por nome**, e nenhum esconde o outro.
+Conferencia do 13: `grep -rn "http://api.wordpress.org" wp-admin wp-includes`
+devolve **14** ocorrencias, uma delas docblock
+(`class-wp-rest-pattern-directory-controller.php:13`) — logo 13 literais em
+codigo. Os 8 que completam os 21 e nao sao daquele servico: a sondagem de DNS
+curinga (`wp-admin/includes/schema.php:1163`), a caixa postal
+(`wp-includes/class-pop3.php:100`), o sistema de arquivos remoto em FTP puro
+(`class-wp-filesystem-ftpext.php:135`) e os **5** do servico de reputacao, que
+vivem na extensao empacotada.
+
+E a outra metade de `ESC-HTTP`: **7** canais do nucleo repetem a requisicao em
+claro, **11** com a extensao empacotada.
+
+### Tres achados proprios de T002, todos com ancora
+
+1. ⚠️ **Dois pontos de chamada de loopback nao estao em nenhuma linha do
+   artefato de analise**: a varredura de erro fatal depois de editar arquivo de
+   extensao (`wp-admin/includes/file.php:586` e `:588`, com uma **segunda**
+   chamada em `:617`) e a varredura depois de atualizacao automatica
+   (`class-wp-automatic-updater.php:1806` e `:1807`). Com elas, o valor de
+   fabrica desligado do filtro de verificacao local aparece em **6** pontos de
+   chamada, e nao nos 4 registrados.
+2. ⚠️ **O endereco semeado na instalacao nasce cifrado nesta versao**, e a lista
+   **nao** nasce vazia: `'ping_sites' => 'https://rpc.pingomatic.com/'`
+   (`wp-admin/includes/schema.php:450`). E o envio passa pela variante
+   **validada** do cliente (`wp-includes/class-wp-http-ixr-client.php:92`), ao
+   contrario do que a analise do legado afirma em prosa. As duas coisas tocam
+   CA-8.2 e CA-8.3 em cheio, e sao de **T017** — leia antes.
+3. ⚠️ **A frase que explica os 13 esta errada, e o numero esta certo.** A analise
+   diz que sao *"os treze primeiros endpoints da tabela"* dela, o que incluiria o
+   endereco de sais (`https://`, `wp-admin/setup-config.php:361`) e deixaria o de
+   eventos de fora (`http://`, `class-wp-community-events.php:101`). Pelo literal
+   e o contrario. Nao reescrevi artefato nenhum: `.specify/` e pacote gerado, e
+   aquele documento e do oraculo, fora desta arvore.
+
+### O que T002 NAO fez, de proposito
+
+- **Nao resolveu o conflito de REQ-149 com a resposta 12**, e foi desenhado para
+  nao o resolver: o esquema e **campo**, com ancora, e o catalogo nao monta URL
+  para ninguem. Os dois lados se implementam lendo o mesmo dado.
+- **Nao escreveu a verificacao automatizada de CA-1.2, CA-2.4, CA-4.4 nem
+  CA-5.5.** Aqueles criterios pedem verificacao que **falha**, e a primeira delas
+  reprovaria 13 linhas que a resposta 12 manda manter. As consultas listam e
+  contam; nenhuma devolve aprovacao.
+- **Nao decidiu o escopo do servico de reputacao** (quarta pergunta em aberto):
+  os 6 enderecos dele estao declarados com `fonte: 'extensao-empacotada'` e saem
+  por uma consulta. Omiti-los seria decidir pelo descarte; declara-los como
+  nucleo seria decidir pelo contrario.
+- **Nao trouxe numero de politica nenhum** — nem prazo, nem limite, nem contagem
+  de repeticao. Ha teste que percorre campo por campo das 54 linhas e dos 19
+  servicos afirmando que nenhum valor e numero. O prazo e de **T011**.
+- **Nao tornou o endereco configuravel.** CA-7.4 (*"o endereco do servico e
+  configuravel, para instalacao que use espelho proprio"*) e **T015**, e o
+  catalogo nao antecipa a forma dela: as consultas recebem a fonte por argumento,
+  logo um catalogo filtrado ou substituido ja responde hoje.
 
 ---
 
@@ -216,7 +325,9 @@ quem o portar vai reconhece-lo: o endereco nasce em `http://`, e guardado em
 `$http_url`, e promovido com `set_url_scheme( $url, 'https' )` se
 `wp_http_supports( array( 'ssl' ) )`, e repetido em claro no `is_wp_error`
 (`wp-includes/update.php:226` a `:231` e `:248` a `:258`). O **catalogo** desses
-enderecos e **T002**, que e a tarefa que transforma isso em dado consultavel.
+enderecos **existe desde T002**, em `catalogo/`: os 13 e os 7 saem por consulta,
+com ancora linha por linha, e **nenhuma consulta reprova nada** — ver
+*O que T002 entrega*.
 
 **T001 nao depende da resposta, e e por isso que esta tarefa fechou:** a porta
 carrega o esquema **como foi escrito** — nao promove, nao recusa — e devolve a
@@ -325,12 +436,17 @@ O que T001 ja torna conferivel por ali:
   que a porta e substituivel **sem tocar nenhum arquivo do modulo** — o criterio
   de "substituivel" de BR-MIGRAR-103 (`EXT-SUBST`).
 - O cenario **dos treze canais** pede que *"o esquema de URL usado em cada canal
-  seja identico nas duas"*. O que T001 fixa e que o esquema **atravessa a porta
-  como foi escrito**; o conjunto de canais e dado de **T002**.
+  seja identico nas duas"* e que *"o numero de canais que nascem em texto claro
+  seja o mesmo nas duas"*. T001 fixa que o esquema **atravessa a porta como foi
+  escrito**; **T002 entrega o conjunto e o numero**, por consulta, com os tres
+  recortes afirmados na suite (13 no servico de infraestrutura, 16 no nucleo, 21
+  no catalogo inteiro). O lado do legado continua sendo afirmado por ancora, nao
+  por execucao, enquanto o oraculo nao existir.
 - O cenario **das sete repeticoes** compara *"o conjunto de canais que repete"* e
-  *"o corpo da requisicao repetida"*. As duas coisas sao visiveis em
-  `requisicoes`, e nenhuma politica da porta as produz: a repeticao, quando
-  existir, sera do chamador.
+  *"o corpo da requisicao repetida"*. O **conjunto** sai do catalogo de T002
+  (`repeteEmClaroNaFalha`, com a condicao e a chamada ancoradas linha por linha);
+  o **corpo** e visivel em `requisicoes`, e nenhuma politica da porta o produz:
+  a repeticao, quando existir, sera do chamador.
 - O cenario **`@concorrencia`** exige que *"o estado de rebaixamento de canal de
   um nao afete o do outro"*. O modulo nao guarda estado e cada composicao tem a
   sua implementacao; o teste de duas composicoes afirma isso.
