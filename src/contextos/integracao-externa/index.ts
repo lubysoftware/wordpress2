@@ -1,12 +1,15 @@
 /**
  * Modulo de integracao externa — BC-13 de `target_architecture.md`.
  *
- * Esqueleto da feature `014-integracao-externa`, tarefa **T001**. O que existe
- * aqui e o que T001 entrega: *"a porta de cliente externo e a de envio de e-mail
- * existem com uma implementacao cada, e toda chamada de saida do sistema passa
- * por elas, sem nenhuma politica de prazo ou de repeticao definida"*.
- * **Nenhuma regra de negocio esta implementada.** O catalogo de enderecos entra
- * em T002, o canal cifrado em T003, a validacao de destino em T005, a
+ * Feature `014-integracao-externa`, tarefas **T001** e **T002**. O que existe
+ * aqui e o que as duas entregam: *"a porta de cliente externo e a de envio de
+ * e-mail existem com uma implementacao cada, e toda chamada de saida do sistema
+ * passa por elas, sem nenhuma politica de prazo ou de repeticao definida"*
+ * (T001) e *"os enderecos dos servicos externos estao num registro unico e
+ * inspecionavel, com o esquema de cada um explicito"* (T002, em `./catalogo/`).
+ * **Nenhuma regra de negocio esta implementada**, e as duas tarefas sao
+ * `satisfaz: — (infraestrutura)`: o canal cifrado entra em T003, a validacao de
+ * destino em T005, a
  * precedencia de credencial em T007, a proibicao de guardar credencial em texto
  * recuperavel em T009, o prazo e o tratamento de erro em T011, o canal de
  * e-mail em T013, a consulta de versoes em T015 e a notificacao de agregadores
@@ -22,14 +25,17 @@
  * politica de integracao num contexto so e o que permite auditar os 5 de uma
  * vez"*.
  *
- * ⚠️ **Este e o contexto com mais conflito nao resolvido do pacote, e T001 nao
- * resolve nenhum deles.** Sao quatro perguntas em aberto na `spec.md` (linhas
- * 173 a 176 de `index.md`), e a primeira — REQ-149 contra a resposta 12 — decide
- * se a borda de saida recusa canal sem cifra ou o reproduz em 13 enderecos. A
- * tabela *Nao negociavel* da constituicao poe os dois lados dela fora do que um
- * agente decide. O que T001 fez foi **nao fechar nenhuma das duas portas**: ver
- * o cabecalho de `portas/porta-de-cliente-externo.ts` e a secao
- * *O que T001 encontrou aberto* do `README.md`.
+ * ⚠️ **Este e o contexto com mais conflito nao resolvido do pacote, e nem T001
+ * nem T002 resolve nenhum deles.** Sao quatro perguntas em aberto na `spec.md`
+ * (linhas 173 a 176 de `index.md`), e a primeira — REQ-149 contra a resposta
+ * 12 — decide se a borda de saida recusa canal sem cifra ou o reproduz em 13
+ * enderecos. A tabela *Nao negociavel* da constituicao poe os dois lados dela
+ * fora do que um agente decide. O que T001 fez foi **nao fechar nenhuma das
+ * duas portas**, e o que T002 faz e declarar o esquema de cada canal como
+ * **fato com ancora**, em campo proprio, de modo que os dois lados continuem
+ * implementaveis a partir do mesmo dado: ver o cabecalho de
+ * `portas/porta-de-cliente-externo.ts`, o de `catalogo/endereco-externo.ts` e a
+ * secao *O que T001 encontrou aberto* do `README.md`.
  *
  * Duas coisas que este arquivo faz de proposito, as mesmas que os esqueletos de
  * BC-03, BC-04 e BC-05 fazem:
@@ -50,10 +56,13 @@
  *   afirma as duas coisas.
  */
 
+import { CATALOGO_DE_ENDERECOS_EXTERNOS } from './catalogo/index.js';
+import type { EnderecoExterno } from './catalogo/index.js';
 import type { PortaDeClienteExterno, PortaDeEmail } from './portas/index.js';
 
 export * from './portas/index.js';
 export * from './borda-de-saida/index.js';
+export * from './catalogo/index.js';
 
 /** As duas portas de que este modulo depende, na forma em que ele as recebe. */
 export interface PortasDeIntegracaoExterna {
@@ -66,7 +75,8 @@ export interface PortasDeIntegracaoExterna {
  *
  * Cada historia acrescenta aqui a sua operacao, com a declaracao explicita de
  * permissao que o P4 da constituicao exige, e **nenhuma antes da propria
- * tarefa**. Hoje ha uma coisa so, e e de T001: as portas.
+ * tarefa**. Hoje ha duas coisas, e nenhuma delas e operacao: as portas, de
+ * T001, e o catalogo de enderecos, de T002.
  *
  * A tabela abaixo e a secao *Contratos* de `plan.md` com a permissao que o
  * pacote declara em cada operacao. Ela esta aqui como **pauta**, nao como
@@ -87,6 +97,23 @@ export interface PortasDeIntegracaoExterna {
 export interface ModuloDeIntegracaoExterna {
   readonly nome: 'integracao-externa';
   readonly portas: PortasDeIntegracaoExterna;
+
+  /**
+   * O catalogo de enderecos externos, e a entrega de **T002**: *"os enderecos
+   * dos servicos externos estao num registro unico e inspecionavel"*.
+   *
+   * **E o primeiro dado deste modulo**, e e dado e nao operacao: nenhuma
+   * permissao e declarada aqui porque nada aqui e operacao exposta — o P4 cobra
+   * declaracao explicita de permissao *"em toda operacao exposta"*, e um
+   * catalogo lido nao e uma. Quem expuser este catalogo numa tela (CA-7.5
+   * pede a lista *"inspecionavel por quem administra o site"*, e e T015)
+   * declara a permissao da tela dela.
+   *
+   * As consultas ficam em `./catalogo/consultas.ts` e recebem o catalogo por
+   * argumento: e por isso que elas nao estao nesta interface. Ver o cabecalho
+   * daquele arquivo.
+   */
+  readonly catalogo: readonly EnderecoExterno[];
 }
 
 /**
@@ -114,5 +141,13 @@ export function criarModuloDeIntegracaoExterna(
   return {
     nome: 'integracao-externa',
     portas,
+    // T002. Constante congelada, e nao copia: o catalogo e o mesmo objeto para
+    // toda composicao porque e dado do LEGADO, nao estado do modulo — duas
+    // composicoes nao conseguem divergir nele, e nenhuma consegue alterar a
+    // outra. O que `EXT-CONTEXTO` e o cenario `@concorrencia` de `PT-017`
+    // proibem compartilhar e o estado de rebaixamento de canal, que e por site
+    // e com prazo, e que nao esta aqui nem vai estar: nenhum campo deste
+    // catalogo diz o que aconteceu numa chamada.
+    catalogo: CATALOGO_DE_ENDERECOS_EXTERNOS,
   };
 }
