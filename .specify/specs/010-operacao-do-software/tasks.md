@@ -5,7 +5,7 @@
 - [x] **T001** Preparar o esqueleto do módulo de operação do software
       *entrega:* o módulo carrega com as portas de sistema de arquivos, de cliente externo, de dados e de envio de e-mail declaradas, e nenhuma delas implementada além da variante local
       *satisfaz:* — (infraestrutura)
-- [ ] **T002** Portar o estado de atualização e de recuperação como configuração nomeada
+- [x] **T002** Portar o estado de atualização e de recuperação como configuração nomeada
       *entrega:* os pontos de configuração que guardam falha de atualização automática, política de atualização e sessão de recuperação existem com os valores de fábrica do legado e são lidos e gravados pela porta de dados
       *satisfaz:* — (infraestrutura)
       *depende de:* T001

@@ -1,7 +1,8 @@
 # Modulo de operacao do software — BC-11
 
 Feature `010-operacao-do-software`. Tarefas fechadas com nota de entrega neste
-arquivo: **T001** (esqueleto, as quatro portas). Este arquivo e a leitura
+arquivo: **T001** (esqueleto, as quatro portas) e **T002** (a configuracao
+nomeada: o estado de atualizacao e o de recuperacao). Este arquivo e a leitura
 obrigatoria de quem pegar a tarefa seguinte: ele diz o que ja esta decidido, o
 que esta decidido **em outro lugar**, e o que **ninguem** decidiu.
 
@@ -14,14 +15,14 @@ escrevem pelo sistema de arquivos"*. Separa-los poria a classificacao de falha n
 modulo e o congelamento noutro, e CA-9.4 exige o oposto — *"a classificacao de
 cada tipo de falha e declarada em um lugar so"*.
 
-> 🔴 **Antes de qualquer coisa:** esta feature tem **seis** conflitos entre o que a
+> 🔴 **Antes de qualquer coisa:** esta feature tem **sete** conflitos entre o que a
 > `spec.md` pede e o que a analise diz que o legado faz. **Dois** estao
-> registrados na propria spec e em `index.md`; **quatro NAO estao em artefato
-> nenhum** e foram encontrados por T001. Nenhum dos seis e decidivel por um
-> agente, e nenhum deles bloqueia T001. Estao na secao
-> *[O que T001 encontrou aberto](#-o-que-t001-encontrou-aberto-e-nao-resolveu)* —
+> registrados na propria spec e em `index.md`; **cinco NAO estao em artefato
+> nenhum** — quatro encontrados por T001 e um por T002. Nenhum dos sete e
+> decidivel por um agente, e nenhum deles bloqueou T001 nem T002. Estao na secao
+> *[O que T001 e T002 encontraram aberto](#-o-que-t001-e-t002-encontraram-aberto-e-nao-resolveram)* —
 > leia antes da primeira linha de codigo se a sua tarefa for T005, T007, T009,
-> T013, T021, T023 ou T029.
+> T013, T017, T021, T023 ou T029.
 
 ---
 
@@ -55,6 +56,79 @@ configuracao que guardam falha de atualizacao automatica, politica de atualizaca
 e sessao de recuperacao existem com os valores de fabrica do legado e sao lidos e
 gravados pela porta de dados"*). Numero semeado antes da tarefa que o pede e
 numero inventado, e o P6 o recusa.
+
+---
+
+## O que T002 entrega, e so isso
+
+A linha da tarefa: *"os pontos de configuracao que guardam falha de atualizacao
+automatica, politica de atualizacao e sessao de recuperacao existem com os
+valores de fabrica do legado e sao lidos e gravados pela porta de dados"*.
+`satisfaz: — (infraestrutura)`: T002 **nao fecha criterio de aceite de nenhuma
+historia e nao implementa regra de negocio nenhuma**.
+
+| arquivo | o que e |
+|---|---|
+| `armazenamento/chaves-e-tabelas.ts` | as 2 tabelas e os 9 nomes de opcao. Nenhum nome se monta a mao fora dali |
+| `armazenamento/opcao.ts` | a primitiva: `get_option`/`add_option`/`update_option`/`delete_option` e os quatro equivalentes de rede, com os casos em que **nenhum comando sai** |
+| `armazenamento/verdade-de-php.ts` | `if ( $valor )` do PHP, que decide quatro coisas nesta feature |
+| `armazenamento/leitura-de-linha.ts` | leitura de coluna, igual a de BC-01, BC-02, BC-05 e BC-06 (a regra de dependencia 3 obriga a repeticao) |
+| `armazenamento/porta-falsa.ts` | o duplo que registra comando, que T003 em diante usa |
+| `configuracao/prazos.ts` | as 4 unidades de tempo, de onde sai todo prazo |
+| `configuracao/estado-de-atualizacao.ts` | `auto_core_update_failed` e `auto_core_update_notified`, com as **duas** formas do registro de falha |
+| `configuracao/politica-de-atualizacao.ts` | as 3 opcoes, as 2 constantes, os 4 pontos de extensao e a precedencia de `A3` |
+| `configuracao/sessao-de-recuperacao.ts` | as 5 opcoes, os 2 prazos, os 4 comprimentos e os 3 pontos de extensao |
+| `armazenamento/armazenamento.test.ts` | 19 testes: qual comando sai, com quais parametros |
+| `configuracao/configuracao.test.ts` | 34 testes: valor de fabrica e borda, como o P6 cobra |
+
+A superficie do modulo passou a ter `armazenamento` e `configuracao`, e
+`modulo.test.ts` afirma que sao essas quatro chaves e nenhuma a mais. **As duas
+nao sao operacao**, e por isso nenhuma declara permissao: a tabela de permissoes
+do `index.ts` continua sendo pauta das tarefas das historias.
+
+### As tres coisas que esta tarefa reproduz e que um porte perde
+
+1. **Gravar valor igual nao emite comando** (`wp-includes/option.php:923`), e
+   isso tem efeito proprio duas vezes aqui: a limpeza diaria de chaves de
+   recuperacao grava sempre e, quando nada venceu, **nao escreve nada**
+   (`class-wp-recovery-mode-key-service.php:125`); e o marcador de aviso de `A10`
+   grava `time()` sobre o texto da coluna, o que **sempre** difere por tipo e
+   sempre emite comando. Metade dos testes de `armazenamento.test.ts` afirma
+   ausencia de comando.
+2. **Gravar opcao ausente custa DUAS leituras e vira `INSERT`.**
+   `update_option()` delega para `add_option()` (`:929`), que le de novo
+   (`:1123`). Com o cache de objeto ligado a segunda e gratuita; o `Contexto:` de
+   PT-013 exige o cache **desligado nas duas metades**, e ai sao dois `SELECT`.
+3. **A opcao de rede troca de tabela com a instalacao.** Em site unico vive em
+   `{site}options`, com `autoload = 'off'`; em rede vive em `{base}sitemeta`, que
+   nao tem coluna de autocarregamento. E por isso que os dois prefixos nasceram
+   juntos na porta, em T001.
+
+### O que T002 deliberadamente NAO entrega
+
+- **A versao do esquema** (`db_version`) — e **T013**, porque e o numero que
+  dispara a migracao por comparacao de estrutura.
+- **O marcador de manutencao** — e **T009**. O plano o poe no sistema de
+  arquivos *"porque precisa valer mesmo com o banco em migracao"*, logo ele **nao
+  e lido nem gravado pela porta de dados**, que e a condicao da entrega desta
+  tarefa. As ancoras para quem o portar: o conteudo gravado e
+  `'<?php $upgrading = ' . time() . '; ?>'` (`class-wp-upgrader.php:1033`), a
+  leitura e `require ABSPATH . '.maintenance'` (`wp-includes/load.php:444`) e a
+  manutencao presa **vence em 10 minutos** (`:447`).
+- **Classificar a falha** (T019), **congelar** (T019), **destravar** (T023),
+  **decidir se atualiza** (T015, T017), **avisar** (T021), **emitir e consumir a
+  chave** (T025, T027) e **diagnosticar** (T029).
+- **Aplicar os pontos de extensao da politica.** Os tres sao aplicados pelo
+  legado **tarde e um por vez**, no ramo de versao de cada um
+  (`class-core-upgrader.php:357`, `:373`, `:386`): numa chamada **um** deles
+  dispara. Aplicar os tres de uma vez faria disparar ponto de extensao que o
+  legado nao dispara, e P2 poe *"a ordem de disparo"* no contrato publico. Os
+  nomes estao declarados; aplicar e de T015 e T017.
+- **O registro de opcoes do alvo** (`REG-Opcao`, em `plataforma/opcoes/`). Ele
+  nao existe nesta arvore, e `opcao.ts` e o subconjunto que **esta** feature
+  consome. Os oito pontos de extensao por opcao, `sanitize_option()` e
+  `wp_protect_special_option()` sao dele, nao daqui: declara-los aqui criaria
+  ponto de extensao com dois donos.
 
 ---
 
@@ -267,21 +341,23 @@ zero `COMMIT` em 1.467 arquivos.
 
 ---
 
-## 🔴 O que T001 encontrou aberto, e NAO resolveu
+## 🔴 O que T001 e T002 encontraram aberto, e NAO resolveram
 
 A `spec.md` desta feature tem um padrao: os **Criterios de aceite** vem do card do
 backlog e descrevem o estado desejado; as **Regras de negocio que valem aqui**
-vem da analise e descrevem o que o legado faz. Em **seis** historias os dois
+vem da analise e descrevem o que o legado faz. Em **sete** historias os dois
 blocos dizem coisas opostas, **no mesmo card**.
 
 Dois estao registrados na secao *Perguntas em aberto* da spec e em `index.md`.
-**Quatro nao estao em artefato nenhum** — nem na spec, nem em `index.md`, nem em
-`ambiguity_log.md`, nem em `pending_decisions.md`. Foram encontrados ao ancorar as
-portas e estao escritos aqui porque *"conflito aberto nao se resolve escolhendo um
-lado — para-se e escreve-se"*.
+**Cinco nao estao em artefato nenhum** — nem na spec, nem em `index.md`, nem em
+`ambiguity_log.md`, nem em `pending_decisions.md`. Quatro foram encontrados por
+T001 ao ancorar as portas e um por T002 ao ancorar o valor de fabrica da
+politica; estao escritos aqui porque *"conflito aberto nao se resolve escolhendo
+um lado — para-se e escreve-se"*.
 
-Nenhum dos seis bloqueia T001: as portas servem as duas leituras de cada um, e
-nenhuma delas escolhe. Todos bloqueiam a tarefa da historia.
+Nenhum dos sete bloqueou T001 nem T002: as portas servem as duas leituras de cada
+um, a configuracao declara os dois valores do setimo, e nenhuma das duas tarefas
+escolhe. Todos bloqueiam a tarefa da historia.
 
 ### Ja registrados (spec + `index.md`)
 
@@ -299,6 +375,45 @@ ao ancorar o estado de falha: a linha que apaga o registro e
 `wp-admin/includes/update-core.php:1922`, dentro de `update_core()`, logo depois
 de `do_action( '_core_updated_successfully', ... )`. Quem pegar **T023** comeca
 dali e **nao** decide se a invariante vale: ela e pergunta em aberto registrada.
+
+### 🔴 NAO registrado em lugar nenhum — encontrado por T002
+
+**#7 — `auto_update_core_major` tem DOIS valores de fabrica no legado, e a tarefa
+de T017 depende de qual deles vale.**
+
+| onde | valor | ancora |
+|---|---|---|
+| o que o instalador **semeia** numa instalacao nova | `'enabled'` | `wp-admin/includes/schema.php:556`, com o comentario *"Default to enabled for new installs"* e o bilhete do ticket 51742 |
+| o que a leitura assume na **ausencia** da opcao | `'unset'` | `wp-admin/includes/class-core-upgrader.php:290` e `wp-admin/update-core.php:335` |
+
+Os dois sao do legado e nao se contradizem **dentro** dele: em site unico
+`populate_options()` grava `'enabled'` em `{site}options` e `get_site_option()` o
+le de la, logo **versao maior atualiza sozinha**; em rede `populate_network()` nao
+poe nada em `sitemeta`, a leitura cai no default `'unset'` e **nao** atualiza. A
+assimetria tem ancora e esta reproduzida em `configuracao/politica-de-atualizacao.ts`,
+em duas constantes separadas.
+
+O que ninguem decidiu e a consequencia, porque **quatro fontes do pacote
+descrevem a leitura de rede e o legado descreve a instalacao de site unico**, que
+e o alvo fixado pela resposta 2:
+
+- **CA-8.1**: *"mudanca de versao principal so com escolha explicita"*;
+- **`A2`/BR-MIGRAR-046**: *"`auto_update_core_major` nasce `'unset'`"*, e o
+  sentinela e chamado de regra;
+- o cenario *"Versao menor atualiza por padrao, versao maior so com escolha
+  explicita"* de `parity_tests/13-atualizacao-automatica-do-nucleo.feature` cobra
+  *"Entao nenhuma das duas atualiza"* para versao maior — e numa instalacao nova
+  de site unico **as duas metades atualizariam**, o que faz o cenario falhar
+  contra o oraculo e nao contra o porte;
+- `wp-admin/includes/upgrade.php:2279` grava `'unset'` so ao **atualizar** de uma
+  versao anterior a 5.6, com o comentario *"This overrides the same option from
+  populate_options() that is intended for new installs"* — e o alvo nao tem dado a
+  migrar.
+
+Por que nao e decidivel aqui: escolher entre os dois e **fixar o valor de fabrica
+de uma regra de negocio documentada em `domain.md`**, que a primeira linha da
+tabela *Nao negociavel* da constituicao proibe decidir sozinho. **De quem e:
+T017** (e **T018**), que e onde o portao de `A2` nasce.
 
 ### 🔴 NAO registrados em lugar nenhum — encontrados por T001
 
@@ -402,6 +517,26 @@ O que T001 ja torna conferivel por ali:
   arquivos *"substituida por duplo que registra cada operacao"*. O duplo esta
   montado e o teste de `EXT-ORDEM` afirma a lista **vazia** de toques na
   composicao.
+
+O que **T002** acrescenta a essa lista:
+
+- O cenario **@critico @invariante** da falha critica exige que as duas metades
+  *"gravem o congelamento na mesma opcao, com o mesmo valor"*. *Mesmo valor*
+  passou a ser afirmavel byte a byte: `configuracao.test.ts` fixa a cadeia
+  serializada dos dois registros de falha e a dos quatro campos do aviso, com a
+  **ordem de chaves** do legado, e `armazenamento.test.ts` fixa em qual tabela e
+  com qual prefixo ela e gravada em cada tipo de instalacao.
+- O cenario **@idempotencia** de `A7` compara *"o numero de e-mails por
+  periodo"*. A chave de negocio da deduplicacao — destinatario e versao, mais o
+  tipo no segundo ponto de leitura — esta declarada e lida; **quantos e-mails
+  saem** continua sendo T021.
+- O cenario do **modo de recuperacao** exige *"o numero de avisos enviados por
+  dia e um nas duas"* e *"o estado final gravado e o mesmo nas duas"*. O prazo, o
+  marcador e o retorno que **aborta** o aviso estao afirmados; enviar e T025.
+- 🔴 O cenario *"Versao menor atualiza por padrao, versao maior so com escolha
+  explicita"* **nao e conferivel sem decisao humana**: ver o conflito #7 acima.
+  Quem rodar PT-013 contra o oraculo numa instalacao nova de site unico vai ver
+  as duas metades atualizarem a versao maior, e isso nao e divergencia do porte.
 
 ⚠️ `parity_specs.md` registra que a suite de *characterization tests* **nao
 existe** nesta arvore e que `migration_strategy.md` § 6 esta **em branco** —

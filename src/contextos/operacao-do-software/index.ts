@@ -9,10 +9,12 @@
  * nao implementa regra de negocio nenhuma.**
  *
  * A configuracao nomeada — o estado de falha da atualizacao automatica, a
- * politica de atualizacao e a sessao de recuperacao — e **T002**, e cada historia
- * entra na tarefa dela (T003 em diante). A leitura obrigatoria de quem pegar a
- * tarefa seguinte esta em `./README.md`, e ela comeca por tres conflitos
- * registrados e nao resolvidos.
+ * politica de atualizacao e a sessao de recuperacao — e **T002**, fechada, em
+ * `./configuracao/` sobre a primitiva de opcao de `./armazenamento/`. Cada
+ * historia entra na tarefa dela (T003 em diante). A leitura obrigatoria de quem
+ * pegar a tarefa seguinte esta em `./README.md`, e ela comeca por **sete**
+ * conflitos registrados e nao resolvidos — o setimo e de T002, no valor de
+ * fabrica de `auto_update_core_major`.
  *
  * A pasta e `contextos/operacao-do-software/` porque e assim que
  * `target_architecture.md` nomeia BC-11 no esboco de arvore; a feature se chama
@@ -44,6 +46,14 @@
  *   da ordem. `modulo.test.ts` afirma as duas coisas.
  */
 
+import {
+  criarArmazenamentoDeOperacaoDoSoftware,
+  type ArmazenamentoDeOperacaoDoSoftware,
+} from './armazenamento/index.js';
+import {
+  criarConfiguracaoDeOperacaoDoSoftware,
+  type ConfiguracaoDeOperacaoDoSoftware,
+} from './configuracao/index.js';
 import type {
   PortaDeClienteExterno,
   PortaDeDados,
@@ -51,6 +61,8 @@ import type {
   PortaDeSistemaDeArquivos,
 } from './portas/index.js';
 
+export * from './armazenamento/index.js';
+export * from './configuracao/index.js';
 export * from './portas/index.js';
 
 /**
@@ -113,6 +125,28 @@ export interface PortasDeOperacaoDoSoftware {
 export interface ModuloDeOperacaoDoSoftware {
   readonly nome: 'operacao-do-software';
   readonly portas: PortasDeOperacaoDoSoftware;
+
+  /**
+   * A primitiva de opcao, por site e de rede (T002). Le e grava **somente**
+   * pela porta de dados.
+   *
+   * **Nao e operacao, e por isso nao declara permissao:** ela nao decide nada,
+   * nao recusa nada e nao autoriza nada. A linha de `tasks.md` e literal —
+   * `satisfaz: — (infraestrutura)`.
+   */
+  readonly armazenamento: ArmazenamentoDeOperacaoDoSoftware;
+
+  /**
+   * Os tres grupos de configuracao nomeada que T002 entrega: o estado de falha
+   * da atualizacao automatica, a politica de atualizacao e a sessao de
+   * recuperacao, cada um com os valores de fabrica do legado (P6).
+   *
+   * Tambem nao e operacao, pela mesma razao. O que ele **nao** faz esta no
+   * cabecalho de `./configuracao/index.ts`: classificar falha, congelar,
+   * destravar, decidir se atualiza, avisar, emitir chave e diagnosticar sao
+   * T015 a T029.
+   */
+  readonly configuracao: ConfiguracaoDeOperacaoDoSoftware;
 }
 
 /**
@@ -132,8 +166,17 @@ export interface ModuloDeOperacaoDoSoftware {
 export function criarModuloDeOperacaoDoSoftware(
   portas: PortasDeOperacaoDoSoftware,
 ): ModuloDeOperacaoDoSoftware {
+  // Compor o armazenamento monta nome de tabela e nada mais, e compor a
+  // configuracao so amarra os dois repositorios de opcao: nenhuma consulta sai
+  // daqui (`EXT-ORDEM`, BR-MIGRAR-106).
+  const armazenamento = criarArmazenamentoDeOperacaoDoSoftware(portas.dados);
   return {
     nome: 'operacao-do-software',
     portas,
+    armazenamento,
+    configuracao: criarConfiguracaoDeOperacaoDoSoftware(
+      armazenamento.opcoesDoSite,
+      armazenamento.opcoesDeRede,
+    ),
   };
 }
