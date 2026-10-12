@@ -7,7 +7,9 @@
  * `[P]` de `tasks.md`, um por caso de `backlog/tests.md`. Aqui se afirma so o que
  * T001 entrega, mais as duas invariantes de arquitetura que um esqueleto pode
  * quebrar em silencio: estado de modulo (`EXT-CONTEXTO`) e trabalho no
- * carregamento (`EXT-ORDEM`).
+ * carregamento (`EXT-ORDEM`). A entrega de **T002** tem suite propria, em
+ * `armazenamento/armazenamento.test.ts`; o que muda aqui e so a superficie do
+ * modulo, que passou a ter o armazenamento.
  *
  * **Nao ha teste de prazo aqui, e isso e de proposito.** O P6 pede, para cada
  * numero, *"o valor e o efeito da borda (no ultimo instante aceita, um instante
@@ -176,17 +178,23 @@ test('o modulo carrega com as quatro portas declaradas', () => {
   assert.equal(modulo.portas.sistemaDeArquivos, portas.sistemaDeArquivos);
 });
 
-test('a superficie do modulo tem exatamente o que T001 entrega', () => {
+test('a superficie do modulo tem exatamente o que as tarefas fechadas entregaram', () => {
   const { portas } = portasDeTeste();
 
   const modulo = criarModuloDePrivacidade(portas);
 
   // Esta lista cresce NA TAREFA DE CADA HISTORIA, nunca antes: e o que o P4 da
   // constituicao cobra, "toda operacao exposta nova nasce com declaracao
-  // explicita de permissao". T001 nao expoe operacao nenhuma — so as portas e o
-  // registro. A tabela de quem entra, com a permissao de cada uma ja lida dos
-  // casos de uso, esta no comentario de `ModuloDePrivacidade`.
-  assert.deepEqual(Object.keys(modulo).sort(), ['nome', 'portas', 'provedores']);
+  // explicita de permissao". T001 e T002: nenhuma operacao — as portas e o
+  // registro (T001) e o armazenamento (T002), que nao decide nada. A tabela de
+  // quem entra, com a permissao de cada uma ja lida dos casos de uso, esta no
+  // comentario de `ModuloDePrivacidade`.
+  assert.deepEqual(Object.keys(modulo).sort(), [
+    'armazenamento',
+    'nome',
+    'portas',
+    'provedores',
+  ]);
 });
 
 test('criar o modulo nao toca em porta nenhuma (EXT-ORDEM: nada se resolve no carregamento)', () => {

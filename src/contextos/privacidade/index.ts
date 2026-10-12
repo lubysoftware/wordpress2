@@ -40,6 +40,10 @@
  *   administra"*.
  */
 
+import {
+  criarArmazenamentoDePrivacidade,
+  type ArmazenamentoDePrivacidade,
+} from './armazenamento/index.js';
 import type {
   PortaDeDados,
   PortaDeEmail,
@@ -51,6 +55,7 @@ import {
   type RegistroDeProvedores,
 } from './registro/index.js';
 
+export * from './armazenamento/index.js';
 export * from './portas/index.js';
 export * from './registro/index.js';
 
@@ -67,7 +72,8 @@ export interface PortasDePrivacidade {
  *
  * Cada historia acrescenta aqui a sua operacao, com a declaracao explicita de
  * permissao que o **P4** da constituicao exige, e **nenhuma antes da propria
- * tarefa**. Hoje ha duas coisas, as duas de T001: as portas e o registro.
+ * tarefa**. Hoje ha tres coisas e nenhuma operacao: as portas e o registro, de
+ * T001, e o armazenamento, de T002 — que nao decide nada.
  *
  * As operacoes que vao entrar sao as da tabela *Contratos* do `plan.md`, e a
  * permissao de cada uma ja esta lida dos casos de uso — fica registrada aqui
@@ -98,6 +104,14 @@ export interface ModuloDePrivacidade {
    * inicial do legado — ver `registro/registro-de-provedores.ts`.
    */
   readonly provedores: RegistroDeProvedores;
+  /**
+   * A forma de armazenamento da solicitacao (T002). A linha de `user_request` e
+   * **lida** aqui; os dois instantes em `postmeta` sao lidos e gravados aqui; e
+   * a escrita da linha e ligacao tardia com BC-01, declarada pela tarefa que
+   * grava — a razao, com as ancoras, esta em
+   * `armazenamento/solicitacao.ts`.
+   */
+  readonly armazenamento: ArmazenamentoDePrivacidade;
 }
 
 /**
@@ -128,5 +142,8 @@ export function criarModuloDePrivacidade(
     nome: 'privacidade',
     portas,
     provedores,
+    // Compor o armazenamento monta nome de tabela e nada mais: nenhuma consulta
+    // sai daqui (`EXT-ORDEM`, BR-MIGRAR-106).
+    armazenamento: criarArmazenamentoDePrivacidade(portas.dados),
   };
 }

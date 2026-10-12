@@ -2,9 +2,10 @@
 
 Feature `008-privacidade-e-dados-pessoais`. Tarefas fechadas com nota de entrega
 neste arquivo: **T001** (esqueleto, as quatro portas e o registro de provedores
-vazio). Este arquivo e a leitura obrigatoria de quem pegar a tarefa seguinte:
-ele diz o que ja esta decidido, o que esta decidido **em outro lugar**, e o que
-**ninguem** decidiu.
+vazio) e **T002** (a solicitacao como registro de conteudo, os quatro estados e a
+forma da chave com resumo). Este arquivo e a leitura obrigatoria de quem pegar a
+tarefa seguinte: ele diz o que ja esta decidido, o que esta decidido **em outro
+lugar**, e o que **ninguem** decidiu.
 
 A pasta e `contextos/privacidade/` porque e assim que `target_architecture.md`
 nomeia BC-06 no esboco de arvore. A separacao e **1-para-1 com um tipo de
@@ -27,6 +28,19 @@ de `post_status`"*.
 >
 > Quem pegar T007, T011 ou T013 le a secao antes da primeira linha de codigo.
 > **T001 nao depende de nenhuma das tres**, e e por isso que esta tarefa fechou.
+
+> 🔴 **T002 confirmou a quarta, que T001 deixou como candidata, e achou uma
+> quinta.** As duas estao na secao *O que T002 encontrou*, e nenhuma e decidivel
+> por um agente:
+>
+> | divergencia | quem bate de frente | tarefa que depende |
+> |---|---|---|
+> | **confirmar NAO apaga a chave** — a arvore inteira foi lida e nenhum dos dois ouvintes toca `post_password`, que volta pelo `array_merge` de `wp_update_post` | CA-2.5, UC-26 (pos-condicao) | **T005** (US-2) |
+> | a primitiva de resumo da chave (**BLAKE2b com chave, saida de 30 bytes**, da libsodium) nao existe na biblioteca padrao do runtime, e o `plan.md` desta feature **nao tem slot** para ela | `plan.md` § *Stack* | **T005** (US-2) |
+>
+> **T002 nao depende de nenhuma das duas**: ela declara a forma do que e gravado
+> e a interface de quem resume, e nao resume nada. E e por isso que esta tarefa
+> fechou.
 
 ---
 
@@ -59,7 +73,79 @@ regra de dependencia 4 de `target_architecture.md`: *"`contextos/` ou
 `plataforma/` para adaptador concreto: proibido. So pela porta"*. Os slots
 escolhidos para este no — driver MySQL em protocolo nativo, sistema de arquivos
 do runtime com SSH2 e FTP, biblioteca de envio com transporte selecionavel — sao
-implementacao de `adaptadores/`, e T001 nao escreve adaptador.
+implementacao de `adaptadores/`, e T001 nao escreve adaptador. **T002 tambem nao
+acrescentou dependencia**, e pelo mesmo motivo.
+
+---
+
+## O que T002 entrega, e so isso
+
+A linha da tarefa: *"a solicitacao existe como tipo de conteudo proprio, com os
+quatro estados do legado e a chave de confirmacao guardada com resumo
+criptografico, lida e gravada pela porta de dados"*.
+`satisfaz: — (infraestrutura)`: T002 nao fecha nenhum criterio de aceite de
+nenhuma historia, e **nao implementa regra de negocio nenhuma**.
+
+| arquivo | o que e |
+|---|---|
+| `armazenamento/chaves-e-tabelas.ts` | `{site}posts`, `{site}postmeta`, o tipo `user_request` e as duas chaves de metadado que a solicitacao carrega |
+| `armazenamento/estados-da-solicitacao.ts` | os quatro estados com as propriedades **efetivas** do registro, os dois que aceitam validacao de chave, e a tabela de transicoes com a tarefa de cada uma |
+| `armazenamento/solicitacao.ts` | a linha como `WP_User_Request` a monta: as seis colunas reaproveitadas, os dois instantes de metadado e a leitura |
+| `armazenamento/chave-de-confirmacao.ts` | a forma do que e gravado em `post_password`, o comprimento e o alfabeto da chave em claro, e as duas interfaces de borda |
+| `armazenamento/metadado.ts` | as tres primitivas de `{site}postmeta` que o caminho da privacidade chama, com os efeitos no banco de cada uma |
+| `armazenamento/leitura-de-linha.ts` | leitura de coluna, mais a conversao de coluna `datetime` em segundos UTC de que o prazo de T005 vai depender |
+| `armazenamento/porta-falsa.ts` | o duplo que **registra comando**, porque o criterio desta area e *"snapshot + sequencia de comandos"* |
+| `armazenamento/index.ts` | a composicao: `criarArmazenamentoDePrivacidade(dados)` |
+| `armazenamento/armazenamento.test.ts` | os 35 testes da entrega, e nada de historia |
+
+**O que o armazenamento NAO faz, e os testes afirmam:** nao guarda estado de
+modulo, nao emite comando nenhum ao ser composto, nao valida estado nem acao
+(`DB-DEG`) e **nao escreve a linha de `posts`** — ver a secao seguinte, que e a
+decisao mais consequente desta tarefa.
+
+### A gravacao da linha de `posts` nao esta aqui, e por que
+
+🔴 **Leitura obrigatoria de quem pegar T003, T005, T007, T009, T011 ou T013.**
+
+O caminho da privacidade do legado **nao emite comando proprio sobre `posts`**:
+zero `$wpdb` em `wp-admin/includes/privacy-tools.php` e zero na regiao de
+privacidade de `wp-includes/user.php`. As cinco escritas passam por
+`wp_insert_post()` / `wp_update_post()`, que sao o caminho de BC-01:
+
+| o que | cadeia do legado | ancora | tarefa |
+|---|---|---|---|
+| abrir | `wp_insert_post` com 8 chaves | `user.php:4841` a `:4853` | T003 |
+| gerar a chave no envio | `wp_update_post` com `post_status` e `post_password` | `user.php:5063` a `:5069` | T005, T007 |
+| confirmar | `wp_update_post` com `post_status` | `user.php:4257` a `:4262` | T005 |
+| concluir | `wp_update_post` com `post_status` | `privacy-tools.php:57` a `:62` | T011, T013 |
+| expirar | `wp_update_post` com `post_status` e `post_password` | `privacy-tools.php:223` a `:229` | T009 |
+
+Um `UPDATE` nascido em BC-06 **nao seria o comando do legado**, por tres razoes
+medidas:
+
+1. **O comando do legado tem 21 colunas, nao duas.** `wp_update_post()` le a
+   linha e faz `array_merge( $post, $postarr )` (`post.php:5335` e `:5367`);
+   `wp_insert_post()` monta `$data` com `compact()` das 21 (`:4912` a `:4933`) e
+   chama `$wpdb->update( $wpdb->posts, $data, $where )` (`:4995`).
+2. ⚠️ **O comando do legado reescreve `post_modified`, e esta feature depende
+   disso.** `if ( $update || '0000-00-00 00:00:00' === $post_date ) {
+   $post_modified = current_time( 'mysql' ); ... }` (`post.php:4789` a `:4791`).
+   E dai que sai o relogio do prazo de 24 horas, porque a chave de confirmacao —
+   diferente da chave de redefinicao de senha de BC-05 — **nao guarda o instante
+   na propria coluna**: `modified_timestamp` e o que `wp_validate_user_request_key`
+   soma a 24 h (`user.php:5091` e `:5113`). Um `UPDATE` de duas colunas deixaria
+   o prazo correndo do envio anterior, e **o reenvio de CA-3.3 nasceria com menos
+   de 24 horas de vida, em silencio**.
+3. **O comando do legado dispara cinco pontos de extensao publicos**:
+   `wp_insert_post_data` (`:4978`), `pre_post_update` (`:4993`), `post_updated`,
+   `save_post` e `wp_after_insert_post`. O P2 poe cada um no contrato publico.
+
+Logo a ligacao com BC-01 e **tardia** (AD-10; a regra de dependencia 3 proibe o
+`import`), e **quem a declara e a tarefa que grava** — o mesmo que BC-04 fez em
+`contextos/midia/armazenamento/anexo.ts`, deixando a dele para T003. O que T002
+grava, e grava aqui pela porta de dados, sao as duas linhas de `postmeta`, que o
+caminho da privacidade escreve por conta propria com `update_post_meta()`
+(`user.php:4256` e `privacy-tools.php:55`).
 
 ---
 
@@ -98,14 +184,43 @@ os dois agendamentos sao registrados em `init`
 isso que CA-4.4 e CA-7.3 valem.
 
 **Nao ha porta de resumo criptografico, e a chave e guardada com resumo.** No
-legado isso e `wp_fast_hash()` / `wp_verify_fast_hash()`, que sao funcoes
-substituiveis do nucleo (`wp-includes/user.php:5067` e `:5115`). BC-05 ja topou na
-mesma pergunta em T007 e resolveu do mesmo jeito que esta tarefa propoe: a funcao
-de resumo **chega por argumento** na operacao, nao como porta, porque nenhum
-documento do pacote nomeia o algoritmo e o `plan.md` desta feature nao tem slot
-de hash. Ver `contextos/identidade-e-acesso/redefinicao-de-senha/chave-de-redefinicao.ts`,
-que registra a mesma decisao com todas as palavras. **Isto e de T002/T005**, e
-nao de T001.
+legado isso e `wp_fast_hash()` / `wp_verify_fast_hash()`. BC-05 ja topou na mesma
+pergunta em T007 e resolveu do mesmo jeito que esta tarefa propoe: a funcao de
+resumo **chega por argumento** na operacao, nao como porta. Ver
+`contextos/identidade-e-acesso/redefinicao-de-senha/chave-de-redefinicao.ts`, que
+registra a mesma decisao com todas as palavras. **T002 declarou as duas
+interfaces** (`armazenamento/chave-de-confirmacao.ts`); aplica-las e de T005.
+
+⚠️ **Duas correcoes de T002 a este paragrafo, as duas conferidas na arvore.**
+A decisao continua valendo; o que estava errado era o motivo e a ancora.
+
+1. **As duas funcoes NAO sao substituiveis.** As ancoras que T001 deu —
+   `wp-includes/user.php:5067` e `:5115` — sao os **pontos de chamada**. As
+   definicoes estao em `wp-includes/functions.php:9363` e `:9386`, em
+   `functions.php` e nao em `pluggable.php`, **sem guarda `function_exists`**:
+   logo nao estao entre os 38 substituiveis. O que e substituivel e o objeto de
+   hash de **senha**, que e outra coisa — o docblock de `wp_fast_hash` e literal,
+   *"This function must not be used for hashing user-generated passwords. Use
+   `wp_hash_password()` for that"*.
+2. 🔴 **O algoritmo esta nomeado no legado, e a primitiva nao existe no
+   runtime.** `wp_fast_hash` e
+   `sodium_crypto_generichash( $message, 'wp_fast_hash_6.8+', 30 )` seguido de
+   `sodium_bin2base64( ..., SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING )`, com o
+   resultado prefixado por `$generic$` (`functions.php:9367` e `:9368`) — isto e,
+   **BLAKE2b com chave e saida de 30 bytes**, da libsodium. `crypto.createHash`
+   nao alcanca BLAKE2b com chave nem com comprimento de saida escolhido, e o
+   `plan.md` desta feature **nao tem slot** para esta borda (o slot
+   `hash-de-senha`, bcrypt mais HMAC, e o de `wp_hash_password()`). Escolher a
+   biblioteca que traga a primitiva e *"escolher a tecnologia de qualquer slot do
+   plano"*, que a tabela **Nao negociavel** poe fora do alcance de um agente.
+   **Por isso a interface, e nao a implementacao.**
+
+O que T002 **pode** declarar sem decidir nada, e declarou: o prefixo `$generic$`
+e observavel na coluna e e o discriminante de um ramo de compatibilidade —
+`wp_verify_fast_hash` trata o valor **sem** o prefixo como resumo *phpass*
+antigo em vez de recusar (`functions.php:9391` a `:9395`). Esse ramo nao e
+exercitavel nesta arvore (instalacao nova, respostas 1 a 5), e **isso nao o
+remove**: P8 e P7 mandam clonar o que existe sem ser chamado.
 
 ---
 
@@ -169,6 +284,16 @@ cada numero nao as redescubra:
 | validade do arquivo de exportacao | `3 * DAY_IN_SECONDS` | `wp_privacy_export_expiration`, `wp-includes/functions.php:8623` | T015 |
 | periodicidade das varreduras | `hourly` (arquivo) e `daily` (expiracao) | nenhum: fixo em `wp_schedule_event`, `functions.php:8557` e `:8574` | T015, T009 |
 
+> ✅ **T002 declarou o quarto numero da feature**, que nao e prazo e por isso nao
+> estava nesta tabela: o **comprimento da chave em claro, 20 caracteres**, de
+> `wp_generate_password( 20, false )` (`wp-includes/user.php:5060`), com o
+> alfabeto de 62 simbolos de `pluggable.php:2965`. Vive em
+> `armazenamento/chave-de-confirmacao.ts` como constante nomeada, com teste, como
+> o P6 pede. **E filtravel**: o valor passa por `random_password`
+> (`pluggable.php:2989`) antes de voltar. ⚠️ E vem com a metade negativa do P6
+> junto: **nao ha limite de tentativa de chave**, e UC-26 e literal — *"nenhum
+> contador de tentativa existe"*. Introduzir um cai na tabela *Nao negociavel*.
+
 E o numero que esta feature **nao** tem, que o P6 cobra com a mesma forca: **a
 solicitacao concluida nao tem prazo de retencao.** UC-27 e explicito — *"o arquivo
 expira; o registro nao"* — e a resposta 20 de `questions.md` fecha: o nucleo nao
@@ -190,7 +315,12 @@ cabecalho de `portas/porta-de-relogio.ts` para que ninguem o resolva por acident
 
 ---
 
-## Os quatro estados, e quem escreve cada um (mapa para T002)
+## Os quatro estados, e quem escreve cada um
+
+> ✅ **Portado por T002**, em `armazenamento/estados-da-solicitacao.ts` (o
+> vocabulario, as propriedades efetivas e a tabela de transicoes) e
+> `armazenamento/solicitacao.ts` (a linha). O mapa abaixo e o que T001 leu; as
+> correcoes de ancora que T002 fez estao na secao *O que T002 encontrou*.
 
 `D1` / BR-MIGRAR-038: a solicitacao e `post_type = 'user_request'`
 (`wp-includes/post.php:284`) com quatro estados dedicados, registrados em
@@ -290,6 +420,10 @@ T001 **nao afirma** que a arvore nao apaga: o caminho de confirmacao comeca em
 caminho inteiro. Fica registrado como **primeira coisa a conferir em T005**, com a
 ancora de onde comecar.
 
+> ✅ **T002 percorreu o caminho e confirma: a arvore nao apaga.** Ver
+> *O que T002 encontrou*, item 1 — o conflito sobe de candidato a divergencia
+> registrada, e continua **sem decisao humana**.
+
 ### 5. O catalogo de testes contradiz a regra que ele cita (US-4)
 
 `UT-089-6` se chama *"expira na hora marcada sem depender de chegar requisicao ao
@@ -331,6 +465,88 @@ Nenhuma foi tocada por T001, e nenhuma e decidivel por um agente:
    significados diferentes por tipo de registro. Separar e mais claro e **muda o
    que um programa de terceiro le**. T001 nao toca no assunto: a forma das linhas
    e de **T002**, e quem a escrever le esta pergunta antes.
+
+   > ✅ **T002 leu a pergunta e nao a decidiu: manteve o campo compartilhado**,
+   > que e o observavel, e e o unico caminho que o P1 deixa. A declaracao esta no
+   > cabecalho de `armazenamento/chave-de-confirmacao.ts`, junto da direcao
+   > inversa — passar a guardar a senha de conteudo com resumo, que e
+   > `BR-HUMANA-009` e esta **pendente**, com o custo registrado em
+   > `target_data_model.md`: *"invalida toda senha de conteudo existente"*.
+
+---
+
+## 🔴 O que T002 encontrou, e NAO resolveu
+
+### 1. Confirmar NAO apaga a chave (CA-2.5) — era a candidata de T001, e esta confirmada
+
+T002 precisou ler o caminho de confirmacao inteiro para decidir onde a gravacao
+mora (ver *A gravacao da linha de `posts` nao esta aqui*), e o resultado fecha a
+pergunta do lado **factual**:
+
+- `wp-login.php:1240` a `:1276` valida a chave e dispara
+  `user_request_action_confirmed`;
+- a acao tem **dois** ouvintes, e so dois:
+  `_wp_privacy_account_request_confirmed` e
+  `_wp_privacy_send_request_confirmation_notification`, com prioridade 12
+  (`wp-includes/default-filters.php:453` e `:454`);
+- **nenhum dos dois toca `post_password`** (`user.php:4245` a `:4263` e `:4275`
+  em diante);
+- e `wp_update_post` **carrega o valor existente de volta**, porque le a linha e
+  faz `array_merge( $post, $postarr )` (`wp-includes/post.php:5335` e `:5367`).
+
+Logo a chave **sobrevive a confirmacao**, e continua valida pelos 24 horas
+contados de `post_modified` — que a propria confirmacao reescreveu. CA-2.5 e a
+pos-condicao de UC-26 (*"a chave de confirmacao nao existe mais"*) exigem o
+contrario. O que impede reconfirmar nao e a chave morrer: e
+`request-confirmed` nao estar na lista de estados que aceitam validacao
+(`user.php:5097`), que e CA-2.4 e **esta portado**.
+
+**T002 nao escolhe lado**, e isto nao e de T005 resolver: o P1 e literal —
+*"divergir exige uma decisao humana registrada, citada no codigo que divergiu"* —
+e as tres divergencias autorizadas sao outras. Fica como conflito aberto.
+
+### 2. A primitiva de resumo da chave nao existe no runtime, e o plano nao tem slot
+
+Ver a correcao 2 na secao *Por que estas quatro portas, e nao outras*. Em uma
+frase: `wp_fast_hash` e BLAKE2b **com chave** e **saida de 30 bytes**, da
+libsodium; `crypto.createHash` nao alcanca nenhuma das duas coisas; e escolher a
+biblioteca que alcance cai em *"escolher a tecnologia de qualquer slot do plano"*,
+na tabela **Nao negociavel**. T002 declarou a interface e a forma do valor
+gravado (o prefixo `$generic$`), e nao implementou resumo nenhum. **T005 depende
+da resposta** — ou de uma decisao de slot.
+
+### 3. `state-machines.md` da a MESMA ancora para duas transicoes diferentes
+
+Reforco da divergencia 1 de T001, com uma evidencia que T001 nao tinha. A tabela
+de transicoes da maquina 4 lista, em linhas consecutivas:
+
+- *"`request-pending` → `request-failed` | falha ao enviar o e-mail"* → ancora
+  `wp-admin/includes/privacy-tools.php:226`;
+- *"`request-pending` → `request-failed` | **expiracao** — cron diario"* →
+  ancora `wp-admin/includes/privacy-tools.php:195-231`.
+
+A segunda **contem** a primeira: `:226` esta dentro de
+`_wp_personal_data_cleanup_requests()`, que e a rotina das 24 horas. Isto e, a
+transicao por falha de envio **nao tem ancora propria** em nenhum documento do
+pacote, e a busca por `request-failed` na arvore devolve uma escrita so. **T007
+depende da resposta**, e `armazenamento/estados-da-solicitacao.ts` registra o
+choque no lugar onde alguem o procuraria.
+
+### 4. O ramo de "valor identico" do metadado nunca dispara para os dois instantes
+
+Nao e conflito de documento: e um comportamento do legado que um porte
+bem-intencionado apaga. `update_metadata()` desiste de escrever quando a chave
+existe uma vez e o valor e **identico pelo `===` do PHP**
+(`wp-includes/meta.php:255` a `:263`). Para os dois instantes desta feature a
+comparacao e **sempre falsa**, porque a coluna devolve numero como **texto** —
+*"numbers (both integer and float) are returned as strings"*, `meta.php:598` — e
+`update_post_meta` recebe `time()`, que e **inteiro**. O `UPDATE` sai mesmo
+quando o instante gravado e o mesmo.
+
+T002 reproduziu isso e tem teste para os dois lados. O que importa para quem vem
+depois: **a idempotencia que o cenario `@idempotencia` de `PT-012` cobra nao vem
+do metadado** — vem do estado da solicitacao e das duas chaves
+`_wp_admin_notified` / `_wp_user_notified`, que sao de T005, T011 e T013.
 
 ---
 
@@ -381,6 +597,31 @@ O que T001 ja torna conferivel por ali:
 - O cenario `@invariante` de `D1` cobra que *"nenhuma das duas cria tabela propria
   para a solicitacao"*. A unica porta de dados deste modulo tem o prefixo por
   site e nenhuma nocao de tabela nova; a forma das linhas e de T002.
+
+O que **T002** acrescenta a essa lista:
+
+- O cenario `@invariante` de `D1` passa a ser conferivel inteiro, e nao so pela
+  ausencia: *"as duas a gravam como conteudo do mesmo tipo"* (`user_request`),
+  *"o campo que guarda o endereco do titular e o mesmo nas duas"*
+  (`post_title`) e *"o estado inicial gravado e o mesmo nas duas"*
+  (`request-pending`) tem, cada um, uma constante nomeada e um teste. A tabela de
+  **seis** colunas reaproveitadas esta no cabecalho de
+  `armazenamento/solicitacao.ts`.
+- O cenario `@idempotencia` ganhou a sua primeira metade afirmavel: as tres
+  sequencias de comando em que o legado **nao emite nada** —
+  identificador nao positivo, linha de outro tipo e metadado de valor identico —
+  tem teste, e a porta falsa registra comando em vez de simular banco
+  justamente para isso. ⚠️ A outra metade, *"nenhuma das duas reenvia e-mail"*,
+  depende do estado e das duas chaves `_wp_*_notified`, e e de T005, T011 e T013
+  — ver *O que T002 encontrou*, item 4.
+- O cenario `@concorrencia` tem a segunda afirmacao da sua primeira metade: dois
+  armazenamentos compostos sobre portas de sites diferentes emitem comando em
+  tabelas diferentes (`wp_posts` e `wp_2_posts`) e nao se enxergam.
+- ⚠️ **O que T002 NAO torna conferivel, e e preciso dizer:** nenhum cenario que
+  compare a **escrita** da linha pode rodar contra este modulo, porque ele nao a
+  emite. A comparacao de *"snapshot + sequencia de comandos"* da abertura, da
+  confirmacao e da expiracao so existe depois que a tarefa que grava declarar a
+  ligacao tardia com BC-01.
 
 ⚠️ `parity_specs.md` registra que a suite de *characterization tests* **nao
 existe** nesta arvore e que o corpus do Parallel Run **nao existe** — *"sem ele
