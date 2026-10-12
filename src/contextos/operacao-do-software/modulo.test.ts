@@ -19,8 +19,11 @@
  * afirmam.
  *
  * **Nenhum valor de fabrica e afirmado aqui, e isso tambem e a entrega.** Os
- * pontos de configuracao nomeados com os valores do legado sao **T002**; numero
- * semeado antes da tarefa que o pede e numero inventado, e o P6 o recusa.
+ * pontos de configuracao nomeados com os valores do legado sao **T002**, e quem
+ * os afirma e `configuracao/configuracao.test.ts`; numero semeado antes da
+ * tarefa que o pede e numero inventado, e o P6 o recusa. O que T002 acrescentou
+ * a este arquivo foi uma linha: a superficie do modulo passou a ter
+ * `armazenamento` e `configuracao`.
  */
 
 import assert from 'node:assert/strict';
@@ -253,18 +256,24 @@ test('o modulo carrega com as quatro portas declaradas', () => {
   ]);
 });
 
-test('a superficie do modulo tem exatamente o que T001 entrega', () => {
+test('a superficie do modulo tem exatamente o que T001 e T002 entregam', () => {
   const { portas } = portasDeTeste();
 
   const modulo = criarModuloDeOperacaoDoSoftware(portas);
 
   // Esta lista cresce NA TAREFA DE CADA HISTORIA, nunca antes: e o que o P4 da
   // constituicao cobra, "toda operacao exposta nova nasce com declaracao
-  // explicita de permissao". T001 nao expoe operacao nenhuma, e nao expoe
-  // configuracao nenhuma — a configuracao nomeada e T002. A tabela de quem
+  // explicita de permissao". T001 entregou as portas; T002 acrescentou
+  // `armazenamento` e `configuracao`, e NENHUMA DAS DUAS E OPERACAO — as duas
+  // linhas de `tasks.md` dizem `satisfaz: — (infraestrutura)`. A tabela de quem
   // entra, com a permissao de cada uma ja lida dos casos de uso, esta no
   // comentario de `ModuloDeOperacaoDoSoftware`.
-  assert.deepEqual(Object.keys(modulo).sort(), ['nome', 'portas']);
+  assert.deepEqual(Object.keys(modulo).sort(), [
+    'armazenamento',
+    'configuracao',
+    'nome',
+    'portas',
+  ]);
 });
 
 test('criar o modulo nao toca em porta nenhuma (EXT-ORDEM: nada se resolve no carregamento)', () => {
