@@ -85,13 +85,19 @@ test('a superficie do modulo tem exatamente as operacoes das tarefas fechadas', 
   // US-1. T005 acrescentou a quinta, a escolha de apresentacao
   // (`template-loader.php`), que e a entrega de US-2 e que **nao** e etapa de
   // `WP::main()`: `wp-blog-header.php:19` a carrega depois de `wp()` retornar.
-  // As cinco declaram "nenhuma capacidade" na interface do modulo, porque UC-01
+  // T017 acrescentou a sexta, a expansao de macro textual (`do_shortcode()`),
+  // que e a entrega de US-8 e que tambem **nao** e etapa de `WP::main()` nem de
+  // `template-loader.php`: no legado ela e um interceptador de `the_content`,
+  // com prioridade 11 (`default-filters.php:209`).
+  //
+  // As seis declaram "nenhuma capacidade" na interface do modulo, porque UC-01
   // registra que a leitura publica nao verifica capacidade nenhuma: o portao e o
   // `post_status`, e ele chega em T009.
   assert.deepEqual(Object.keys(modulo).sort(), [
     'atender',
     'consultarConteudo',
     'escolherApresentacao',
+    'expandirMacros',
     'nome',
     'portas',
     'resolverEndereco',

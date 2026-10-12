@@ -6,12 +6,12 @@
  * tabela de regras de traducao como dado, o casamento do endereco contra ela e a
  * coleta dos criterios diretos, em `./traducao-de-endereco/`), **T003** (US-1:
  * a resolucao do endereco numa consulta de conteudo, em `./consulta/`, com os
- * tres ramos de excecao do `handle_404`) e **T005** (US-2: a hierarquia
- * declarada de modelos e a etapa 5 do atendimento, em `./apresentacao/`). A
- * paginacao (T007), o portao de `post_status` (T009), o 404 do tema (T011), a
- * senha de conteudo (T013), a pre-busca (T015) e a macro textual (T017) entram
- * nas tarefas delas. A leitura obrigatoria de quem pegar a tarefa seguinte e
- * `./README.md`.
+ * tres ramos de excecao do `handle_404`), **T005** (US-2: a hierarquia
+ * declarada de modelos e a etapa 5 do atendimento, em `./apresentacao/`) e
+ * **T017** (US-8: a expansao de macro textual no corpo, em `./macro-textual/`).
+ * A paginacao (T007), o portao de `post_status` (T009), o 404 do tema (T011), a
+ * senha de conteudo (T013) e a pre-busca (T015) entram nas tarefas delas. A
+ * leitura obrigatoria de quem pegar a tarefa seguinte e `./README.md`.
  *
  * **Onde este modulo mora, e por que nao numa pasta de `bounded context`.** Esta
  * feature nao e um contexto do desenho: ela atravessa `BC-01` (a consulta e a
@@ -52,6 +52,11 @@ import {
   type OpcoesDaConsultaDeConteudo,
 } from './consulta/consultar-conteudo.js';
 import type { CriteriosDaConsulta } from './consulta/criterios-da-consulta.js';
+import {
+  expandirMacros,
+  type ExpansaoDeMacros,
+  type OpcoesDaExpansao,
+} from './macro-textual/expandir-macros.js';
 import type { PortaDeDados } from './portas/index.js';
 import {
   atenderLeituraPublica,
@@ -74,6 +79,7 @@ export * from './portas/index.js';
 export * from './traducao-de-endereco/index.js';
 export * from './consulta/index.js';
 export * from './apresentacao/index.js';
+export * from './macro-textual/index.js';
 export * from './requisicao/endereco-pedido.js';
 export * from './requisicao/resolver-endereco.js';
 export * from './requisicao/situacao-da-resposta.js';
@@ -97,8 +103,9 @@ export interface PortasDeLeituraPublica {
  * | `atender` | — (infraestrutura) | T001 | **nenhuma capacidade**, declarada |
  * | `consultarConteudo` | **US-1** | T003 | **nenhuma capacidade**, declarada |
  * | `escolherApresentacao` | **US-2** | T005 | **nenhuma capacidade**, declarada |
+ * | `expandirMacros` | **US-8** | T017 | **nenhuma capacidade**, declarada |
  *
- * **As cinco declaram "nenhuma", e nesta feature isso e a regra e nao a
+ * **As seis declaram "nenhuma", e nesta feature isso e a regra e nao a
  * ausencia dela.** UC-01 e literal: *"nao ha verificacao de capacidade. O portao
  * e o `post_status`"* — o ator e o visitante, que por definicao nao tem papel. As
  * duas unicas portas de autorizacao desta feature chegam depois, e nenhuma delas
@@ -193,6 +200,39 @@ export interface ModuloDeLeituraPublica {
   ): ApresentacaoEscolhida;
 
   /**
+   * Expande a macro textual no corpo do conteudo (`do_shortcode()`,
+   * `wp-includes/shortcodes.php:243`), que e a entrega de **US-8**.
+   *
+   * **Permissao exigida: nenhuma, e a declaracao e o ponto** (P4) — ver o
+   * cabecalho desta interface. Aqui a declaracao e mais forte do que um default
+   * aberto: `shortcodes.php` nao tem **uma** chamada de `current_user_can()` em
+   * 764 linhas. A unica fronteira de autorizacao que o arquivo toca e
+   * `wp_kses_one_attr()`, no caminho de atributo entre aspas, e ela chega por
+   * ligacao tardia em `ContextoDaMacro.sanearAtributo` — este modulo nao
+   * pergunta capacidade a ninguem, exatamente como o legado.
+   *
+   * ⚠️ **Recebe texto e devolve texto, e e isso que satisfaz CA-8.3** — *"a
+   * expansao acontece na renderizacao, nao na gravacao: o corpo gravado continua
+   * com a marca"*. Nao recebe identificador de conteudo, nao recebe a porta de
+   * dados e nao tem como gravar. O risco 4 do plano desta feature nomeia o jeito
+   * de perder o criterio: expandir na gravacao.
+   *
+   * ⚠️ **Nao e etapa de `atender` nem de `escolherApresentacao`**, e isso e
+   * fidelidade e nao desenho: no legado a expansao e um interceptador de
+   * `the_content` com prioridade 11 (`default-filters.php:209`), que roda quando
+   * o tema pede o corpo — depois de `wp()` e depois de `template-loader.php`.
+   * Quem liga ponto de extensao e o barramento, que nao existe nesta arvore; os
+   * quatro pontos em que o legado a liga estao declarados como dado em
+   * `LIGACAO_NA_RENDERIZACAO`.
+   *
+   * O registro de marcas chega nas opcoes, por ligacao tardia: o
+   * `$shortcode_tags` do legado e montado no arranque por `media.php` e por
+   * `class-wp-embed.php`, que sao de BC-01 e de BC-04, e a regra de dependencia
+   * 3 proibe o `import`.
+   */
+  expandirMacros(corpo: string, opcoes?: OpcoesDaExpansao): ExpansaoDeMacros;
+
+  /**
    * Atende uma leitura publica inteira, na ordem do legado (`WP::main`).
    *
    * **Permissao exigida: nenhuma, e a declaracao e o ponto** (P4).
@@ -223,6 +263,7 @@ export function criarModuloDeLeituraPublica(
     situacaoDaResposta,
     consultarConteudo,
     escolherApresentacao,
+    expandirMacros,
     atender: atenderLeituraPublica,
   };
 }
