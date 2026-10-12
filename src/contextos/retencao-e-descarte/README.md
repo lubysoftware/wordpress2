@@ -1,10 +1,10 @@
 # Modulo de retencao e descarte — feature `005-retencao-e-descarte`
 
 Tarefas fechadas com nota de entrega neste arquivo: **T001** (esqueleto, as tres
-portas e o prazo de retencao) e **T002** (os marcadores de lixeira como
-metadado). Este arquivo e a leitura obrigatoria de quem pegar a tarefa seguinte:
-ele diz o que ja esta decidido, o que esta decidido **em outro lugar**, e o que
-**ninguem decidiu**.
+portas e o prazo de retencao), **T002** (os marcadores de lixeira como
+metadado) e **T003** (o descarte para a lixeira, US-1). Este arquivo e a leitura
+obrigatoria de quem pegar a tarefa seguinte: ele diz o que ja esta decidido, o
+que esta decidido **em outro lugar**, e o que **ninguem decidiu**.
 
 > 🔴 **Antes de qualquer coisa, se a sua tarefa toca o agendamento da coleta
 > (T011, US-5):** o conflito entre **CA-5.1** e a **resposta 10** de
@@ -100,10 +100,12 @@ direcao oposta.
 
 **O que o zero faz, e de quem e o efeito.** `lixeiraEstaLigada()` responde *"ha
 lixeira?"*, lendo a primeira linha de `wp_trash_post()`
-(`wp-includes/post.php:4084`). **Apagar em definitivo quando a resposta e nao** e a
-operacao de descarte: **T003** (US-1) e **T009** (US-4), com o aviso de
-irreversibilidade que CA-4.2 cobra com as palavras que a tela usa. T001 entrega o
-numero e a borda; o efeito e da tarefa que implementa a operacao.
+(`wp-includes/post.php:4084`). **Apagar em definitivo quando a resposta e nao**
+ja esta no lugar: **T003** poe a delegacao na primeira linha da operacao
+(`descarte/descartar-para-a-lixeira.ts`, desfecho `apagado-em-definitivo`), e o
+que falta e de outras duas tarefas — **T009** (US-4) acrescenta o aviso de
+irreversibilidade que CA-4.2 cobra com as palavras que a tela usa, e **T017**
+(US-8) implementa a cascata que o campo `exclusaoDefinitiva` do contexto espera.
 
 **Valor negativo nao desliga a lixeira** — em PHP `-1` e verdadeiro —, e nenhuma
 guarda foi acrescentada contra isso, porque o legado nao tem nenhuma (P1). A
@@ -185,6 +187,87 @@ acrescenta tabela"*: o DDL de `{p}postmeta` e de BC-01 e o de `{p}commentmeta` e
 de BC-03. Emitir DDL daqui criaria dois donos para a mesma tabela — e o segundo
 dono e exatamente quem declararia a cascata que o **P5** proibe.
 
+## O que T003 entrega, e so isso
+
+> *o comportamento de US-1 existe e os criterios CA-1.1, CA-1.2, CA-1.3, CA-1.4,
+> CA-1.5 passam contra o sistema novo*
+> — `.specify/specs/005-retencao-e-descarte/tasks.md`, T003
+
+| arquivo | o que e |
+|---|---|
+| `descarte/descartar-para-a-lixeira.ts` | a operacao, e `wp_trash_post()` — os **doze** passos na ordem do legado |
+| `descarte/permissao-de-descarte.ts` | CA-1.3, CA-1.4 e CA-1.5: a pergunta `delete_post`, e as tres superficies que recusam |
+| `descarte/contexto-de-descarte.ts` | o que chega por argumento, e de quem cada peca e |
+| `descarte/estado-de-lixeira.ts` | CA-1.2: o estado `trash` como o legado o **registra** |
+| `descarte/us-1-descartar-conteudo.test.ts` | as 19 afirmacoes de T003 |
+
+A operacao entrou na superficie do modulo (`descartar`), com a declaracao de
+permissao que o **P4** cobra, e `modulo.test.ts` passou a congelar **cinco**
+chaves. As outras tres operacoes da tabela *Contratos* continuam so citadas.
+
+**Sao duas funcoes, e a de dentro nao tem portao.** `descartar()` e a superficie
+— le, pergunta `delete_post` e so entao age; `descartarParaALixeira()` e
+`wp_trash_post()`, que no legado **nao verifica capacidade nenhuma** e tem um
+chamador sem ator (`wp_delete_post()`, `wp-includes/post.php:3855`). E a mesma
+divisao que `conteudo/publicacao/publicar.ts` fez em BC-01, e e como o P4 se
+cumpre sem fechar o sistema mais que o legado.
+
+**O que esta tarefa achou e vale para as seguintes:**
+
+- 🔴 **O descarte nao escreve a coluna de estado: ele atravessa o caminho de
+  gravacao de BC-01.** `wp_trash_post()` chama `wp_update_post()` (`:4131`), que
+  le a linha inteira, funde o pedido por cima e **delega a `wp_insert_post()`**
+  (`:5335`, `:5367`, `:5392`). Logo descartar **reescreve `post_modified`**
+  (`:4789`), **dispara os pontos de extensao da gravacao** (`save_post`,
+  `post_updated`, a transicao para `trash`) e, para anexo, **desvia antes** para
+  `wp_insert_attachment()` (`:5375`). Por isso a gravacao do estado e **porta**
+  (`ConteudoNoDescarte.gravarEstado`) e nao um `UPDATE` montado neste modulo:
+  montar o comando aqui criaria um segundo dono de `{site}posts`, perderia os
+  pontos de extensao e deixaria `post_modified` parado.
+- **Os marcadores sao gravados ANTES do estado, e a falha deixa o estado
+  inconsistente de proposito.** Se `wp_update_post()` devolve `0`, o descarte
+  devolve `false` (`:4138`) e os **dois marcadores ficam** no banco com o
+  conteudo fora da lixeira. Nao ha transacao (BR-MIGRAR-104: zero
+  `START TRANSACTION` em 1.467 arquivos), e esse e exatamente o estado que `R6`
+  manda a coleta tolerar — **US-7 / T015**. Quem "consertar" isto com transacao
+  apaga a historia.
+- **O filtro `pre_trash_post` vem antes de toda escrita, e o valor dele E o
+  retorno da funcao** (`:4111`-`:4114`): interceptado, nao sai marcador, nao sai
+  estado, nao roda cascata e **nem a acao `wp_trash_post`** dispara.
+- ⚠️ **O retorno carrega o estado ANTERIOR.** `return $post` (`:4155`) devolve o
+  registro lido antes da gravacao: nada repassa `trash` ao objeto em memoria, e e
+  por isso que a API REST reconsulta com `get_post( $id )`
+  (`class-wp-rest-posts-controller.php:1171`). Reproduzido, com teste.
+- **Sao duas leituras da mesma linha, e as duas sao do legado:** a superficie le
+  (`wp-admin/post.php:253`) e `wp_trash_post()` le de novo (`:4089`). Com cache
+  de objeto seriam menos; o cache fica **desligado nas duas metades** durante a
+  coexistencia (borda 5 de `target_architecture.md`), e REQ-165 esta fora do
+  pacote.
+- **Os tres criterios de permissao sao um unico mecanismo, e ele ja existia.**
+  CA-1.3, CA-1.4 e CA-1.5 sao tres ramos do `case 'delete_post'` de
+  `map_meta_cap()`, portado em `plataforma/autorizacao/traducao-de-conteudo.ts`
+  (T017 da feature `001`). Esta tarefa **pergunta** em lugar de reimplementar — e
+  por isso o teste da versao anterior prova que a negacao vem da traducao, e nao
+  de uma guarda local: nem o super administrador a vence.
+- **A recusa do painel e o unico texto do legado que fala em lixeira.** A API e o
+  XML-RPC dizem *"delete this post"*, e a API tem **dois** codigos de erro para o
+  mesmo texto (`rest_cannot_delete` na guarda de rota, `rest_user_cannot_delete_post`
+  dentro da operacao). Os tres estao declarados em `permissao-de-descarte.ts`.
+
+🔴 **O que T003 deliberadamente NAO fez, e onde a tarefa seguinte encaixa:** os
+dois pontos que a operacao **chama** sao campos obrigatorios do contexto, na
+posicao exata do fluxo, e a posicao esta afirmada por teste.
+
+| campo do contexto | o que e no legado | de quem e |
+|---|---|---|
+| `suspenderComentarios` | `wp_trash_post_comments( $post_id )` (`:4142`) | **T005** (US-2), neste modulo |
+| `exclusaoDefinitiva` | `wp_delete_post( $post_id, true )` (`:4086`) | **T017** (US-8), neste modulo; o aviso de CA-4.2 e **T009** |
+
+Ligar cada um e trocar o campo na composicao; **a ordem nao muda**. Eles sao
+obrigatorios e nao opcionais de proposito: opcional, a ausencia seria um passo do
+fluxo silenciosamente saltado, e nem o passo 5 de UC-09 nem a primeira linha de
+`wp_trash_post()` sao opcionais no legado.
+
 ## O conflito que T001 declarou e nao decidiu
 
 `spec.md` registra, em *Perguntas em aberto*, duas decisoes humanas em sentidos
@@ -243,13 +326,18 @@ proibe inventar prazo de retencao para esse registro novo.
 ## Como esta entrega se confere
 
 - `npm run typecheck` e `npm test` — as 10 afirmacoes de T001 estao em
-  `modulo.test.ts` (6) e `configuracao/prazo-de-retencao.test.ts` (4), e as 19 de
-  T002 em `armazenamento/armazenamento.test.ts`.
+  `modulo.test.ts` (6) e `configuracao/prazo-de-retencao.test.ts` (4), as 19 de
+  T002 em `armazenamento/armazenamento.test.ts` e as 19 de T003 em
+  `descarte/us-1-descartar-conteudo.test.ts`.
 - Pela paridade: **PT-004**
   (`.specify/migration/parity_tests/04-retencao-e-coleta-da-lixeira.feature`), o
   cenario `@invariante` *"O prazo de retencao da lixeira e o do legado, e desliga-lo
-  torna apagar irreversivel"*. A metade dele que depende de T001 e o **numero**; a
-  metade que depende da coleta e do descarte vem com T003, T009 e T011.
+  torna apagar irreversivel"*. A metade dele que depende de T001 e o **numero**; da
+  ultima linha — *"conteudo e descartado com a lixeira desligada / as duas
+  metades o apagam na hora, sem passar pela lixeira"* — T003 afirma o *"sem
+  passar pela lixeira"*: a primeira linha delega, e nenhum marcador, nenhuma
+  cascata e nenhum ponto de extensao acontece. O apagamento em si e a cascata de
+  T017, e o resto do cenario depende da coleta (T011).
 - A parte de T002 e conferida pela **area 3 da Decisao 2** de `parity_specs.md`
   (*"efeito no banco ... snapshot + sequencia de comandos"*, **zero** divergencia)
   e, para os bytes do marcador agrupado, pelo cenario de
