@@ -41,7 +41,7 @@
       *entrega:* 5 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-050-1, UT-050-2, UT-050-3, UT-050-4, UT-050-5), com o mesmo dado de entrada, ação e resultado esperado. O teste de regra de negócio (UT-050-5) entra na mesma suíte.
       *satisfaz:* CA-4.1, CA-4.2, CA-4.3, CA-4.4
       *depende de:* T009
-- [ ] **T011** Apagar conteúdo vencido da lixeira por rotina que não depende de visita ao painel (US-5)
+- [x] **T011** Apagar conteúdo vencido da lixeira por rotina que não depende de visita ao painel (US-5)
       *entrega:* o comportamento de US-5 existe e os critérios CA-5.1, CA-5.2, CA-5.3, CA-5.4, CA-5.5 passam contra o sistema novo
       *satisfaz:* CA-5.1, CA-5.2, CA-5.3, CA-5.4, CA-5.5
       *depende de:* T001, T002, T003

@@ -3,11 +3,12 @@
  *
  * Tarefas fechadas aqui: **T001** (o esqueleto — as tres portas e o prazo de
  * retencao), **T002** (os marcadores de lixeira como metadado, em
- * `./armazenamento/`) e **T003** (o descarte para a lixeira, US-1, em
- * `./descarte/`). Suspender comentario, restaurar, avisar que apagar nao tem
- * volta, coletar o que venceu, expirar rascunho automatico, tolerar estado
- * inconsistente e reparentar filhos entram nas tarefas delas (T005 em diante), e
- * a leitura obrigatoria de cada uma esta em `./README.md`.
+ * `./armazenamento/`), **T003** (o descarte para a lixeira, US-1, em
+ * `./descarte/`) e **T011** (a coleta do que venceu, US-5, em `./coleta/` —
+ * com **CA-5.1 e CA-5.5 declarados abertos**, ver `./README.md`). Suspender
+ * comentario, restaurar, avisar que apagar nao tem volta, expirar rascunho
+ * automatico, tolerar estado inconsistente e reparentar filhos entram nas
+ * tarefas delas, e a leitura obrigatoria de cada uma esta em `./README.md`.
  *
  * ## A qual bounded context este modulo pertence — e sao dois
  *
@@ -49,6 +50,11 @@ import {
   type ArmazenamentoDeRetencao,
 } from './armazenamento/index.js';
 import {
+  coletarALixeiraVencida,
+  type ContextoDeColeta,
+  type ResultadoDaColeta,
+} from './coleta/index.js';
+import {
   PRAZO_DE_RETENCAO_DE_FABRICA,
   type PrazoDeRetencao,
 } from './configuracao/index.js';
@@ -68,6 +74,7 @@ export * from './portas/index.js';
 export * from './configuracao/index.js';
 export * from './armazenamento/index.js';
 export * from './descarte/index.js';
+export * from './coleta/index.js';
 
 /** As tres portas de que este modulo depende, na forma em que ele as recebe. */
 export interface PortasDeRetencaoEDescarte {
@@ -93,26 +100,30 @@ export interface OpcoesDeRetencaoEDescarte {
  *
  * Cada historia acrescenta aqui a sua operacao, com a declaracao explicita de
  * permissao que o **P4** da constituicao exige, e nenhuma antes da propria tarefa.
- * Hoje ha quatro coisas e **uma delas e operacao**: as portas e o prazo de
- * retencao (T001), o armazenamento dos marcadores (T002) e o **descarte** (T003,
- * US-1). O armazenamento nao declara permissao porque nao decide nada — ele le e
- * grava metadado, e quem cobra a capacidade e a operacao que o chama.
+ * Hoje ha cinco coisas e **duas delas sao operacao**: as portas e o prazo de
+ * retencao (T001), o armazenamento dos marcadores (T002), o **descarte** (T003,
+ * US-1) e a **coleta** (T011, US-5). O armazenamento nao declara permissao
+ * porque nao decide nada — ele le e grava metadado, e quem cobra a capacidade e
+ * a operacao que o chama; a coleta declara **nenhuma**, que e o caso que o P4
+ * manda escrever em lugar de omitir.
  *
- * As operacoes que a tabela *Contratos* de `plan.md` nomeia, com a permissao que o
- * pacote declara para cada uma — a primeira **declarada e construida** por T003,
- * as tres seguintes **citadas, nao decididas aqui**, para que a tarefa que
- * construir cada uma nasca com a declaracao que o P4 cobra:
+ * As quatro operacoes que a tabela *Contratos* de `plan.md` nomeia, com a
+ * permissao que o pacote declara para cada uma — as duas primeiras **declaradas
+ * e construidas** (T003 e T011), as duas seguintes **citadas, nao decididas
+ * aqui**, para que a tarefa que construir cada uma nasca com a declaracao que o
+ * P4 cobra:
  *
  * | operacao | historia | tarefa | permissao, como o pacote a declara |
  * |---|---|---|---|
  * | descartar para a lixeira | US-1 | **T003, feita** | `delete_post` do registro, *"resolvida conforme autoria e estado"* (UC-09) |
+ * | coletar o que venceu | US-5 | **T011, feita** | **nenhuma.** UC-11 e literal: *"a coleta roda sem usuario autenticado e sem verificacao de capacidade: o prazo e a autorizacao"* |
  * | restaurar | US-3 | T007 | decidida **pelo estado anterior gravado no descarte** (CA-3.5, UC-10) |
  * | apagar em definitivo | US-8 | T017 | `delete_post`, com o reparenteamento de filhos e anexos (UC-09, fluxo alternativo) |
- * | coletar o que venceu | US-5 | T011 | **nenhuma.** UC-11 e literal: *"a coleta roda sem usuario autenticado e sem verificacao de capacidade: o prazo e a autorizacao"* |
  *
- * A ultima linha e a que o P4 mais cobra que esteja escrita: ela e uma das
- * operacoes que *"decidem acesso sem consultar capacidade alguma"*, e uma matriz
- * que a ignore descreve um sistema mais fechado do que o real.
+ * A **segunda** linha e a que o P4 mais cobra que esteja escrita: a coleta e uma
+ * das operacoes que *"decidem acesso sem consultar capacidade alguma"*, e uma
+ * matriz que a ignore descreve um sistema mais fechado do que o real. O contexto
+ * dela nao tem ator — ver `coleta/contexto-de-coleta.ts`.
  */
 export interface ModuloDeRetencaoEDescarte {
   readonly nome: 'retencao-e-descarte';
@@ -160,6 +171,39 @@ export interface ModuloDeRetencaoEDescarte {
     contexto: ContextoDeDescarte,
     pedido: PedidoDeDescarte,
   ): ResultadoDoDescarte;
+
+  /**
+   * Apaga em definitivo o que passou do prazo de retencao (US-5, T011). E
+   * `wp_scheduled_delete()` (`wp-includes/functions.php:6974`): varre o marcador
+   * `_wp_trash_meta_time` de `{site}postmeta` e de `{site}commentmeta` por
+   * `meta_value < %d`, apaga em definitivo o que ainda esta na lixeira e, do que
+   * nao esta mais, apaga **so o marcador** (`R6`).
+   *
+   * **Permissao exigida: NENHUMA**, e e a declaracao que o **P4** cobra. UC-11,
+   * campo *Autorizacao*: *"nenhuma. A coleta roda sem usuario autenticado e sem
+   * verificacao de capacidade: **o prazo e a autorizacao**"*. Por isso
+   * `ContextoDeColeta` nao tem `base` nem `ator`, ao contrario do contexto de
+   * descarte — ver `coleta/contexto-de-coleta.ts`.
+   *
+   * 🔴 **Dois criterios de US-5 NAO estao fechados, e nao por descuido:**
+   *
+   * - **CA-5.1** (*"o agendamento ... sem depender de ninguem ter entrado no
+   *   painel"*) e **conflito aberto**: quatro registros humanos — resposta 10 de
+   *   `questions.md`, ADR-0006, BR-MIGRAR-034 e a resposta da Decisao 1 de
+   *   `pending_decisions.md` — dizem o contrario do criterio, e PT-004 cobra o
+   *   lado deles como `@critico`. T011 portou o **corpo** do registro em
+   *   `coleta/agendamento-da-coleta.ts` e **ninguem o chama**: o ponto de chamada
+   *   e a decisao que falta.
+   * - **CA-5.5** (*"cada execucao registra quantos registros apagou"*) esta pela
+   *   metade: a contagem sai como **valor de retorno**
+   *   ({@link ResultadoDaColeta.registrosApagados}), que e o que o **P7**
+   *   permite, e o registro **persistido** e divergencia que ninguem aceitou.
+   *
+   * ⚠️ **Nada aqui agenda e nada aqui dispara.** Chamar esta operacao e executar
+   * a tarefa, nao registra-la na fila; o disparo da fila e de BC-11 / feature
+   * `011`, e AD-07 manda que ele **falhe**.
+   */
+  coletarALixeiraVencida(contexto: ContextoDeColeta): ResultadoDaColeta;
 }
 
 /**
@@ -189,5 +233,9 @@ export function criarModuloDeRetencaoEDescarte(
     // A operacao entra por referencia, sem nada resolvido: tudo o que ela decide
     // vem do contexto que o chamador monta por requisicao (`EXT-CONTEXTO`).
     descartar,
+    // Idem para a coleta. ⚠️ Compor o modulo **nao agenda** a coleta e **nao a
+    // executa**: `modulo.test.ts` afirma as duas coisas, e a primeira e o que
+    // mantem o conflito de CA-5.1 na mao de quem decide.
+    coletarALixeiraVencida,
   };
 }
