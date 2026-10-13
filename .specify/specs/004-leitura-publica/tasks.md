@@ -65,7 +65,7 @@
       *entrega:* 3 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-045-1, UT-045-2, UT-045-3), com o mesmo dado de entrada, ação e resultado esperado.
       *satisfaz:* CA-7.1, CA-7.2, CA-7.3
       *depende de:* T015
-- [ ] **T017** Expandir macro textual no corpo do conteúdo na renderização (US-8)
+- [x] **T017** Expandir macro textual no corpo do conteúdo na renderização (US-8)
       *entrega:* o comportamento de US-8 existe e os critérios CA-8.1, CA-8.2, CA-8.3, CA-8.4, CA-8.5 passam contra o sistema novo
       *satisfaz:* CA-8.1, CA-8.2, CA-8.3, CA-8.4, CA-8.5
       *depende de:* T001, T002, T005

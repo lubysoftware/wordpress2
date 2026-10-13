@@ -9,9 +9,11 @@ endereco numa consulta de conteudo, com os predicados de tipo de consulta e os
 tres ramos de excecao do `handle_404`), **T005** (US-2: a hierarquia declarada
 de modelos, as sete saidas de `template-loader.php` e a etapa 5 do atendimento),
 **T013** (US-6: o portao de senha de conteudo, o atestado de dez dias, o
-formulario `SCR-011` como dado e a recusa do comentario em conteudo protegido)
-e **T015** (US-7: a declaracao de pre-busca do proximo destino, com as oito
-exclusoes, as dez recusas de `add_rule` e o prefixador de padrao de endereco).
+formulario `SCR-011` como dado e a recusa do comentario em conteudo protegido),
+**T015** (US-7: a declaracao de pre-busca do proximo destino, com as oito
+exclusoes, as dez recusas de `add_rule` e o prefixador de padrao de endereco)
+e **T017** (US-8: a expansao de macro textual no corpo, com o registro de marcas
+como dado e o caminho proprio da marca dentro de atributo).
 
 Este arquivo e a leitura obrigatoria de quem pegar a tarefa seguinte: ele diz o
 que ja esta decidido, o que esta decidido **em outro lugar**, e o que ninguem
@@ -19,7 +21,7 @@ decidiu.
 
 ---
 
-## 🔴 O que quem pega T007, T009, T011 ou T017 precisa saber antes de escrever a primeira linha
+## 🔴 O que quem pega T007, T009 ou T011 precisa saber antes de escrever a primeira linha
 
 ### 0. Numa instalacao nova a tabela de regras esta VAZIA, e isso muda como se le o resto
 
@@ -226,8 +228,9 @@ A superficie do modulo, com a permissao de cada operacao declarada na interface
 | `gravarAtestadoDeSenha` | T013 | idem |
 | `recusarComentarioEmConteudoProtegido` | T013 | idem |
 | `declararPreBusca` | T015 | **nenhuma capacidade**, declarada |
+| `expandirMacros` | T017 | **nenhuma capacidade**, declarada |
 
-As dez declaram "nenhuma" porque UC-01 e literal: *"nao ha verificacao de
+As onze declaram "nenhuma" porque UC-01 e literal: *"nao ha verificacao de
 capacidade. O portao e o `post_status`"*. O unico `current_user_can()` de
 `template-loader.php` esta no ramo de **inclusao** (`:133`), que nao e desta
 feature, e ele nao decide a apresentacao: decide se quem pode trocar tema ve os
@@ -674,6 +677,133 @@ ha conflito a parar. Fica registrado porque quem conferir paridade por
 | `is_array()` sobre o retorno do filtro de configuracao: o alvo nao distingue arranjo de objeto | `pre-busca/configuracao-da-pre-busca.ts` | do oraculo executavel (`ESC-ORACULO`, resposta 16). A fronteira observavel esta reproduzida — escalar cai no default inteiro (`:74-79`), estrutura e saneada campo a campo —, e so instancia de classe divergiria |
 | os sete caminhos da instalacao chegam como **caminho**, nao como endereco: `wp_parse_url( ..., PHP_URL_PATH )` nao e portado aqui | `pre-busca/padrao-de-endereco.ts` | de `plataforma/opcoes`, de BC-04 (uploads) e de `plataforma/tema` (feature 009). O default `CAMINHOS_SEM_PATH` e o que o proprio legado produz de endereco sem caminho (`(string) null` mais `trailingslashit`), e **nao** e um esboco — e tambem nao e o valor de fabrica, que nunca chega la porque a configuracao e ausente antes |
 
+## O que T017 entregou
+
+**US-8**, *"expandir macro textual no corpo do conteudo na renderizacao"*, em
+`macro-textual/`. Nove arquivos, e o escopo e `wp-includes/shortcodes.php`
+**inteiro** — 764 linhas, 18 funcoes publicadas — mais os quatro analisadores de
+texto puro de que ele depende e que moram em outros dois arquivos do legado. A
+tabela de qual nome do legado virou qual nome aqui, com as ancoras, esta no
+cabecalho de `macro-textual/index.ts`; ela tem as 18 linhas, e a unica que nao e
+funcao portada (`_filter_do_shortcode_context`) esta nomeada com o motivo.
+
+A superficie do modulo ganhou **uma** operacao, `expandirMacros`, e ela declara
+*"nenhuma capacidade"* como todas as outras da tabela. Aqui a declaracao e mais
+forte do que um default aberto: `shortcodes.php` nao tem **uma** chamada de
+`current_user_can()` em 764 linhas.
+
+### 🔴 Tres coisas que quem for mexer nisto precisa saber
+
+#### 1. O registro de marcas nasce VAZIO, e as 7 marcas de fabrica estao declaradas e nao registradas
+
+Uma instalacao nova do legado registra sete marcas — `wp_caption`, `caption`,
+`gallery`, `playlist`, `audio`, `video` (`media.php:2596`, `:2597`, `:2775`,
+`:3435`, `:3710`, `:4005`) e `embed` (`class-wp-embed.php:69`). Nenhuma delas
+esta em `REGISTRO_SEM_MACROS`, e **isso e P1 e nao atalho**: registrar a marca
+sem o tratador cairia no ramo de `! is_callable()` (`:403`) e devolveria a marca
+literal **com aviso de uso indevido**, que e visivel e e outro comportamento que
+o de expandir. O registro vazio, ao contrario, cai num ramo que o legado tem e
+documenta no proprio docblock de `do_shortcode()` (`:231-233`).
+
+As sete estao em `MARCAS_DE_FABRICA` como dado, com a ancora e a feature que
+porta cada tratador — seis em `006-biblioteca-de-midia` e uma em
+`014-integracao-externa`. Quem as ligar chama `adicionarMacro` na ordem da
+tabela, e nada do modulo muda.
+
+#### 2. A metade de CA-8.4 que passa por KSES esta dormente, e a ausencia e declarada
+
+`do_shortcodes_in_html_tags()` trata a marca dentro de atributo por **tres**
+regras, e o legado so chama KSES numa delas:
+
+| forma do atributo | passa por KSES? | estado nesta arvore |
+|---|---|---|
+| `<img src=[marca]>` ou `<img src = [marca]>` | **nao** (`:530-539`) | **identico ao legado** |
+| `<img src="[marca]">` ou `<img src='[marca]'>` | **sim** (`:540-553`) | a marca fica literal, pelo default declarado |
+
+A metade que nao passa por KSES e a que o legado escolheu nao filtrar, com um
+comentario de cinco linhas que diz por que (*"implies unfiltered_html ... we
+should avoid changing the output"*, `:531-536`). Ela esta completa.
+
+A outra espera `wp_kses_one_attr()` (`kses.php:984`), que **nao** e higiene de
+HTML e sim fronteira de autorizacao: ela depende de `wp_kses_allowed_html(
+'post' )`, de `wp_allowed_protocols()` e de `esc_attr()`, isto e, da lista de
+permissao que decide o que cada papel publica — `permissions.md` registra que
+`editor` tem `unfiltered_html`. Ela mora no slot `analise-de-html`, cujo
+candidato o [plano](../../../.specify/specs/004-leitura-publica/plan.md) desta
+feature declara **nao escolhido** (*"recomendacao e recomendacao; nada aqui esta
+escolhido"*), e escolher a tecnologia de um slot esta na tabela *Nao negociavel*
+da constituicao.
+
+O default, `SEM_LISTA_DE_PERMISSAO`, **nao e** "ainda nao implementado": ele
+devolve texto vazio, que e a resposta de `wp_kses_one_attr()` para todo atributo
+que a lista de permissao recusa, e o legado trata essa resposta num ramo proprio
+(`if ( '' !== trim( $new_attr ) )`, `:548`) que **mantem o atributo original**.
+Quem ligar KSES passa `ContextoDaMacro.sanearAtributo` e as duas metades ficam
+iguais, sem que uma linha de `macros-em-atributo.ts` mude.
+
+O que **esta** portado de `kses.php` sao `wp_kses_attr_parse()` e
+`wp_kses_hair_parse()`, mais `wp_html_split()` de `formatting.php` — os tres sao
+analisadores puros, e o legado o diz nos docblocks: *"Does not modify input. May
+return 'evil' output."*. Nenhum consulta lista de permissao, nenhum decide
+autorizacao. Quando `plataforma/analise-de-html/` existir, os tres descem para
+la e nenhuma chamada muda de resultado.
+
+#### 3. ⚠️ Uma afirmacao de paridade esta DERIVADA e nao conferida, e esta nomeada
+
+`$content = $m[5] ?? null` (`:432`) e o segundo argumento de **todo** tratador de
+marca. A derivacao, escrita por inteiro em `achadoComoNoPhp` de
+`macro-textual/semantica-de-pcre.ts`: o grupo 6 da expressao e `(\]?)`, que casa
+texto vazio em toda ocorrencia e portanto **sempre** participa; PCRE devolve "um
+mais que o maior grupo fixado" e o interpretador preenche com texto vazio os
+grupos anteriores que nao participaram. Logo `$m[5]` esta sempre fixado, o
+`?? null` e codigo morto, e `[marca]` entrega **texto vazio** ao tratador.
+
+O porte segue a *semantica* da linha e nao um palpite sobre a saida dela — e por
+isso existe `achadoComoNoPhp`, que converte o achado deste runtime na forma do
+arranjo do interpretador. O caso que encerra a questao e de uma linha no oraculo
+executavel da resposta 16 (`scripts/oraculo/`): um tratador que registre
+`var_export( $content )` para `[marca]`.
+
+### Os quirks do legado que um porte "limpo" apaga em silencio, e onde cada um esta
+
+| quirk | onde | o que acontece |
+|---|---|---|
+| a ordem da alternancia e a **ordem de registro** | `regex-de-macro.ts` | `array_intersect` preserva a ordem do primeiro arranjo (`:256`); reordenar por tamanho seria "consertar" o legado |
+| `&#91;` sai como `&#091;` | `macros-em-atributo.ts` | a normalizacao de `:466-471` roda no corpo inteiro e o desfazer de `:576` nao a alcanca; o mesmo corpo sai **diferente** conforme alguma marca registrada apareca nele |
+| o escape exige **os dois** colchetes | `expandir-macros.ts` | `[[marca]]` nao expande; `[[marca]` **expande**, e o `[` sobrevive por `:434` |
+| o nome de atributo `0` desaparece | `atributos-da-macro.ts` | `! empty( $m[1] )` e nao `isset()`, e os ramos posicionais nao estao fixados naquele achado |
+| o atributo entre aspas **vazio** nao grava | `atributos-da-macro.ts` | `isset(...) && strlen(...)` nos ramos 7 e 8 (`:625`, `:627`) |
+| valor de atributo com `<` nao fechado vira vazio | `atributos-da-macro.ts` | *"Reject any unclosed HTML elements"* (`:634-641`) |
+| `stripcslashes` em **todo** valor | `semantica-de-pcre.ts` | octal e o **default** e nao um caso proprio; `\x` sem digito devolve `x`; a barra final sobrevive |
+| sem marca trocada, KSES **nao** roda | `macros-em-atributo.ts` | `if ( $count > 0 )` (`:545`) |
+| `strip_shortcodes` leva o conteudo envolvido | `expandir-macros.ts` | `$m[1] . $m[6]` e nada mais (`:763`) |
+
+### As tres lacunas que T017 declarou, e por que nenhuma delas e decisao
+
+| lacuna | onde | de quem e |
+|---|---|---|
+| `wp_kses_one_attr()` chega por ligacao tardia; ausente, nenhum atributo e permitido e o legado mantem o original | `macro-textual/contexto-da-macro.ts` | de `plataforma/analise-de-html`, slot nao escolhido — ver o item 2 acima |
+| `_doing_it_wrong()` chega por ligacao tardia e nao devolve nada; ausente, nenhuma decisao muda (P7) | `macro-textual/registro-de-macros.ts` | de `plataforma/barramento`. `AvisoDeUsoIndevido` e gemeo declarado do de `plataforma/autorizacao`, e a repeticao e deliberada: a regra de dependencia 3 proibe o import, e os dois descem juntos quando o barramento existir |
+| os cinco pontos de extensao chegam por argumento, como os de T003 e T005 | `macro-textual/contexto-da-macro.ts` | idem. Sao `pre_do_shortcode_tag`, `do_shortcode_tag`, `strip_shortcodes_tagnames`, `shortcode_atts_{marca}` e o `wp_get_attachment_image_context` que `do_shortcode()` **registra e desregistra em torno de si** — este ultimo nao e disparado aqui, e `ExpansaoDeMacros.registrouContextoDeImagem` diz se esta chamada o registraria |
+
+Tres diferencas de motor de expressao regular entre PCRE e este runtime foram
+atravessadas, e cada uma tem a prova de equivalencia escrita no lugar em que ela
+vale: o **quantificador possessivo** e o **`\s` restrito** no cabecalho de
+`semantica-de-pcre.ts`, e o **subpadrao condicional** de `get_html_split_regex()`
+no de `html-do-corpo.ts`. Nenhuma das tres e divergencia: as provas sao de que o
+resultado nao muda. O que o possessivo tambem dava era **custo**, e isso fica
+declarado e nao resolvido — por um teto de tamanho ou de tempo que o legado nao
+tem, P6 e a tabela *Nao negociavel* recusariam (resposta 19).
+
+### O que T018 recebe pronto
+
+Os seis casos `UT-171-1` a `UT-171-6` do catalogo tem onde encostar: a expansao,
+a marca literal, a pureza da operacao, o caminho de atributo com o registro de
+`passosNoHtml`, a lista de marcas registradas e a delimitacao em colchetes. A
+suite de T017 (`macro-textual/us-8-expandir-macro-textual.test.ts`) afirma os
+**criterios de aceite** e nao transcreve nenhum caso do catalogo — T018 copia os
+casos de `backlog/tests.md`, nao os reconstroi.
+
 ## O que esta decidido em outro lugar
 
 - **A ordem das etapas do atendimento** e contrato publico (BR-MIGRAR-106,
@@ -701,6 +831,24 @@ ha conflito a parar. Fica registrado porque quem conferir paridade por
   registra que o legado os manda; os valores nao sao deste contexto.
 
 ## O que ninguem decidiu
+
+- **Qual tecnologia serve o slot `analise-de-html`**, e com ela se
+  `wp_kses_one_attr()` e porte a mao ou biblioteca de terceiro. ⚠️ **T017 bateu
+  nisto e nao decidiu**: e a metade de CA-8.4 que passa por KSES, e o
+  [plano](../../../.specify/specs/004-leitura-publica/plan.md) desta feature
+  declara o slot nao escolhido — *"recomendacao e recomendacao; nada aqui esta
+  escolhido"*. *Escolher a tecnologia de qualquer slot do plano* esta na tabela
+  **Nao negociavel** da constituicao, com a razao: *"o leque de candidatos de
+  `refactor/tech-stack.json` e pesquisa, nao escolha; quem define e quem vai
+  construir"*.
+
+  O que a falta de decisao **nao** bloqueou: os tres analisadores puros
+  (`wp_html_split`, `wp_kses_attr_parse`, `wp_kses_hair_parse`) estao portados,
+  porque nenhum deles consulta lista de permissao nem decide autorizacao, e com
+  eles a forma do atributo que o legado deliberadamente **nao** filtra esta
+  identica. O que ela deixa dormente, e a ausencia esta declarada em
+  `SEM_LISTA_DE_PERMISSAO`: a marca dentro de atributo **entre aspas**. Ver *O
+  que T017 entregou*, item 2.
 
 - **Qual tema serve de oraculo para a hierarquia de modelos** (pergunta aberta da
   `spec.md`, US-2). ⚠️ **Continua aberta depois de T005, e nada na arvore a
@@ -793,7 +941,7 @@ caminho do arquivo.
 
 ## Como conferir
 
-`npm test` na raiz. Duas suites, e elas nao se misturam:
+`npm test` na raiz. Dois **tipos** de suite, e eles nao se misturam:
 
 - `modulo.test.ts` — os testes de T001: **so** o que T001 entrega, mais tres
   invariantes que um esqueleto quebra em silencio, estado de modulo
@@ -836,7 +984,16 @@ caminho do arquivo.
   `stylesheet`, o identificador de um caractere, a quebra de linha aceita no fim
   do identificador, o padrao cru prefixado duas vezes, o `(array)` que embrulha
   e o `array_filter` que descarta em silencio).
+- `macro-textual/us-8-expandir-macro-textual.test.ts` — os testes de T017: os
+  cinco criterios de aceite de US-8, as tres saidas antecipadas de
+  `do_shortcode()`, o escape `[[marca]]` e o escape pela metade, os tres caminhos
+  do laco de atributo com o registro de `passosNoHtml`, o registro condicional do
+  filtro de contexto de imagem, as duas recusas de `add_shortcode()`,
+  `strip_shortcodes()`, e os quirks que um porte "limpo" apaga em silencio (a
+  ordem da alternancia, o `&#91;` que sai como `&#091;`, o nome de atributo `0`
+  que desaparece, o valor entre aspas vazio que nao grava, `stripcslashes` com os
+  sete casos do interpretador, o saneador que esvazia e mantem o original).
 
-Nenhum caso `UT-0xx` de `backlog/tests.md` e afirmado nas seis: esses sao das
-tarefas de teste de cada historia (T004, T006, T008, T010, T012, T014, T016,
-T018).
+Nenhum caso `UT-0xx` ou `UT-171-x` de `backlog/tests.md` e afirmado nas sete:
+esses sao das tarefas de teste de cada historia (T004, T006, T008, T010, T012,
+T014, T016, T018).

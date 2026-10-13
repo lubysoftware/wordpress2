@@ -91,8 +91,12 @@ test('a superficie do modulo tem exatamente as operacoes das tarefas fechadas', 
   // protegido. T015 acrescentou a declaracao de pre-busca
   // (`speculative-loading.php:330`), que e a entrega de US-7 e que tambem nao e
   // etapa de `WP::main()`: `default-filters.php:367` a pendura em `wp_footer`.
+  // T017 acrescentou a expansao de macro textual (`do_shortcode()`), que e a
+  // entrega de US-8 e que tambem **nao** e etapa de `WP::main()` nem de
+  // `template-loader.php`: no legado ela e um interceptador de `the_content`,
+  // com prioridade 11 (`default-filters.php:209`).
   //
-  // As dez declaram "nenhuma capacidade" na interface do modulo, porque UC-01
+  // As onze declaram "nenhuma capacidade" na interface do modulo, porque UC-01
   // registra que a leitura publica nao verifica capacidade nenhuma: o portao de
   // estado e o `post_status`, e ele chega em T009. As quatro de T013 declaram o
   // mesmo por outro motivo, e mais forte: a senha de conteudo e um dos cinco
@@ -103,6 +107,7 @@ test('a superficie do modulo tem exatamente as operacoes das tarefas fechadas', 
     'consultarConteudo',
     'declararPreBusca',
     'escolherApresentacao',
+    'expandirMacros',
     'gravarAtestadoDeSenha',
     'liberarCorpoProtegido',
     'nome',
