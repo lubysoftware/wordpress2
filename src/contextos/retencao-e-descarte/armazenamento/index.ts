@@ -11,6 +11,7 @@
  * | a familia de metadado | `metadado.ts` | `add`, `get` e `delete` de `wp-includes/meta.php`, parametrizados pelo tipo |
  * | os marcadores com nome | `marcadores-de-lixeira.ts` | o estado anterior, o instante, e os estados dos comentarios agrupados |
  * | o duplo da porta | `porta-falsa.ts` | registra comando, para que "nenhum comando" seja afirmavel |
+ * | os comentarios do conteudo (**T005**) | `comentarios-do-conteudo.ts` | os tres comandos crus sobre `{site}comments` que a cascata de US-2 emite |
  *
  * **Nao existe `esquema.ts` aqui, e a ausencia e a decisao.** `plan.md` abre a
  * secao *Modelo de dados* com *"Esta feature nao acrescenta tabela: ela
@@ -42,6 +43,10 @@
 
 import type { PortaDeDados } from '../portas/index.js';
 import {
+  criarComentariosDoConteudo,
+  type ComentariosDoConteudo,
+} from './comentarios-do-conteudo.js';
+import {
   criarMarcadoresDeLixeiraDoComentario,
   criarMarcadoresDeLixeiraDoConteudo,
   type MarcadoresDeLixeira,
@@ -59,6 +64,13 @@ export interface ArmazenamentoDeRetencao {
    * **comentario** e descartado por si, e nao pela cascata do conteudo.
    */
   readonly marcadoresDoComentario: MarcadoresDeLixeira;
+  /**
+   * Os tres comandos crus sobre `{site}comments` que a cascata de **T005** usa
+   * (CA-2.1 e CA-2.3). Nao passa pela API de comentario, e a tabela de
+   * `comentarios-do-conteudo.ts` diz o que essa escolha do legado deixa de
+   * disparar.
+   */
+  readonly comentariosDoConteudo: ComentariosDoConteudo;
 }
 
 export function criarArmazenamentoDeRetencao(
@@ -67,21 +79,31 @@ export function criarArmazenamentoDeRetencao(
   return {
     marcadoresDoConteudo: criarMarcadoresDeLixeiraDoConteudo(dados),
     marcadoresDoComentario: criarMarcadoresDeLixeiraDoComentario(dados),
+    comentariosDoConteudo: criarComentariosDoConteudo(dados),
   };
 }
 
 export {
   colunaDoObjeto,
   COLUNA_DA_LINHA_DE_METADADO,
+  COLUNA_DO_COMENTARIO,
+  COLUNA_DO_CONTEUDO_COMENTADO,
+  COLUNA_DO_ESTADO_DO_COMENTARIO,
   MARCADORES_DE_LIXEIRA,
   MARCADOR_DE_ESTADO_ANTERIOR,
   MARCADOR_DOS_ESTADOS_DOS_COMENTARIOS,
   MARCADOR_DO_INSTANTE_DO_DESCARTE,
   METADADO_DE_COMENTARIO,
   METADADO_DE_CONTEUDO,
+  tabelaDeComentarios,
   tabelaDeMetadado,
   type TipoDeMetadado,
 } from './chaves-e-tabelas.js';
+
+export {
+  criarComentariosDoConteudo,
+  type ComentariosDoConteudo,
+} from './comentarios-do-conteudo.js';
 
 export {
   comoBruto,

@@ -17,7 +17,7 @@
       *entrega:* 7 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-047-1, UT-047-2, UT-047-3, UT-047-4, UT-047-5, UT-047-6, UT-047-7), com o mesmo dado de entrada, ação e resultado esperado. Os 2 testes de regra de negócio (UT-047-6, UT-047-7) entram na mesma suíte.
       *satisfaz:* CA-1.1, CA-1.2, CA-1.3, CA-1.4, CA-1.5
       *depende de:* T003
-- [ ] **T005** Suspender os comentários do conteúdo descartado, guardando o estado de cada um (US-2)
+- [x] **T005** Suspender os comentários do conteúdo descartado, guardando o estado de cada um (US-2)
       *entrega:* o comportamento de US-2 existe e os critérios CA-2.1, CA-2.2, CA-2.3, CA-2.4 passam contra o sistema novo
       *satisfaz:* CA-2.1, CA-2.2, CA-2.3, CA-2.4
       *depende de:* T001, T002, T003

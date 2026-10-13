@@ -1,10 +1,13 @@
 /**
- * As duas tabelas desta feature, e as tres chaves de marcador que a lixeira
- * grava dentro delas.
+ * As tabelas desta feature, e as tres chaves de marcador que a lixeira grava
+ * dentro das duas de metadado.
  *
  * Entrega de **T002**: *"o estado anterior e o instante do descarte sao gravados
  * e lidos como metadado do registro, para conteudo e para comentario, pela porta
- * de dados"* (`.specify/specs/005-retencao-e-descarte/tasks.md`).
+ * de dados"* (`.specify/specs/005-retencao-e-descarte/tasks.md`). **T005**
+ * (US-2) acrescentou a terceira tabela — `{site}comments` —, porque a cascata de
+ * comentarios escreve na coluna de estado **direto**, sem passar por metadado;
+ * ver a secao *A terceira tabela* mais abaixo.
  *
  * ## Nao ha tabela nova, e isso e decisao registrada
  *
@@ -33,6 +36,20 @@
  * `comment_ID`. As duas grafias convivem no legado porque uma vem do DDL e a
  * outra de `sanitize_key()`, que abaixa a caixa. `target_data_model.md:194`
  * confirma a coluna: `comment_id bigint(20) unsigned NOT NULL default '0'`.
+ *
+ * ## A terceira tabela: `{site}comments`, e por que ela nao e derivada
+ *
+ * `wp_trash_post_comments()` e `wp_untrash_post_comments()` nao usam a API de
+ * metadado para mexer no estado dos comentarios: elas escrevem na coluna
+ * `comment_approved` com `$wpdb` **cru** (`wp-includes/post.php:4302` e `:4367`).
+ * Logo o nome dessa tabela nao sai de `_get_meta_table()` — ele e
+ * `$wpdb->comments`, propriedade que `set_prefix()` preenche percorrendo a lista
+ * `$tables` (`wp-includes/class-wpdb.php:291` declara a lista, `:1023` atribui a
+ * propriedade de cada tabela de escopo por site), e aqui e uma funcao propria
+ * por isso.
+ *
+ * Ela esta no mesmo bloco **ESCOPO POR SITE** do DDL, logo leva o prefixo do
+ * site como as outras duas — numa rede, `wp_7_comments`.
  *
  * ## As tres chaves, e por que sao tres e nao duas
  *
@@ -106,6 +123,55 @@ export function colunaDoObjeto(tipo: TipoDeMetadado): string {
  * que ninguem a redescubra ao reaproveitar este arquivo.
  */
 export const COLUNA_DA_LINHA_DE_METADADO = 'meta_id';
+
+/**
+ * `{site}comments` — `$wpdb->comments`, a tabela em que a cascata de **T005**
+ * escreve o estado dos comentarios.
+ *
+ * Nao e derivada de `${tipo}meta` como as duas de metadado: ver a secao *A
+ * terceira tabela* no cabecalho deste arquivo. Esta aqui, e nao na area de
+ * comportamento, porque **nenhum nome de tabela e montado fora deste arquivo** —
+ * a nota 3 de `target_data_model.md` explica o custo de montar nome no meio de
+ * uma consulta numa instalacao de rede.
+ */
+export function tabelaDeComentarios(dados: PortaDeDados): string {
+  return `${dados.prefixoDeTabela}comments`;
+}
+
+/**
+ * `comment_ID` — a chave primaria de `{site}comments`, com a caixa **irregular**
+ * que o DDL declara (`target_data_model.md:169`, comentada ali como *"NOME
+ * IRREGULAR"*).
+ *
+ * ⚠️ Nao confundir com `comment_id`, a coluna de `{site}commentmeta` que
+ * {@link colunaDoObjeto} deriva: `sanitize_key()` abaixa a caixa e as duas
+ * grafias convivem no legado. A cascata de T005 usa **esta**, porque ela filtra
+ * `comments`, nao `commentmeta`.
+ */
+export const COLUNA_DO_COMENTARIO = 'comment_ID';
+
+/**
+ * `comment_approved` — `varchar(20)` **sem `ENUM` e sem `CHECK`**
+ * (`target_data_model.md:179`, comentada ali como *"maquina de estado em
+ * varchar"*; `DB-ENUM`).
+ *
+ * E a coluna que a cascata leva a `post-trashed` e devolve ao estado guardado. O
+ * armazenamento nao limita o vocabulario: quem o limita e o codigo, e e por isso
+ * que `post-trashed` cabe na coluna e ainda assim nao e alcancavel pela API de
+ * estado (CA-2.4) — ver `cascata-de-comentarios/estado-de-suspensao.ts`.
+ */
+export const COLUNA_DO_ESTADO_DO_COMENTARIO = 'comment_approved';
+
+/**
+ * `comment_post_ID` — a ligacao do comentario com o conteudo, **sem chave
+ * estrangeira** (`target_data_model.md:419`: *"nenhuma"*).
+ *
+ * E a condicao do `SELECT` e do `UPDATE` da suspensao em cascata
+ * (`wp-includes/post.php:4288` e `:4302`). Que a relacao seja convencao de
+ * coluna cobrada em codigo, e nao restricao do banco, e o **P5** — e e o que
+ * permite ao comentario sobreviver orfao.
+ */
+export const COLUNA_DO_CONTEUDO_COMENTADO = 'comment_post_ID';
 
 /**
  * `_wp_trash_meta_status` — o estado que o registro tinha antes do descarte.
