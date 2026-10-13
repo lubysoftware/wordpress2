@@ -4,10 +4,13 @@
  * Tarefas fechadas aqui: **T001** (o esqueleto — as tres portas e o prazo de
  * retencao), **T002** (os marcadores de lixeira como metadado, em
  * `./armazenamento/`) e **T003** (o descarte para a lixeira, US-1, em
- * `./descarte/`). Suspender comentario, restaurar, avisar que apagar nao tem
- * volta, coletar o que venceu, expirar rascunho automatico, tolerar estado
- * inconsistente e reparentar filhos entram nas tarefas delas (T005 em diante), e
- * a leitura obrigatoria de cada uma esta em `./README.md`.
+ * `./descarte/`). **T009** (US-4) entregou CA-4.1, CA-4.3 e CA-4.4 na mesma
+ * pasta e **parou em CA-4.2**, por conflito registrado entre o criterio e UC-09
+ * — a tarefa continua aberta em `tasks.md` e a parada esta em
+ * `./descarte/aviso-de-exclusao-definitiva.ts`. Suspender comentario, restaurar,
+ * coletar o que venceu, expirar rascunho automatico, tolerar estado inconsistente
+ * e reparentar filhos entram nas tarefas delas (T005 em diante), e a leitura
+ * obrigatoria de cada uma esta em `./README.md`.
  *
  * ## A qual bounded context este modulo pertence — e sao dois
  *
@@ -53,7 +56,13 @@ import {
   type PrazoDeRetencao,
 } from './configuracao/index.js';
 import {
+  CONFIRMACAO_PEDIDA_AO_ATOR,
+  acaoNoEditor,
+  acoesEmMassa,
+  acoesNaLinha,
   descartar,
+  enderecoDeExclusao,
+  recusaDeLixeiraNaoSuportadaNaApi,
   type ContextoDeDescarte,
   type PedidoDeDescarte,
   type ResultadoDoDescarte,
@@ -68,6 +77,43 @@ export * from './portas/index.js';
 export * from './configuracao/index.js';
 export * from './armazenamento/index.js';
 export * from './descarte/index.js';
+
+/**
+ * **US-4, T009**: o que cada superficie oferece e diz ao ator **antes** de a
+ * exclusao definitiva acontecer.
+ *
+ * Nao e operacao e nao escreve nada: e leitura de contrato de tela e de API, e e
+ * por isso que entra como um grupo, do mesmo jeito que `armazenamento`. A
+ * **capacidade** continua sendo a de US-1 — `delete_post` daquele registro —, e
+ * ela chega **respondida**, no campo `podeApagar`: no legado as tres superficies
+ * do painel ja estao dentro de `current_user_can( 'delete_post', $post->ID )`
+ * (`wp-admin/includes/meta-boxes.php:363`,
+ * `class-wp-posts-list-table.php:1613`) e `get_delete_post_link()` pergunta de
+ * novo por conta propria, devolvendo `null` a quem nao pode
+ * (`wp-includes/link-template.php:1573`).
+ *
+ * 🔴 **CA-4.2 nao esta aqui, e a falta e deliberada.** `confirmacaoPedidaAoAtor`
+ * e a tabela do que o legado pede hoje — **nada**, nas cinco superficies de
+ * conteudo —, e o criterio pede o oposto do que UC-09 afirma. A caixa de PARADA
+ * esta em `descarte/aviso-de-exclusao-definitiva.ts`.
+ */
+export interface AvisoDeExclusaoDefinitiva {
+  /** `get_delete_post_link()` — a acao da rota e o `nonce` (CA-4.3). */
+  readonly enderecoDeExclusao: typeof enderecoDeExclusao;
+  /** A unica acao da caixa de publicacao do editor (CA-4.3, CA-4.4). */
+  readonly acaoNoEditor: typeof acaoNoEditor;
+  /** As acoes da linha da lista, na ordem do legado (CA-4.3, CA-4.4). */
+  readonly acoesNaLinha: typeof acoesNaLinha;
+  /** As acoes em massa que o descarte decide (CA-4.3, CA-4.4). */
+  readonly acoesEmMassa: typeof acoesEmMassa;
+  /** 🔴 O que o legado pede ao ator: `null` nas cinco superficies. */
+  readonly confirmacaoPedidaAoAtor: typeof CONFIRMACAO_PEDIDA_AO_ATOR;
+  /**
+   * A **unica** parada do legado antes da exclusao definitiva: a recusa de
+   * `501` da API ao `DELETE` sem `force`.
+   */
+  readonly recusaNaApiSemForca: typeof recusaDeLixeiraNaoSuportadaNaApi;
+}
 
 /** As tres portas de que este modulo depende, na forma em que ele as recebe. */
 export interface PortasDeRetencaoEDescarte {
@@ -93,10 +139,13 @@ export interface OpcoesDeRetencaoEDescarte {
  *
  * Cada historia acrescenta aqui a sua operacao, com a declaracao explicita de
  * permissao que o **P4** da constituicao exige, e nenhuma antes da propria tarefa.
- * Hoje ha quatro coisas e **uma delas e operacao**: as portas e o prazo de
- * retencao (T001), o armazenamento dos marcadores (T002) e o **descarte** (T003,
- * US-1). O armazenamento nao declara permissao porque nao decide nada — ele le e
- * grava metadado, e quem cobra a capacidade e a operacao que o chama.
+ * Hoje ha cinco coisas e **uma delas e operacao**: as portas e o prazo de
+ * retencao (T001), o armazenamento dos marcadores (T002), o **descarte** (T003,
+ * US-1) e o aviso de exclusao definitiva (T009, US-4). O armazenamento nao
+ * declara permissao porque nao decide nada — ele le e grava metadado, e quem
+ * cobra a capacidade e a operacao que o chama; o aviso declara a **mesma**
+ * capacidade do descarte, e a recebe respondida porque no legado a tela ja a
+ * perguntou.
  *
  * As operacoes que a tabela *Contratos* de `plan.md` nomeia, com a permissao que o
  * pacote declara para cada uma — a primeira **declarada e construida** por T003,
@@ -106,6 +155,7 @@ export interface OpcoesDeRetencaoEDescarte {
  * | operacao | historia | tarefa | permissao, como o pacote a declara |
  * |---|---|---|---|
  * | descartar para a lixeira | US-1 | **T003, feita** | `delete_post` do registro, *"resolvida conforme autoria e estado"* (UC-09) |
+ * | avisar que apagar nao tem volta | US-4 | **T009, feita menos CA-4.2** | `delete_post` do registro, a mesma — e no legado ela decide se a acao **aparece** |
  * | restaurar | US-3 | T007 | decidida **pelo estado anterior gravado no descarte** (CA-3.5, UC-10) |
  * | apagar em definitivo | US-8 | T017 | `delete_post`, com o reparenteamento de filhos e anexos (UC-09, fluxo alternativo) |
  * | coletar o que venceu | US-5 | T011 | **nenhuma.** UC-11 e literal: *"a coleta roda sem usuario autenticado e sem verificacao de capacidade: o prazo e a autorizacao"* |
@@ -145,11 +195,13 @@ export interface ModuloDeRetencaoEDescarte {
    * devolve; ver `descarte/permissao-de-descarte.ts`.
    *
    * ⚠️ **Com a lixeira desligada esta operacao APAGA EM DEFINITIVO**, na
-   * primeira linha, e o ator nao e avisado da diferenca — `R1`/BR-MIGRAR-030 e
-   * UC-09 (*"a mesma acao, dois comportamentos irreconciliaveis"*). O aviso que
-   * CA-4.2 cobra e **T009**; a cascata de exclusao, com o reparenteamento de
-   * filhos e anexos, e **T017**. As duas entram pelo contexto, no ponto exato em
-   * que o legado as chama.
+   * primeira linha, e **nenhuma confirmacao e pedida ao ator** — `R1`/BR-MIGRAR-030
+   * e UC-09 (*"a mesma acao, dois comportamentos irreconciliaveis"*). O que
+   * **muda** antes da acao e o rotulo, a acao da rota e o `nonce`, e isso e
+   * {@link ModuloDeRetencaoEDescarte.avisoDeExclusaoDefinitiva} (T009, CA-4.3);
+   * a confirmacao que CA-4.2 cobra **nao existe no legado e continua sem decisao
+   * humana**. A cascata de exclusao, com o reparenteamento de filhos e anexos, e
+   * **T017**, e entra pelo contexto no ponto exato em que o legado a chama.
    *
    * O contexto chega por argumento, e nao pela composicao, porque identidade,
    * matriz de papeis e estado de rede sao escopo de REQUISICAO (`EXT-CONTEXTO`,
@@ -160,6 +212,28 @@ export interface ModuloDeRetencaoEDescarte {
     contexto: ContextoDeDescarte,
     pedido: PedidoDeDescarte,
   ): ResultadoDoDescarte;
+
+  /**
+   * **US-4, T009.** O que a tela e a API oferecem e dizem ao ator quando a
+   * lixeira esta desligada — CA-4.3 (*"a diferenca ... e visivel na tela antes
+   * da acao"*) e CA-4.4 (*"a tela nao oferece acao de restaurar"*).
+   *
+   * **Permissao exigida: `delete_post` daquele conteudo**, a mesma de
+   * `descartar` — e ela chega respondida; ver
+   * {@link AvisoDeExclusaoDefinitiva}.
+   *
+   * ⚠️ **CA-4.1 nao esta aqui: esta em `descartar`**, na primeira linha, desde
+   * T003 — com a lixeira desligada a operacao devolve
+   * `apagado-em-definitivo` sem emitir marcador, estado, cascata nem ponto de
+   * extensao.
+   *
+   * 🔴 **CA-4.2 esta PARADO.** O criterio exige confirmacao que o legado nao
+   * pede em nenhuma superficie de conteudo, e UC-09 afirma a ausencia palavra
+   * por palavra. T009 **nao escolheu** entre as duas fontes: `tasks.md`
+   * continua com a tarefa aberta e a caixa de PARADA, com o censo que sustenta
+   * a leitura, esta em `descarte/aviso-de-exclusao-definitiva.ts`.
+   */
+  readonly avisoDeExclusaoDefinitiva: AvisoDeExclusaoDefinitiva;
 }
 
 /**
@@ -189,5 +263,16 @@ export function criarModuloDeRetencaoEDescarte(
     // A operacao entra por referencia, sem nada resolvido: tudo o que ela decide
     // vem do contexto que o chamador monta por requisicao (`EXT-CONTEXTO`).
     descartar,
+    // US-4 (T009): so referencias. Nenhuma destas le o prazo da composicao — ele
+    // chega por argumento em cada chamada, porque a tela de uma requisicao e o
+    // `DELETE` de outra nao compartilham nada (`EXT-CONTEXTO`).
+    avisoDeExclusaoDefinitiva: {
+      enderecoDeExclusao,
+      acaoNoEditor,
+      acoesNaLinha,
+      acoesEmMassa,
+      confirmacaoPedidaAoAtor: CONFIRMACAO_PEDIDA_AO_ATOR,
+      recusaNaApiSemForca: recusaDeLixeiraNaoSuportadaNaApi,
+    },
   };
 }

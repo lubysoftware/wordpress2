@@ -108,13 +108,17 @@ test('a superficie do modulo tem exatamente o que as tarefas fechadas entregam',
   // operacao**: ele le e grava metadado e nao decide nada, logo nao declara
   // permissao. **T003 acrescentou a primeira operacao**, `descartar` (US-1), com
   // a permissao declarada na interface do modulo: `delete_post` daquele
-  // conteudo, traduzida por autoria e estado. As outras tres que a tabela
+  // conteudo, traduzida por autoria e estado. **T009 acrescentou
+  // `avisoDeExclusaoDefinitiva`** (US-4), que tambem nao e operacao: e o
+  // contrato da tela e da API antes da acao, e a capacidade que o governa e a
+  // mesma de `descartar`, recebida respondida. As outras tres que a tabela
   // *Contratos* de `plan.md` nomeia (restaurar, apagar em definitivo, coletar)
   // entram em T007, T017 e T011 — inclusive a da coleta, que UC-11 declara como
   // NENHUMA ("o prazo e a autorizacao"), e que o P4 manda escrever justamente
   // por isso.
   assert.deepEqual(Object.keys(modulo).sort(), [
     'armazenamento',
+    'avisoDeExclusaoDefinitiva',
     'descartar',
     'nome',
     'portas',

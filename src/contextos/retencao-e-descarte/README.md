@@ -1,10 +1,23 @@
 # Modulo de retencao e descarte — feature `005-retencao-e-descarte`
 
-Tarefas fechadas com nota de entrega neste arquivo: **T001** (esqueleto, as tres
+Tarefas com nota de entrega neste arquivo: **T001** (esqueleto, as tres
 portas e o prazo de retencao), **T002** (os marcadores de lixeira como
-metadado) e **T003** (o descarte para a lixeira, US-1). Este arquivo e a leitura
-obrigatoria de quem pegar a tarefa seguinte: ele diz o que ja esta decidido, o
-que esta decidido **em outro lugar**, e o que **ninguem decidiu**.
+metadado), **T003** (o descarte para a lixeira, US-1) e **T009** (o aviso de que
+apagar nao tem volta, US-4 — **tres dos quatro criterios**, ver o 🔴 abaixo).
+Este arquivo e a leitura obrigatoria de quem pegar a tarefa seguinte: ele diz o
+que ja esta decidido, o que esta decidido **em outro lugar**, e o que **ninguem
+decidiu**.
+
+> 🔴 **Se a sua tarefa e T010 (os testes de US-4), ou se alguem lhe pediu para
+> "terminar T009":** **CA-4.2 esta parado**, e T009 **nao o resolveu** nem o
+> podia. O criterio exige *"a confirmacao pedida ao ator"* dizendo que a acao nao
+> tem volta; UC-09 afirma, palavra por palavra, que *"o ator nao e avisado da
+> diferenca"*, e a arvore analisada confirma a ausencia — o unico
+> `confirm()` do painel com essas palavras e governado por `MEDIA_TRASH`, nunca
+> por `EMPTY_TRASH_DAYS`. **UT-050-2 do catalogo e a transcricao de CA-4.2, logo
+> esbarra na mesma parada; os outros quatro casos de T010 nao esbarram em nada.**
+> O censo inteiro esta na secao *O conflito que T009 encontrou e nao decidiu* e no
+> cabecalho de `descarte/aviso-de-exclusao-definitiva.ts`.
 
 > 🔴 **Antes de qualquer coisa, se a sua tarefa toca o agendamento da coleta
 > (T011, US-5):** o conflito entre **CA-5.1** e a **resposta 10** de
@@ -102,13 +115,20 @@ direcao oposta.
 lixeira?"*, lendo a primeira linha de `wp_trash_post()`
 (`wp-includes/post.php:4084`). **Apagar em definitivo quando a resposta e nao**
 ja esta no lugar: **T003** poe a delegacao na primeira linha da operacao
-(`descarte/descartar-para-a-lixeira.ts`, desfecho `apagado-em-definitivo`), e o
-que falta e de outras duas tarefas — **T009** (US-4) acrescenta o aviso de
-irreversibilidade que CA-4.2 cobra com as palavras que a tela usa, e **T017**
-(US-8) implementa a cascata que o campo `exclusaoDefinitiva` do contexto espera.
+(`descarte/descartar-para-a-lixeira.ts`, desfecho `apagado-em-definitivo`).
+**T009** (US-4) acrescentou a **pergunta** nas tres formas em que o legado a faz
+(`descarte/lixeira-desligada.ts`) e o que a tela oferece antes da acao
+(`descarte/acoes-de-descarte-na-tela.ts`); o **aviso** que CA-4.2 cobra **nao
+entrou**, porque o legado nao o tem — ver *O conflito que T009 encontrou e nao
+decidiu*. O que ainda falta e de **T017** (US-8): a cascata que o campo
+`exclusaoDefinitiva` do contexto espera.
 
 **Valor negativo nao desliga a lixeira** — em PHP `-1` e verdadeiro —, e nenhuma
-guarda foi acrescentada contra isso, porque o legado nao tem nenhuma (P1). A
+guarda foi acrescentada contra isso, porque o legado nao tem nenhuma (P1). 🔴 **E
+e so no painel:** a API REST pergunta `EMPTY_TRASH_DAYS > 0`
+(`class-wp-rest-posts-controller.php:1099`), logo com `-1` ela **recusa** o
+descarte que o painel aceita — achado de T009,
+`descarte/lixeira-desligada.ts`. A
 consequencia aparece na coleta: o instante limite cai no futuro.
 
 **A comparacao do prazo nao esta neste modulo, e o operador esta escrito para quem
@@ -261,12 +281,172 @@ posicao exata do fluxo, e a posicao esta afirmada por teste.
 | campo do contexto | o que e no legado | de quem e |
 |---|---|---|
 | `suspenderComentarios` | `wp_trash_post_comments( $post_id )` (`:4142`) | **T005** (US-2), neste modulo |
-| `exclusaoDefinitiva` | `wp_delete_post( $post_id, true )` (`:4086`) | **T017** (US-8), neste modulo; o aviso de CA-4.2 e **T009** |
+| `exclusaoDefinitiva` | `wp_delete_post( $post_id, true )` (`:4086`) | **T017** (US-8), neste modulo. O que a tela mostra antes dela e **T009**, feito; a confirmacao de CA-4.2 **nao existe no legado** e esta parada |
 
 Ligar cada um e trocar o campo na composicao; **a ordem nao muda**. Eles sao
 obrigatorios e nao opcionais de proposito: opcional, a ausencia seria um passo do
 fluxo silenciosamente saltado, e nem o passo 5 de UC-09 nem a primeira linha de
 `wp_trash_post()` sao opcionais no legado.
+
+## O que T009 entrega — e o que ela NAO entrega
+
+> *"o comportamento de US-4 existe e os criterios CA-4.1, CA-4.2, CA-4.3, CA-4.4
+> passam contra o sistema novo"*
+> — `.specify/specs/005-retencao-e-descarte/tasks.md`, T009
+
+| criterio | estado | onde esta |
+|---|---|---|
+| **CA-4.1** o pedido de descarte apaga em definitivo | **feito** | o efeito em `descarte/descartar-para-a-lixeira.ts` (passo 1, desde T003); a **pergunta** em `descarte/lixeira-desligada.ts` |
+| **CA-4.2** a confirmacao diz que a acao nao tem volta | 🔴 **parado** | `descarte/aviso-de-exclusao-definitiva.ts`, caixa de PARADA |
+| **CA-4.3** a diferenca e visivel na tela antes da acao | **feito** | `descarte/acoes-de-descarte-na-tela.ts` |
+| **CA-4.4** a tela nao oferece acao de restaurar | **feito** | `descarte/acoes-de-descarte-na-tela.ts` |
+
+| arquivo | o que e |
+|---|---|
+| `descarte/lixeira-desligada.ts` | a pergunta *"ha lixeira?"* nas **tres** formas do legado, e a divergencia entre elas |
+| `descarte/acoes-de-descarte-na-tela.ts` | os **seis** rotulos, os tres `aria-label`, a acao da rota, o `nonce` e os quatro pontos de extensao que reescrevem a lista |
+| `descarte/aviso-de-exclusao-definitiva.ts` | o que cada superficie diz ao ator, a recusa de `501` da API e a **parada de CA-4.2** |
+| `descarte/us-4-aviso-de-exclusao-definitiva.test.ts` | as 23 afirmacoes de T009 |
+
+A superficie do modulo ganhou `avisoDeExclusaoDefinitiva`, e `modulo.test.ts`
+passou a congelar **seis** chaves. **Nao e operacao**: e contrato de tela e de
+API, e a capacidade que o governa e a **mesma** de `descartar` — `delete_post`
+daquele registro —, recebida **respondida** no campo `podeApagar`, porque no
+legado as tres superficies do painel ja estao dentro de
+`current_user_can( 'delete_post', $post->ID )`
+(`wp-admin/includes/meta-boxes.php:363`, `class-wp-posts-list-table.php:1613`) e
+`get_delete_post_link()` pergunta **de novo** por conta propria, devolvendo
+`null` a quem nao pode (`wp-includes/link-template.php:1573`).
+
+**O que esta tarefa achou e vale para as seguintes:**
+
+- 🔴 **A pergunta *"ha lixeira?"* nao tem uma forma so, e as formas nao
+  concordam.** O censo de `EMPTY_TRASH_DAYS` na arvore da **36** linhas em
+  **18** arquivos, e as decisoes usam tres formas: `! EMPTY_TRASH_DAYS` (o
+  descarte, o endereco da acao, os rotulos do painel, o comentario, a midia),
+  `EMPTY_TRASH_DAYS` verdadeiro (o desvio de `wp_delete_post()`, o anexo com
+  `MEDIA_TRASH`) e **`EMPTY_TRASH_DAYS > 0`**, que existe **so na API REST**
+  (`class-wp-rest-posts-controller.php:1099` e a gemea de comentario em
+  `class-wp-rest-comments-controller.php:1083`). Com `EMPTY_TRASH_DAYS = -1` o
+  painel **descarta** e a API **recusa o mesmo registro** com `501`. Esta
+  afirmado por teste, e e divergencia observavel na area 1 da Decisao 2 (saida
+  da REST, byte a byte, zero tolerancia).
+- **CA-4.3 e verdadeiro, e UC-09 erra ao dizer que *"nada na tela distingue os
+  dois"*.** O rotulo, a acao da rota e o `nonce` **todos** mudam antes da acao:
+  `Move to Trash`/`Delete permanently` no editor (`meta-boxes.php:367` e
+  `:365`), `Trash`/`Delete Permanently` na linha
+  (`class-wp-posts-list-table.php:1628` e `:1638`), e
+  `action=trash`/`action=delete` com o `nonce` correspondente
+  (`link-template.php:1577` e `:1590`). **O que UC-09 acerta e a outra metade
+  da frase** — *"o ator nao e avisado da diferenca"* —, e e essa metade que
+  colide com CA-4.2.
+- ⚠️ **`Delete permanently` e `Delete Permanently` sao duas chaves de catalogo**,
+  e a diferenca e a caixa do P: o editor e a acao em massa usam a minuscula, a
+  acao da linha usa a maiuscula. `Trash` na linha e `_x( 'Trash', 'verb' )` — uma
+  terceira chave, com contexto de desambiguacao. Unificar os seis rotulos em tres
+  perderia traducao e mudaria o texto de uma das telas (`EC-05`, e a secao 4 de
+  `target_screens.md` cobra `diff` de string **zero**).
+- **CA-4.4 e verdadeiro por CONSEQUENCIA, nao por regra, e o porte reproduz o
+  mecanismo.** Nenhuma superficie le o prazo para decidir se oferece restaurar:
+  a linha olha `'trash' === $post->post_status`
+  (`class-wp-posts-list-table.php:1614`), a acao em massa olha a **visao**
+  (`:437`), a barra de estados olha a **contagem** (`:369`) e o editor **nunca**
+  oferece restaurar porque a tela de um registro em `trash` nem abre
+  (`wp-admin/post.php:153`, `409`). Com a lixeira desligada nada chega a `trash`,
+  logo nada oferece restaurar. **Esconder o `Restore` testando a constante
+  fecharia um caminho que o legado deixa aberto** numa instalacao que ja tinha
+  conteudo na lixeira quando o prazo foi zerado.
+- **`forcar` e OR, nao AND** (`link-template.php:1577`): a linha pede exclusao
+  forcada **mesmo com a lixeira ligada** (`:1635`), e e assim que um registro que
+  **esta** na lixeira se apaga de vez. Trocar por `&&` esconderia essa acao em
+  toda instalacao com lixeira.
+- **A API e a unica superficie que para antes de apagar, e nao para por
+  irreversibilidade:** ela recusa o `DELETE` **sem** `force` com `501` e *"The
+  post does not support trashing. Set 'force=true' to delete."*
+  (`class-wp-rest-posts-controller.php:1148`-`:1154`) — texto que **ensina o
+  parametro** e nao fala em "nao tem volta". Repetido com `force=true`, o pedido
+  apaga **sem nenhuma mensagem** (`:1136`). E o mais perto que o legado chega de
+  CA-4.2 sem ser CA-4.2.
+- **O filtro `rest_{tipo}_trashable` decide nos dois sentidos** (`:1123`), e o
+  bloco de documentacao do legado e literal: *"Pass false to disable Trash
+  support for the post"*. Passar `true` **liga** a lixeira na API de uma
+  instalacao com prazo zero — e ai o `DELETE` sem `force` chama
+  `wp_trash_post()`, que apaga em definitivo na primeira linha. O **P2** manda
+  preservar inclusive essa capacidade de alterar o resultado.
+- ⚠️ **Com a lixeira desligada, o gancho `wp_trash_post` nunca dispara.** A
+  primeira linha devolve antes dele (`post.php:4085`), e uma extensao que
+  auditasse exclusao por esse gancho perderia **todas** as exclusoes de uma
+  instalacao sem lixeira. Afirmado por teste.
+
+🔴 **O que T009 deliberadamente NAO fez:**
+
+- **Nao declarou `MEDIA_TRASH`.** A conjuncao `EMPTY_TRASH_DAYS && MEDIA_TRASH`
+  (`post.php:6829`, `meta-boxes.php:470`,
+  `class-wp-rest-posts-controller.php:1102`) e o descarte de **anexo**, decidido
+  pela **resposta 9** (REQ-051 `bloqueado`). Numero que entra antes da tarefa
+  dele entra sem o teste de borda que o **P6** cobra.
+- **Nao tocou no destino do comentario proibido.** O risco 2 de `plan.md` —
+  *"desligar a lixeira muda o destino do comentario proibido, que vai para spam
+  em vez de para a lixeira"* — e a linha
+  `$approved = EMPTY_TRASH_DAYS ? 'trash' : 'spam'` (`comment.php:1392`), que e
+  de BC-03 e da feature `007`. Fica a ancora para quem a portar.
+- **Nao montou HTML.** `DEV-001` poe as 113 telas em `raw-prose`, e a moldura do
+  painel e de BC-10 (`telas-do-painel`): o que este modulo entrega e campo,
+  rotulo, acao e `nonce` — montar o `<a>` e da borda.
+- **Nao implementou a exclusao definitiva.** Ela continua chegando pelo contexto
+  (`exclusaoDefinitiva`), e a cascata com reparenteamento e **T017**.
+
+**E ha uma ancora que T011 vai querer, e foi esta tarefa que a achou:** existe uma
+**segunda** aritmetica de instante limite no legado, fora de
+`wp-includes/functions.php:6977` — `wp-admin/includes/nav-menu.php:1375` repete
+`time() - ( DAY_IN_SECONDS * EMPTY_TRASH_DAYS )` para os itens de menu orfaos. Nao
+e desta feature, mas quem portar a coleta vai procurar por *"a"* coleta e achar
+**duas**.
+
+## O conflito que T009 encontrou e nao decidiu: CA-4.2
+
+| lado | onde esta escrito | o que diz |
+|---|---|---|
+| a spec | **CA-4.2** (REQ-050), e `UT-050-2` em `backlog/tests.md` | *"nesse caso a confirmacao pedida ao ator diz, com estas palavras, que a acao nao tem volta"* |
+| a analise | **UC-09**, fluxo alternativo *Lixeira desligada*, e a secao *O que um porte precisa saber* | *"apagar passa a ser irreversivel, e o ator **nao** e avisado da diferenca"* · *"o mesmo botao, dois comportamentos irreconciliaveis"* |
+
+**E a arvore analisada esta do lado de UC-09 quanto a confirmacao.** O censo:
+
+| o que foi procurado | resultado |
+|---|---|
+| `confirm(` em `wp-admin/js/*.js` | **uma** ocorrencia de exclusao de item do site: `showNotice.warn()`, `wp-admin/js/common.js:548` — *"You are about to permanently delete these items from your site.\nThis action cannot be undone..."* |
+| quem chama `showNotice.warn` | **dois**, os dois governados por `MEDIA_TRASH`: `wp-admin/includes/meta-boxes.php:477` (caixa do anexo) e `wp-admin/includes/class-wp-media-list-table.php:835` |
+| `onclick` nos links de conteudo | **nenhum**: `meta-boxes.php:370` (editor), `class-wp-posts-list-table.php:1623` e `:1633` (linha) sao links secos |
+| ouvinte de `.submitdelete` em `.js` do painel | **nenhum** |
+| confirmacao na acao em massa | **nenhuma** |
+| o legado sabe confirmar nessa caixa? | **sim** — a tela de link herdada poe `onclick="return confirm( ... )"` no proprio `submitdelete` (`meta-boxes.php:1137`) |
+
+Ou seja: a ausencia no conteudo **nao e limitacao tecnica**, e o produto. E e por
+isso que nenhum dos dois caminhos esta aberto a este agente:
+
+- **acrescentar a confirmacao** e acrescentar comportamento observavel que o
+  original nao tem, e o **P1** exige *"uma decisao humana registrada, citada no
+  codigo que divergiu"*. Nao existe: `pending_decisions.md` nao trata disto,
+  `discard_log.md` nao descarta nada desta historia, e as cinco entradas de
+  `screen_deviation_log.md` nao cobrem acrescentar dialogo a uma tela (`DEV-001`
+  e formato de spec, `DEV-002` e captura, `DEV-003` a `DEV-005` sao outras
+  telas);
+- **nao acrescentar** deixa CA-4.2 e UT-050-2 falsos.
+
+As duas fontes sao humanas e estao em sentidos opostos, que e o caso que a
+constituicao poe na tabela *Nao negociavel*. **A forma da parada e a de T019 da
+feature `002`** (US-9 pede aviso que UC-07 nega): o ledger de T009 fica **aberto**
+em `tasks.md`, o resto da historia esta entregue e testado, e quem decidir
+encontra em `descarte/aviso-de-exclusao-definitiva.ts` os **dois textos que o
+legado ja tem** para isto — o de midia (`common.js:548`) e o de link
+(`meta-boxes.php:1137`) —, para que a decisao nao precise inventar frase que o
+produto nao tem.
+
+⚠️ **E a mesma leitura derruba meia frase de BR-MIGRAR-032 e da resposta 9.** As
+duas dizem que apagar midia e *"definitivo, sem lixeira e sem aviso"*. **Sem
+lixeira, sim; sem aviso, nao**: o aviso de `MEDIA_TRASH` e o unico que o legado
+tem, e e exatamente a frase que CA-4.2 descreve. A contradicao e de REQ-051, que
+esta `bloqueado`, e fica registrada aqui porque foi esta tarefa que a encontrou.
 
 ## O conflito que T001 declarou e nao decidiu
 
@@ -327,8 +507,9 @@ proibe inventar prazo de retencao para esse registro novo.
 
 - `npm run typecheck` e `npm test` — as 10 afirmacoes de T001 estao em
   `modulo.test.ts` (6) e `configuracao/prazo-de-retencao.test.ts` (4), as 19 de
-  T002 em `armazenamento/armazenamento.test.ts` e as 19 de T003 em
-  `descarte/us-1-descartar-conteudo.test.ts`.
+  T002 em `armazenamento/armazenamento.test.ts`, as 19 de T003 em
+  `descarte/us-1-descartar-conteudo.test.ts` e as 23 de T009 em
+  `descarte/us-4-aviso-de-exclusao-definitiva.test.ts`.
 - Pela paridade: **PT-004**
   (`.specify/migration/parity_tests/04-retencao-e-coleta-da-lixeira.feature`), o
   cenario `@invariante` *"O prazo de retencao da lixeira e o do legado, e desliga-lo
@@ -338,6 +519,18 @@ proibe inventar prazo de retencao para esse registro novo.
   passar pela lixeira"*: a primeira linha delega, e nenhum marcador, nenhuma
   cascata e nenhum ponto de extensao acontece. O apagamento em si e a cascata de
   T017, e o resto do cenario depende da coleta (T011).
+- A parte de **T009** entra no mesmo cenario `@invariante` de PT-004: a ultima
+  linha — *"as duas metades o apagam na hora, sem passar pela lixeira"* — e CA-4.1,
+  e T009 acrescenta a ela a **pergunta** que cada superficie faz
+  (`descarte/lixeira-desligada.ts`). CA-4.3 e CA-4.4 sao conferidos pela **area 4
+  da Decisao 2** (*"HTML de tema e painel: comportamento de caso de uso"*, um
+  percurso por UC — aqui UC-09) com `compare: semantic-contract` de `SCR-039` e
+  `SCR-041`, e os rotulos por `diff` de string **zero**. A recusa de `501` da API
+  cai na **area 1** (*"contrato de terceiro: REST ... byte a byte, zero
+  divergencia"*), e o filtro `rest_{tipo}_trashable` na **area 2** (*"valor
+  devolvido por hook"*). 🔴 **CA-4.2 nao tem como ser conferido contra o oraculo:
+  nao ha confirmacao no legado para comparar** — e a parada, nao a lacuna de
+  teste.
 - A parte de T002 e conferida pela **area 3 da Decisao 2** de `parity_specs.md`
   (*"efeito no banco ... snapshot + sequencia de comandos"*, **zero** divergencia)
   e, para os bytes do marcador agrupado, pelo cenario de

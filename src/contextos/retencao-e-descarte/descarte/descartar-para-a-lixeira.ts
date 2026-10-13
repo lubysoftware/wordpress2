@@ -75,10 +75,16 @@
  *   tarefa, e esta afirmada por teste.
  * - **Nao apaga em definitivo.** O passo 1 delega, e quem o implementa e
  *   **T017** (US-8), com o reparenteamento de filhos e anexos ao avo
- *   (`:3908`). O **aviso** de que apagar nao tem volta e **T009** (US-4, CA-4.2),
- *   e nao existe aqui: no legado nada na tela distingue os dois antes da acao
- *   quando a lixeira esta desligada, e UC-09 diz isso com estas palavras —
- *   *"apagar passa a ser irreversivel, e o ator nao e avisado da diferenca"*.
+ *   (`:3908`). O que a tela mostra antes desta operacao e **T009** (US-4), em
+ *   `acoes-de-descarte-na-tela.ts`: o rotulo, a acao da rota e o `nonce`
+ *   **mudam** quando a lixeira esta desligada. ⚠️ **A frase de UC-09 *"nada na
+ *   tela distingue os dois"* nao se confirma na arvore, e T009 a corrigiu com
+ *   `arquivo:linha`** (`wp-admin/includes/meta-boxes.php:365`,
+ *   `class-wp-posts-list-table.php:1638`,
+ *   `wp-includes/link-template.php:1577`). O que se confirma e a outra metade —
+ *   *"o ator nao e avisado da diferenca"*: **nenhuma confirmacao e pedida**, e e
+ *   isso que colide com CA-4.2 e deixa aquele criterio parado; ver a caixa de
+ *   PARADA de `aviso-de-exclusao-definitiva.ts`.
  * - **Nao restaura.** `wp_untrash_post()` (`:4168`) e **T007** (US-3), e o que
  *   ela faz com os marcadores que esta operacao grava e o oposto na ordem
  *   inversa — ver a tabela de `armazenamento/marcadores-de-lixeira.ts`.
