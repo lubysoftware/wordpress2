@@ -86,6 +86,47 @@ export function tabelaDeMetadado(
 }
 
 /**
+ * `{site}posts` — o `$wpdb->posts` do legado.
+ *
+ * **Acrescentada por T017** (US-8), e nao por T002, porque so a exclusao
+ * definitiva monta comando sobre esta tabela **neste modulo**: o descarte de
+ * US-1 grava o estado pelo caminho de gravacao de BC-01, por ligacao tardia
+ * (`ConteudoNoDescarte.gravarEstado`), e nao por SQL daqui. `wp_delete_post()`
+ * e outra coisa — ela fala com `$wpdb->posts` **direto**, sem passar por
+ * `wp_update_post()`: o reposicionamento dos filhos e dos anexos e
+ * `$wpdb->update()` cru (`wp-includes/post.php:3908` e `:3923`) e a linha morre
+ * por `$wpdb->delete()` cru (`:3969`). Reproduzir isso por `wp_update_post()`
+ * trocaria dois comandos por uma travessia do caminho de gravacao inteiro, com
+ * `post_modified` reescrito e os pontos de extensao da gravacao disparando em
+ * cada filho.
+ *
+ * Esta no bloco **ESCOPO POR SITE** do DDL de `target_data_model.md`, como as
+ * outras tres desta feature: numa rede e `wp_7_posts`.
+ */
+export function tabelaDeConteudo(dados: PortaDeDados): string {
+  return `${dados.prefixoDeTabela}posts`;
+}
+
+/**
+ * `{site}comments` — o `$wpdb->comments` do legado.
+ *
+ * **Acrescentada por T017** (US-8) pela mesma razao da de cima, e com o mesmo
+ * limite: o unico comando que esta feature monta sobre ela e a **leitura** dos
+ * comentarios do conteudo que esta sendo apagado,
+ * `SELECT comment_ID ... ORDER BY comment_ID DESC`
+ * (`wp-includes/post.php:3927`-`:3929`). Apagar cada comentario e
+ * `wp_delete_comment()`, que e de BC-03 e chega por ligacao tardia — ela tem
+ * cascata propria (reposiciona as respostas no avo,
+ * `wp-includes/comment.php:1590`) e um ponto de extensao proprio.
+ *
+ * ⚠️ A coluna e `comment_post_ID`, com a caixa do DDL — e a mesma assimetria de
+ * caixa que `colunaDoObjeto()` documenta para `comment_id`.
+ */
+export function tabelaDeComentarios(dados: PortaDeDados): string {
+  return `${dados.prefixoDeTabela}comments`;
+}
+
+/**
  * A coluna que liga a linha de metadado ao registro: `post_id` ou
  * `comment_id`.
  *

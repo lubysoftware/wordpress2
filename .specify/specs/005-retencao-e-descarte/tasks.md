@@ -65,7 +65,7 @@
       *entrega:* 4 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-054-1, UT-054-2, UT-054-3, UT-054-4), com o mesmo dado de entrada, ação e resultado esperado. O teste de regra de negócio (UT-054-4) entra na mesma suíte.
       *satisfaz:* CA-7.1, CA-7.2, CA-7.3
       *depende de:* T015
-- [ ] **T017** Reparentar filhos e anexos quando um conteúdo é apagado em definitivo (US-8)
+- [x] **T017** Reparentar filhos e anexos quando um conteúdo é apagado em definitivo (US-8)
       *entrega:* o comportamento de US-8 existe e os critérios CA-8.1, CA-8.2, CA-8.3, CA-8.4 passam contra o sistema novo
       *satisfaz:* CA-8.1, CA-8.2, CA-8.3, CA-8.4
       *depende de:* T001, T002, T003

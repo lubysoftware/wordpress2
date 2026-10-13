@@ -29,10 +29,13 @@
  *
  * **O que esta pasta nao tem, com a tarefa de cada um:** a suspensao dos
  * comentarios (T005), a restauracao (T007), a coleta do que venceu (T011), a
- * expiracao do rascunho automatico (T013), a tolerancia a inconsistencia (T015)
- * e o reparenteamento ao apagar em definitivo (T017). As duas que a operacao de
- * US-1 **chama** — a cascata de comentarios e a exclusao definitiva — entram
- * pelo contexto, na posicao exata do fluxo; ver `contexto-de-descarte.ts`.
+ * expiracao do rascunho automatico (T013) e a tolerancia a inconsistencia
+ * (T015). As duas que a operacao de US-1 **chama** entram pelo contexto, na
+ * posicao exata do fluxo; ver `contexto-de-descarte.ts`. A segunda delas —
+ * `exclusaoDefinitiva`, a primeira linha de `wp_trash_post()` — ja tem quem a
+ * atenda: **T017** a construiu em `../exclusao/`, com o reposicionamento de
+ * filhos e anexos no avo (US-8), e `exclusaoDefinitivaDe()` e o helper que fecha
+ * a ligacao sem `import` circular.
  */
 
 export {
