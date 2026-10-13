@@ -4,21 +4,31 @@
  * `WP_Query::query()` (`wp-includes/class-wp-query.php:3970-3975`), que por sua
  * vez e `parse_query()` mais `get_posts()`.
  *
- * Entrega de **T003** (US-1, CA-1.2 e CA-1.4).
+ * Entrega de **T003** (US-1, CA-1.2 e CA-1.4) e de **T007** (US-3: as etapas 4
+ * e 6 da tabela abaixo).
  *
  * ---
  *
- * ## A ordem das cinco etapas de `get_posts()` que esta funcao preserva
+ * ## A ordem das sete etapas de `get_posts()` que esta funcao preserva
  *
- * | # | etapa | legado |
- * |---|---|---|
- * | 1 | `parse_query()` — os criterios e os 30 predicados | `:1903` |
- * | 2 | o ponto de acao `pre_get_posts`, que **pode mudar os criterios** | `:1916` |
- * | 3 | preenche de novo, *"in case 'pre_get_posts' unset some vars"* | `:1922` |
- * | 4 | monta e executa a consulta | `:1947-3540`, aqui pelo repositorio |
- * | 5 | o ponto de filtro `the_posts`, que **substitui o resultado** | `:3641` |
+ * | # | etapa | legado | tarefa |
+ * |---|---|---|---|
+ * | 1 | `parse_query()` — os criterios e os 30 predicados | `:1903` | T003 |
+ * | 2 | o ponto de acao `pre_get_posts`, que **pode mudar os criterios** | `:1916` | T003 |
+ * | 3 | preenche de novo, *"in case 'pre_get_posts' unset some vars"* | `:1922` | T003 |
+ * | 4 | o tamanho da pagina, a ordem declarada e a janela de registros | `:2013-2046`, `:2494-2556`, `:2809-2824` | **T007** |
+ * | 5 | monta e executa a consulta | `:1947-3540`, aqui pelo repositorio | T003 |
+ * | 6 | o total encontrado e o numero de paginas | `:3327`-`:3451`, `set_found_posts` | **T007** |
+ * | 7 | o ponto de filtro `the_posts`, que **substitui o resultado** | `:3641` | T003 |
  *
  * E depois delas, a contagem e o primeiro registro (`:3649` e `:3664`).
+ *
+ * ⚠️ **A etapa 6 vem antes da 7, e os dois numeros discordam de proposito.**
+ * `set_found_posts()` e chamado dentro do bloco da consulta (`:3327`, `:3348`,
+ * `:3444` e `:3451`), logo registro que uma extensao acrescente em `the_posts`
+ * entra em `post_count` (recalculado em `:3649`) e **nao** em `found_posts`.
+ * Recalcular o total depois do filtro "para ficar coerente" trocaria o numero de
+ * paginas que o tema recebe.
  *
  * ⚠️ **A etapa 2 nao reanalisa os predicados, e isso surpreende quem porta.**
  * `pre_get_posts` dispara **depois** de `parse_query`, logo uma extensao que
@@ -36,7 +46,7 @@
  *
  * | tarefa | o que ela decide | o que ela acrescenta |
  * |---|---|---|
- * | **T007** (US-3) | o tamanho da pagina, que nasce em 10 (`schema.php:434`), e a pagina corrente | o total encontrado e o numero de paginas em `ResultadoDaConsulta` |
+ * | ✅ **T007** (US-3) | o tamanho da pagina, que nasce em 10 (`schema.php:434`), a pagina corrente e a ordem declarada | o recorte no argumento do repositorio, o total encontrado em `ResultadoDaConsulta` e o numero de paginas aqui |
  * | **T009** (US-4) | a capacidade exigida por estado | o estado e o autor em `ConteudoConsultado`, e o recorte por estado nos criterios |
  * | **T013** (US-6) | o atestado de senha | a senha em `ConteudoConsultado` |
  *
@@ -60,12 +70,22 @@ import type { ConsultaDeTaxonomia } from './consulta-de-taxonomia.js';
 import {
   REPOSITORIO_SEM_CONTEUDO,
   type ConteudoConsultado,
+  type RecorteDaListagem,
 } from './conteudo-consultado.js';
-import type { ContextoDaConsulta } from './contexto-da-consulta.js';
+import {
+  CONFIGURACAO_DE_FABRICA,
+  type ContextoDaConsulta,
+} from './contexto-da-consulta.js';
 import {
   preencherCriterios,
   type CriteriosDaConsulta,
 } from './criterios-da-consulta.js';
+import { resolverOrdenacao } from './ordenacao-da-listagem.js';
+import {
+  resolverPaginacao,
+  totalDaListagem,
+  type IntercepcaoDoTotalEncontrado,
+} from './paginacao-da-listagem.js';
 import {
   marcarNaoEncontrado,
   type TiposDeConsulta,
@@ -112,6 +132,11 @@ export interface PontosDeExtensaoDaConsulta {
   readonly aoAnalisar?: readonly ((analise: AnaliseDaConsulta) => void)[];
   /** `pre_get_posts`, depois da analise e antes da consulta (`:1916`). */
   readonly antesDeConsultar?: readonly IntercepcaoAntesDaConsulta[];
+  /**
+   * `found_posts`, dentro de `set_found_posts()` (`:3735`) — depois da consulta
+   * e **antes** de `the_posts`. Ver `./paginacao-da-listagem.ts`.
+   */
+  readonly sobreOTotalEncontrado?: readonly IntercepcaoDoTotalEncontrado[];
   /** `the_posts`, depois da consulta (`:3641`). */
   readonly sobreOsConteudos?: readonly IntercepcaoDosConteudos[];
 }
@@ -125,9 +150,11 @@ export interface OpcoesDaConsultaDeConteudo {
 /**
  * A consulta de conteudo, como o resto do atendimento a le.
  *
- * Os sete campos sao propriedades publicas de `WP_Query` que tema e extensao
+ * Os dez campos sao propriedades publicas de `WP_Query` que tema e extensao
  * leem (P8): `$query_vars`, as 30 `is_*`, `$tax_query`, `$posts`, `$post`,
- * `$post_count` e `$queried_object`.
+ * `$post_count`, `$queried_object`, `$found_posts` e `$max_num_pages` — mais o
+ * recorte, que T007 acrescentou e que no legado sao as duas variaveis locais de
+ * `get_posts()`.
  */
 export interface ConsultaDeConteudo {
   /** `WP_Query::$query_vars`, depois de `pre_get_posts` e do repreenchimento. */
@@ -149,6 +176,32 @@ export interface ConsultaDeConteudo {
   readonly conteudo?: ConteudoConsultado;
   /** `WP_Query::$post_count` (`:3649`). */
   readonly contagem: number;
+  /**
+   * `WP_Query::$found_posts` (`:178` e `:3714`) — o total que a consulta
+   * encontrou **ignorando a janela**, entrega de T007.
+   *
+   * ⚠️ Nao e `contagem`, e os dois discordam em dois casos do legado: numa
+   * pagina de 10 de uma listagem de 37 a contagem e 10 e o total 37, e numa
+   * pagina **fora de faixa** o total e **zero** — ver o ramo 🔴 de
+   * `./paginacao-da-listagem.ts`.
+   */
+  readonly totalEncontrado: number;
+  /**
+   * `WP_Query::$max_num_pages` (`:186` e `:3738`) — o numero de paginas da
+   * listagem, que e `ceil( total / tamanho da pagina )`.
+   *
+   * Zero quando a consulta nao teve janela: conteudo singular e listagem com
+   * `nopaging` respondem zero, e nao um. E a segunda metade de CA-3.2.
+   */
+  readonly totalDePaginas: number;
+  /**
+   * O recorte que foi ao repositorio: a janela de registros e a ordem
+   * declarada, com a pagina corrente dentro da paginacao.
+   *
+   * E a primeira metade de CA-3.2 (`recorte.paginacao.paginaCorrente`) e o
+   * conteudo inteiro de CA-3.4 (`recorte.ordenacao`).
+   */
+  readonly recorte: RecorteDaListagem;
   /**
    * `WP_Query::$queried_object` — presente quando a consulta casou um objeto.
    *
@@ -218,14 +271,39 @@ export function consultarConteudo(
   }
 
   // Etapa 3 (`:1922`) — repreenche, porque a etapa 2 pode ter tirado nome.
-  criterios = Object.freeze(preencherCriterios(criterios));
+  const conjuntoDeCriterios = preencherCriterios(criterios);
 
-  // Etapa 4 (`:1947-3540`) — o repositorio. Os predicados vao com os criterios
-  // porque metade das decisoes de `get_posts()` le predicado, e nao criterio.
+  // Etapa 4 (T007) — o tamanho da pagina (`:2013-2046`), a ordem declarada
+  // (`:2494-2556`) e a janela (`:2809-2824`). As tres escrevem **no conjunto de
+  // criterios**, porque no legado `$query_vars` e referencia (`:1919`), e e esse
+  // conjunto que `register_globals()` publica para o tema.
+  const configuracao = opcoes.contexto?.configuracao ?? CONFIGURACAO_DE_FABRICA;
+  const paginacao = resolverPaginacao(
+    conjuntoDeCriterios,
+    analise.tipos,
+    configuracao,
+  );
+  const ordenacao = resolverOrdenacao(conjuntoDeCriterios);
+  const recorte: RecorteDaListagem = Object.freeze({ paginacao, ordenacao });
+
+  criterios = Object.freeze(conjuntoDeCriterios);
+
+  // Etapa 5 (`:1947-3540`) — o repositorio. Os predicados vao com os criterios
+  // porque metade das decisoes de `get_posts()` le predicado, e nao criterio; o
+  // recorte vai por fora, como no legado (ver `RecorteDaListagem`).
   const repositorio = opcoes.contexto?.repositorio ?? REPOSITORIO_SEM_CONTEUDO;
-  const resultado = repositorio(criterios, analise.tipos);
+  const resultado = repositorio(criterios, analise.tipos, recorte);
 
-  // Etapa 5 (`:3641`) — `the_posts` substitui a lista.
+  // Etapa 6 (`set_found_posts`, `:3692-3741`) — **antes** de `the_posts`, e o
+  // ponto `found_posts` dispara daqui.
+  const total = totalDaListagem(
+    paginacao,
+    resultado.conteudos,
+    resultado.totalEncontrado,
+    pontos.sobreOTotalEncontrado ?? [],
+  );
+
+  // Etapa 7 (`:3641`) — `the_posts` substitui a lista.
   let conteudos = resultado.conteudos;
   for (const intercepcao of pontos.sobreOsConteudos ?? []) {
     conteudos = intercepcao(conteudos);
@@ -248,6 +326,9 @@ export function consultarConteudo(
     conteudos: Object.freeze([...conteudos]),
     ...(primeiro === undefined ? {} : { conteudo: primeiro }),
     contagem: conteudos.length,
+    totalEncontrado: total.totalEncontrado,
+    totalDePaginas: total.totalDePaginas,
+    recorte,
     ...(objetoConsultado === undefined ? {} : { objetoConsultado }),
   });
 }

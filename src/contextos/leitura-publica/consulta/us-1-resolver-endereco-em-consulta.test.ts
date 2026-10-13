@@ -331,6 +331,10 @@ test('CA-1.3 trocar a forma dos enderecos troca a tabela de regras, e nenhum reg
         paginaDeConteudos: 0,
         paginaDePoliticaDePrivacidade: 0,
         formaDosEnderecos: '/%year%/%monthnum%/%postname%/',
+        // Os dois tamanhos de pagina de fabrica (T007): o que muda entre as
+        // duas leituras deste teste e a forma do endereco, e so ela.
+        itensPorPagina: 10,
+        itensPorFeed: 10,
       },
     },
   });
@@ -354,6 +358,8 @@ test('CA-1.3 trocar a forma dos enderecos troca a tabela de regras, e nenhum reg
           paginaDeConteudos: 0,
           paginaDePoliticaDePrivacidade: 0,
           formaDosEnderecos: '/arquivo/%year%/%monthnum%/%postname%/',
+          itensPorPagina: 10,
+          itensPorFeed: 10,
         },
       },
     },
