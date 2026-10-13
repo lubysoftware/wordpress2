@@ -61,7 +61,7 @@
       *entrega:* o comportamento de US-7 existe e os critérios CA-7.1, CA-7.2, CA-7.3 passam contra o sistema novo
       *satisfaz:* CA-7.1, CA-7.2, CA-7.3
       *depende de:* T001, T002, T005
-- [ ] **T016** [P] Testes de US-7
+- [x] **T016** [P] Testes de US-7
       *entrega:* 3 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-045-1, UT-045-2, UT-045-3), com o mesmo dado de entrada, ação e resultado esperado.
       *satisfaz:* CA-7.1, CA-7.2, CA-7.3
       *depende de:* T015
