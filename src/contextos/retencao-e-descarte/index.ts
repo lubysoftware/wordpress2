@@ -3,13 +3,14 @@
  *
  * Tarefas fechadas aqui: **T001** (o esqueleto — as tres portas e o prazo de
  * retencao), **T002** (os marcadores de lixeira como metadado, em
- * `./armazenamento/`) e **T003** (o descarte para a lixeira, US-1, em
- * `./descarte/`). **T009** (US-4) entregou CA-4.1, CA-4.3 e CA-4.4 na mesma
- * pasta e **parou em CA-4.2**, por conflito registrado entre o criterio e UC-09
- * — a tarefa continua aberta em `tasks.md` e a parada esta em
- * `./descarte/aviso-de-exclusao-definitiva.ts`. Suspender comentario, restaurar,
- * coletar o que venceu, expirar rascunho automatico, tolerar estado inconsistente
- * e reparentar filhos entram nas tarefas delas (T005 em diante), e a leitura
+ * `./armazenamento/`), **T003** (o descarte para a lixeira, US-1, em
+ * `./descarte/`) e **T005** (a suspensao dos comentarios em cascata, US-2, em
+ * `./cascata-de-comentarios/`). **T009** (US-4) entregou CA-4.1, CA-4.3 e CA-4.4
+ * na pasta do descarte e **parou em CA-4.2**, por conflito registrado entre o
+ * criterio e UC-09 — a tarefa continua aberta em `tasks.md` e a parada esta em
+ * `./descarte/aviso-de-exclusao-definitiva.ts`. Restaurar o conteudo, coletar o
+ * que venceu, expirar rascunho automatico, tolerar estado inconsistente e
+ * reparentar filhos entram nas tarefas delas (T007 em diante), e a leitura
  * obrigatoria de cada uma esta em `./README.md`.
  *
  * ## A qual bounded context este modulo pertence — e sao dois
@@ -52,6 +53,13 @@ import {
   type ArmazenamentoDeRetencao,
 } from './armazenamento/index.js';
 import {
+  restaurarComentariosDoConteudo,
+  suspenderComentariosDoConteudo,
+  type ContextoDaCascataDeComentarios,
+  type ResultadoDaRestauracao,
+  type ResultadoDaSuspensao,
+} from './cascata-de-comentarios/index.js';
+import {
   PRAZO_DE_RETENCAO_DE_FABRICA,
   type PrazoDeRetencao,
 } from './configuracao/index.js';
@@ -77,6 +85,7 @@ export * from './portas/index.js';
 export * from './configuracao/index.js';
 export * from './armazenamento/index.js';
 export * from './descarte/index.js';
+export * from './cascata-de-comentarios/index.js';
 
 /**
  * **US-4, T009**: o que cada superficie oferece e diz ao ator **antes** de a
@@ -139,13 +148,15 @@ export interface OpcoesDeRetencaoEDescarte {
  *
  * Cada historia acrescenta aqui a sua operacao, com a declaracao explicita de
  * permissao que o **P4** da constituicao exige, e nenhuma antes da propria tarefa.
- * Hoje ha cinco coisas e **uma delas e operacao**: as portas e o prazo de
+ * Hoje ha sete coisas e **tres delas sao operacao**: as portas e o prazo de
  * retencao (T001), o armazenamento dos marcadores (T002), o **descarte** (T003,
- * US-1) e o aviso de exclusao definitiva (T009, US-4). O armazenamento nao
+ * US-1), a **suspensao** e a **restauracao** dos comentarios em cascata (T005,
+ * US-2) e o aviso de exclusao definitiva (T009, US-4). O armazenamento nao
  * declara permissao porque nao decide nada — ele le e grava metadado, e quem
  * cobra a capacidade e a operacao que o chama; o aviso declara a **mesma**
  * capacidade do descarte, e a recebe respondida porque no legado a tela ja a
- * perguntou.
+ * perguntou; e as duas da cascata declaram **nenhuma**, que e o que o legado
+ * tem.
  *
  * As operacoes que a tabela *Contratos* de `plan.md` nomeia, com a permissao que o
  * pacote declara para cada uma — a primeira **declarada e construida** por T003,
@@ -155,6 +166,7 @@ export interface OpcoesDeRetencaoEDescarte {
  * | operacao | historia | tarefa | permissao, como o pacote a declara |
  * |---|---|---|---|
  * | descartar para a lixeira | US-1 | **T003, feita** | `delete_post` do registro, *"resolvida conforme autoria e estado"* (UC-09) |
+ * | suspender e restaurar os comentarios em cascata | US-2 | **T005, feita** | **nenhuma.** As duas funcoes do legado nao tem portao e sao publicadas; quem verifica e o chamador |
  * | avisar que apagar nao tem volta | US-4 | **T009, feita menos CA-4.2** | `delete_post` do registro, a mesma — e no legado ela decide se a acao **aparece** |
  * | restaurar | US-3 | T007 | decidida **pelo estado anterior gravado no descarte** (CA-3.5, UC-10) |
  * | apagar em definitivo | US-8 | T017 | `delete_post`, com o reparenteamento de filhos e anexos (UC-09, fluxo alternativo) |
@@ -214,6 +226,52 @@ export interface ModuloDeRetencaoEDescarte {
   ): ResultadoDoDescarte;
 
   /**
+   * Suspende os comentarios do conteudo descartado, guardando o estado de cada
+   * um, agrupado, junto do conteudo (US-2, T005). E
+   * `wp_trash_post_comments()` (`wp-includes/post.php:4268`), o passo 5 de
+   * UC-09, e e ela que `descartar` chama no passo 11 do seu fluxo.
+   *
+   * ⚠️ **Permissao exigida: NENHUMA, e isso e declaracao e nao esquecimento.**
+   * A funcao do legado nao verifica capacidade, nao le o usuario corrente e e
+   * **publicada** — chamavel direto por extensao e por `wp_delete_post()`. Quem
+   * verifica e o chamador, com `delete_post` daquele conteudo. O **P4** manda
+   * *"declarar permissao explicita em toda operacao exposta"* **e** *"preservar
+   * o default de cada camada, inclusive quando o default e permissivo"*: esta
+   * linha e a primeira metade, e a ausencia de portao no codigo e a segunda. Ver
+   * a secao da declaracao em `cascata-de-comentarios/contexto-da-cascata.ts`.
+   *
+   * Ela tambem **nao pergunta se o conteudo esta na lixeira**: chamada sobre
+   * conteudo publicado, suspende os comentarios dele do mesmo jeito.
+   */
+  suspenderComentarios(
+    contexto: ContextoDaCascataDeComentarios,
+    conteudoId: number,
+  ): ResultadoDaSuspensao;
+
+  /**
+   * Devolve cada comentario ao estado que tinha, em lote por estado (US-2,
+   * T005). E `wp_untrash_post_comments()` (`wp-includes/post.php:4329`), o passo
+   * 5 de UC-10.
+   *
+   * ⚠️ **Permissao exigida: NENHUMA**, pelo mesmo motivo da gemea acima — e
+   * quem verifica e `wp_untrash_post()` (US-3, T007), **pelo estado anterior
+   * gravado no descarte**, que e CA-3.5.
+   *
+   * Esta aqui, e nao em T007, porque CA-2.3 esta na lista de criterios de T005 e
+   * porque e `tasks.md` que declara a direcao da dependencia: *"T007 depende de
+   * ... T005"*. O que T007 acrescenta e a **posicao** da chamada dentro da
+   * restauracao do conteudo (`:4242`).
+   *
+   * 🔴 **O comentario cuja memoria se perdeu nao volta para onde estava:** o
+   * estado guardado `post-trashed` vira `'0'`, a fila de moderacao
+   * (`:4363`). E a regra que US-2 carrega e a borda de UT-048-6.
+   */
+  restaurarComentarios(
+    contexto: ContextoDaCascataDeComentarios,
+    conteudoId: number,
+  ): ResultadoDaRestauracao;
+
+  /**
    * **US-4, T009.** O que a tela e a API oferecem e dizem ao ator quando a
    * lixeira esta desligada — CA-4.3 (*"a diferenca ... e visivel na tela antes
    * da acao"*) e CA-4.4 (*"a tela nao oferece acao de restaurar"*).
@@ -263,6 +321,12 @@ export function criarModuloDeRetencaoEDescarte(
     // A operacao entra por referencia, sem nada resolvido: tudo o que ela decide
     // vem do contexto que o chamador monta por requisicao (`EXT-CONTEXTO`).
     descartar,
+    // US-2 (T005): as duas metades da cascata, tambem por referencia. Elas NAO
+    // sao ligadas ao `descartar` aqui: quem liga uma na outra e a composicao da
+    // requisicao, com `cascataNoDescarte()`, porque o contexto de cada uma e
+    // montado por requisicao e porque ligar aqui faria o modulo guardar estado.
+    suspenderComentarios: suspenderComentariosDoConteudo,
+    restaurarComentarios: restaurarComentariosDoConteudo,
     // US-4 (T009): so referencias. Nenhuma destas le o prazo da composicao — ele
     // chega por argumento em cada chamada, porque a tela de uma requisicao e o
     // `DELETE` de outra nao compartilham nada (`EXT-CONTEXTO`).

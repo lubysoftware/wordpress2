@@ -2,11 +2,24 @@
 
 Tarefas com nota de entrega neste arquivo: **T001** (esqueleto, as tres
 portas e o prazo de retencao), **T002** (os marcadores de lixeira como
-metadado), **T003** (o descarte para a lixeira, US-1) e **T009** (o aviso de que
-apagar nao tem volta, US-4 — **tres dos quatro criterios**, ver o 🔴 abaixo).
-Este arquivo e a leitura obrigatoria de quem pegar a tarefa seguinte: ele diz o
-que ja esta decidido, o que esta decidido **em outro lugar**, e o que **ninguem
-decidiu**.
+metadado), **T003** (o descarte para a lixeira, US-1), **T005** (a suspensao dos
+comentarios em cascata, US-2) e **T009** (o aviso de que apagar nao tem volta,
+US-4 — **tres dos quatro criterios**, ver o 🔴 abaixo). Este arquivo e a leitura
+obrigatoria de quem pegar a tarefa seguinte: ele diz o que ja esta decidido, o
+que esta decidido **em outro lugar**, e o que **ninguem decidiu**.
+
+> 🔴 **Se a sua tarefa e T007 (restaurar o conteudo, US-3):** a restauracao dos
+> **comentarios** ja esta feita — `wp_untrash_post_comments()` esta em
+> `cascata-de-comentarios/restaurar-comentarios.ts`, porque CA-2.3 esta na lista
+> de criterios de T005. O que T007 acrescenta e a **posicao** da chamada:
+> **depois** da gravacao do estado `draft` e **antes** da acao `untrashed_post`
+> (`wp-includes/post.php:4242`), com os dois marcadores do conteudo ja apagados
+> (`:4228`-`:4229`). Nao reimplemente a cascata.
+
+> 🔴 **Se a sua tarefa e T006 (os testes de US-2):** **UT-048-5 pede *"cada um
+> dos dois estados inalcancaveis"* e a analise nomeia um so.** Nao invente o
+> segundo. A secao *A contagem que T005 encontrou e nao decidiu* tem o censo; os
+> outros cinco casos de T006 nao esbarram em nada.
 
 > 🔴 **Se a sua tarefa e T010 (os testes de US-4), ou se alguem lhe pediu para
 > "terminar T009":** **CA-4.2 esta parado**, e T009 **nao o resolveu** nem o
@@ -280,13 +293,141 @@ posicao exata do fluxo, e a posicao esta afirmada por teste.
 
 | campo do contexto | o que e no legado | de quem e |
 |---|---|---|
-| `suspenderComentarios` | `wp_trash_post_comments( $post_id )` (`:4142`) | **T005** (US-2), neste modulo |
+| `suspenderComentarios` | `wp_trash_post_comments( $post_id )` (`:4142`) | **T005** (US-2), neste modulo — **feito**, ligue-o com `cascataNoDescarte()` |
 | `exclusaoDefinitiva` | `wp_delete_post( $post_id, true )` (`:4086`) | **T017** (US-8), neste modulo. O que a tela mostra antes dela e **T009**, feito; a confirmacao de CA-4.2 **nao existe no legado** e esta parada |
 
 Ligar cada um e trocar o campo na composicao; **a ordem nao muda**. Eles sao
 obrigatorios e nao opcionais de proposito: opcional, a ausencia seria um passo do
 fluxo silenciosamente saltado, e nem o passo 5 de UC-09 nem a primeira linha de
 `wp_trash_post()` sao opcionais no legado.
+
+## O que T005 entrega, e so isso
+
+> *o comportamento de US-2 existe e os criterios CA-2.1, CA-2.2, CA-2.3, CA-2.4
+> passam contra o sistema novo*
+> — `.specify/specs/005-retencao-e-descarte/tasks.md`, T005
+
+| arquivo | o que e | criterio |
+|---|---|---|
+| `cascata-de-comentarios/suspender-comentarios.ts` | `wp_trash_post_comments()` — os **oito** passos na ordem do legado | CA-2.1, CA-2.2 |
+| `cascata-de-comentarios/restaurar-comentarios.ts` | `wp_untrash_post_comments()` — os **oito** passos na ordem do legado | CA-2.3 |
+| `cascata-de-comentarios/estado-de-suspensao.ts` | `post-trashed`, e o vocabulario que a API de estado aceita | CA-2.4 |
+| `cascata-de-comentarios/contexto-da-cascata.ts` | o que chega por argumento, e a **ausencia** de capacidade como declaracao | — |
+| `cascata-de-comentarios/ligacao-com-o-descarte.ts` | o passo 11 de `wp_trash_post()`, preenchido | — |
+| `armazenamento/comentarios-do-conteudo.ts` | os tres comandos crus sobre `{site}comments` | — |
+| `cascata-de-comentarios/us-2-suspender-comentarios.test.ts` | as 21 afirmacoes de T005 | — |
+
+As duas operacoes entraram na superficie do modulo (`suspenderComentarios` e
+`restaurarComentarios`), e `modulo.test.ts` passou a congelar **oito** chaves.
+`chaves-e-tabelas.ts` e `armazenamento/index.ts` ganharam a **terceira tabela**
+desta feature, `{site}comments`.
+
+**A declaracao de permissao destas duas operacoes e NENHUMA, e e declaracao e
+nao esquecimento.** As duas funcoes do legado nao verificam capacidade, nao leem
+o usuario corrente e sao **publicadas** — chamaveis direto por extensao e por
+`wp_delete_post()`. Quem verifica e o chamador, com `delete_post` daquele
+conteudo. O **P4** cobra *"declarar permissao explicita em toda operacao
+exposta"* **e** *"preservar o default de cada camada, inclusive quando o default
+e permissivo"*: a declaracao esta na interface do modulo e na secao de
+`contexto-da-cascata.ts`, e e a mesma divisao que T003 fez entre `descartar` e
+`descartarParaALixeira`. Por isso o contexto da cascata **nao tem `base` nem
+`ator`**: a ausencia dos dois campos e a afirmacao.
+
+**O que esta tarefa achou e vale para as seguintes:**
+
+- 🔴 **A cascata nao usa a API de comentario, e a diferenca e grande.** As duas
+  funcoes escrevem em `comment_approved` com `$wpdb` **direto**
+  (`wp-includes/post.php:4302` e `:4367`), nao por `wp_set_comment_status()`.
+  Logo **nada** do caminho de moderacao acontece: nem a acao
+  `wp_set_comment_status` (`wp-includes/comment.php:2842`), nem a transicao
+  `wp_transition_comment_status` (`:2844`), nem o recalculo de `comment_count`
+  (`:2846`). Um porte "limpo" que passasse pela API emitiria **N** comandos em
+  lugar de **um**, dispararia pontos de extensao que hoje nao disparam e
+  recalcularia um contador que hoje fica parado — e o contador parado e
+  comportamento declarado (`DB-TRG1`: o conteudo na lixeira continua contando os
+  comentarios que acabaram de sair do ar). A tabela inteira esta em
+  `armazenamento/comentarios-do-conteudo.ts`.
+- **O numero de comandos e o resultado.** A suspensao e **um** `UPDATE` por
+  conteudo (`:4302`); a restauracao e **um `UPDATE` por estado distinto**
+  guardado (`:4367`) — nunca um por comentario. E o *"em cascata"* de CA-2.1 e o
+  *"em lote por estado"* de CA-2.3, e e o que a area 3 da Decisao 2 compara.
+- **O marcador agrupado e gravado ANTES do `UPDATE`** (`:4299` e `:4302`). Se
+  fosse depois, o mapa guardado leria `post-trashed` para todo mundo e a memoria
+  de CA-2.2 seria memoria de nada. E a razao de a leitura do `SELECT` existir
+  separada da escrita.
+- ⚠️ **Os quatro pontos de extensao sao acao, nenhum e filtro:** nada nesta
+  cascata pode ser cancelado nem alterado por interceptador. Uma extensao
+  consegue impedir o **descarte** (`pre_trash_post`) e **nao** consegue impedir
+  que os comentarios o acompanhem.
+- ⚠️ **As duas guardas estao em posicoes opostas em relacao a acao de abertura, e
+  isso e observavel.** `trash_post_comments` dispara **antes** do `SELECT`
+  (`:4286`), logo dispara tambem para conteudo **sem comentario nenhum** — caso
+  em que nada e gravado (`:4290`). `untrash_post_comments` dispara **depois** da
+  guarda (`:4342` e `:4353`), logo **nao** dispara para conteudo sem memoria
+  gravada. Um porte que "regularizasse" a assimetria mudaria o que a extensao ve
+  nos dois casos.
+- ⚠️ **O retorno de `wp_untrash_post_comments()` esta invertido em relacao a
+  intuicao:** o caminho **sem memoria** devolve `true` (`:4343`) e o caminho que
+  fez todo o trabalho devolve `null` (`:4383`). Nenhum chamador do nucleo le o
+  valor, e ele fica reproduzido porque e observavel por extensao (P8).
+- **`post-trashed` guardado vira `'0'`, e o grupo continua sendo o do estado
+  original.** O legado comenta a linha com *"Confidence check. This shouldn't
+  happen."* (`:4362`) e **acontece**: basta chamar a suspensao duas vezes. A
+  troca e do **valor escrito**, nao da chave de agrupamento, logo um marcador com
+  `post-trashed` **e** com `'0'` emite **dois** `UPDATE` que gravam o mesmo
+  `'0'`. Agrupar pelo valor ja trocado emitiria um comando so.
+- **A memoria do comentario e usada; a do conteudo nao.** UC-10 nomeia a
+  assimetria: *"os comentarios voltam melhor do que o conteudo"*. O conteudo volta
+  como **rascunho** (`R2`, T007) embora o estado anterior esteja gravado; o
+  comentario volta ao estado que tinha. Duas decisoes opostas sobre a mesma
+  memoria, no mesmo fluxo.
+- **A ordem do `SELECT` sem `ORDER BY` viaja ate os bytes.** `:4288` nao ordena, e
+  a ordem das linhas e a ordem das entradas do marcador e, por consequencia, a
+  ordem dos lotes da restauracao. Acrescentar um `ORDER BY` *"para estabilizar"*
+  mudaria os bytes gravados.
+- **A cascata nao pergunta se o conteudo esta na lixeira.** Ela le o registro e
+  usa dele so o `ID` (`:4277` e `:4338`): chamada sobre conteudo publicado,
+  suspende os comentarios dele do mesmo jeito. E superficie publicada, e e assim
+  que `wp_delete_post()` a usa.
+
+## A contagem que T005 encontrou e nao decidiu: os "dois estados"
+
+US-2 carrega a regra de negocio *"Dois estados de comentario nao sao alcancaveis
+pela API de status"*, e **a fonte dela nomeia um**:
+
+> *"Dois estados nao sao alcancaveis pela API de status (state-machines.md secao
+> 2)"*
+> — `.specify/use-cases/UC-16-moderar-a-fila-de-comentarios.md:94`
+
+> *"Estado pedido fora dos **quatro** aceitos | `wp_set_comment_status()` devolve
+> falso. **`post-trashed`** so e gravado pela cascata de lixeira do conteudo,
+> nunca pela interface"*
+> — o mesmo arquivo, `:81`
+
+A secao 2 de `state-machines.md`, no espolio da reversa, repete o titulo e nomeia
+na evidencia **um** estado so: `post-trashed`. A maquina daquela secao tem
+**cinco** estados (`'0'`, `'1'`, `spam`, `trash`,
+`post-trashed`) e o `switch` aceita **quatro** deles: o censo fecha em **um**
+inalcancavel, nao dois. O titulo e a evidencia que ele cita discordam, e o
+catalogo herdou o titulo — UT-048-5 pede *"cada um dos **dois** estados
+inalcancaveis ... os dois pedidos sao recusados"* (`backlog/tests.md:749`) **sem
+dizer quais**.
+
+**T005 nao escolheu o segundo nome, e nao precisou.** CA-2.4, que e o criterio
+desta tarefa, fala de **um** estado — *"esse estado de suspensao"* — e esta
+satisfeito: `estadoAceitoPelaApiDeEstado( 'post-trashed' )` devolve `null`. E o
+mecanismo reproduzido e o do legado, que **nao e uma lista de nomes proibidos**:
+e o complemento de uma lista de seis nomes aceitos, logo qualquer nome fora dela
+cai no mesmo `default`. Nesse sentido os "dois" sao recusados, e tambem os
+duzentos.
+
+🔴 **Quem esbarra nisto e T006**, que **transcreve** UT-048-5 e nao o reconstroi:
+o caso pede dois nomes e o catalogo nao os da. Duas saidas, e **nenhuma e de quem
+porta**: ou a regra se corrige para *"um estado"* — e o teste passa a pedir um —,
+ou quem a escreveu nomeia o segundo. Escolher um nome aqui seria inventar
+comportamento, e o **P1** poe o comportamento observavel como especificacao: o
+observavel e o `switch`, e ele esta portado inteiro em
+`cascata-de-comentarios/estado-de-suspensao.ts`.
 
 ## O que T009 entrega — e o que ela NAO entrega
 
@@ -508,8 +649,21 @@ proibe inventar prazo de retencao para esse registro novo.
 - `npm run typecheck` e `npm test` — as 10 afirmacoes de T001 estao em
   `modulo.test.ts` (6) e `configuracao/prazo-de-retencao.test.ts` (4), as 19 de
   T002 em `armazenamento/armazenamento.test.ts`, as 19 de T003 em
-  `descarte/us-1-descartar-conteudo.test.ts` e as 23 de T009 em
+  `descarte/us-1-descartar-conteudo.test.ts`, as 21 de T005 em
+  `cascata-de-comentarios/us-2-suspender-comentarios.test.ts` e as 23 de T009 em
   `descarte/us-4-aviso-de-exclusao-definitiva.test.ts`.
+- A parte de **T005** e conferida pela **area 3 da Decisao 2** (*"efeito no banco
+  ... snapshot + sequencia de comandos"*, **zero** divergencia), e e nela que a
+  contagem de comandos aparece: a suspensao emite um `INSERT` e **um** `UPDATE`,
+  e a restauracao **um `UPDATE` por estado distinto** mais o `SELECT`+`DELETE` do
+  metadado. Os bytes do marcador agrupado caem no cenario de
+  `15-fronteira-do-banco-e-codec-serialize.feature` (*"nenhuma das duas
+  normaliza, reordena nem reindexa a estrutura"*), que e o que torna a chave
+  **inteira** do comentario — `a:1:{i:5;s:1:"1";}`, nao `s:1:"5"` — uma afirmacao
+  e nao um detalhe. PT-004 nao tem cenario proprio de US-2: a cascata aparece
+  nele como um dos efeitos do descarte, no passo 5 de UC-09, e a conferencia caso
+  a caso contra o oraculo de `scripts/oraculo` e por **estado da tabela
+  `comments`** antes e depois.
 - Pela paridade: **PT-004**
   (`.specify/migration/parity_tests/04-retencao-e-coleta-da-lixeira.feature`), o
   cenario `@invariante` *"O prazo de retencao da lixeira e o do legado, e desliga-lo
