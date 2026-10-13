@@ -114,12 +114,15 @@ test('a superficie do modulo tem exatamente o que as tarefas fechadas entregam',
   // mesma de `descartar`, recebida respondida. **T005 acrescentou duas
   // operacoes**, `suspenderComentarios` e `restaurarComentarios` (US-2), e as
   // duas declaram permissao NENHUMA: as funcoes do legado nao tem portao e sao
-  // publicadas, logo quem verifica e o chamador. As outras tres que a tabela
-  // *Contratos* de `plan.md` nomeia (restaurar o conteudo, apagar em definitivo,
-  // coletar) entram em T007, T017 e T011 — inclusive a da coleta, que UC-11
-  // declara como NENHUMA ("o prazo e a autorizacao"), e que o P4 manda escrever
-  // justamente por isso.
+  // publicadas, logo quem verifica e o chamador. **T017 acrescentou mais uma
+  // operacao**, `apagarEmDefinitivo` (US-8), com a **mesma** capacidade de
+  // `descartar` declarada — no legado nao existe capacidade separada para a
+  // exclusao irreversivel. As outras duas que a tabela *Contratos* de `plan.md`
+  // nomeia (restaurar o conteudo, coletar) entram em T007 e T011 — inclusive a
+  // da coleta, que UC-11 declara como NENHUMA ("o prazo e a autorizacao"), e que
+  // o P4 manda escrever justamente por isso.
   assert.deepEqual(Object.keys(modulo).sort(), [
+    'apagarEmDefinitivo',
     'armazenamento',
     'avisoDeExclusaoDefinitiva',
     'descartar',

@@ -3,10 +3,11 @@
 Tarefas com nota de entrega neste arquivo: **T001** (esqueleto, as tres
 portas e o prazo de retencao), **T002** (os marcadores de lixeira como
 metadado), **T003** (o descarte para a lixeira, US-1), **T005** (a suspensao dos
-comentarios em cascata, US-2) e **T009** (o aviso de que apagar nao tem volta,
-US-4 — **tres dos quatro criterios**, ver o 🔴 abaixo). Este arquivo e a leitura
-obrigatoria de quem pegar a tarefa seguinte: ele diz o que ja esta decidido, o
-que esta decidido **em outro lugar**, e o que **ninguem decidiu**.
+comentarios em cascata, US-2), **T009** (o aviso de que apagar nao tem volta,
+US-4 — **tres dos quatro criterios**, ver o 🔴 abaixo) e **T017** (a exclusao
+definitiva com reposicionamento de filhos e anexos, US-8). Este arquivo e a
+leitura obrigatoria de quem pegar a tarefa seguinte: ele diz o que ja esta
+decidido, o que esta decidido **em outro lugar**, e o que **ninguem decidiu**.
 
 > 🔴 **Se a sua tarefa e T007 (restaurar o conteudo, US-3):** a restauracao dos
 > **comentarios** ja esta feita — `wp_untrash_post_comments()` esta em
@@ -20,6 +21,18 @@ que esta decidido **em outro lugar**, e o que **ninguem decidiu**.
 > dos dois estados inalcancaveis"* e a analise nomeia um so.** Nao invente o
 > segundo. A secao *A contagem que T005 encontrou e nao decidiu* tem o censo; os
 > outros cinco casos de T006 nao esbarram em nada.
+
+> ⚠️ **Se a sua tarefa e T018 (os testes de US-8), ou qualquer uma que toque a
+> cascata de exclusao:** **CA-8.4 nao e uma invariante universal, e T017 nao a
+> transformou em uma.** O criterio — *"nenhum registro fica apontando para um
+> conteudo que nao existe mais"* — vale, e esta afirmado por teste, para tudo o
+> que a cascata do legado cobre. Fora dela o legado deixa vinculo pendurado **de
+> proposito**, em tres casos com `arquivo:linha` registrado, e a Decisao 2 de
+> `pending_decisions.md` poe esses orfaos **dentro** do que a paridade compara.
+> Fechar qualquer um deles seria acrescentar limpeza que o legado nao tem, e cai
+> na linha *"declarar restricao no armazenamento que mude a cascata observavel"*
+> da tabela *Nao negociavel*. O censo esta na secao *O limite de CA-8.4* e no
+> cabecalho de `exclusao/reposicionamento-no-avo.ts`.
 
 > 🔴 **Se a sua tarefa e T010 (os testes de US-4), ou se alguem lhe pediu para
 > "terminar T009":** **CA-4.2 esta parado**, e T009 **nao o resolveu** nem o
@@ -135,6 +148,8 @@ ja esta no lugar: **T003** poe a delegacao na primeira linha da operacao
 entrou**, porque o legado nao o tem — ver *O conflito que T009 encontrou e nao
 decidiu*. O que ainda falta e de **T017** (US-8): a cascata que o campo
 `exclusaoDefinitiva` do contexto espera.
+**T017 a entregou**: `exclusao/apagar-em-definitivo.ts`, ligada a esse campo por
+`exclusaoDefinitivaDe()` — ver *O que T017 entrega, e so isso*.
 
 **Valor negativo nao desliga a lixeira** — em PHP `-1` e verdadeiro —, e nenhuma
 guarda foi acrescentada contra isso, porque o legado nao tem nenhuma (P1). 🔴 **E
@@ -300,6 +315,8 @@ Ligar cada um e trocar o campo na composicao; **a ordem nao muda**. Eles sao
 obrigatorios e nao opcionais de proposito: opcional, a ausencia seria um passo do
 fluxo silenciosamente saltado, e nem o passo 5 de UC-09 nem a primeira linha de
 `wp_trash_post()` sao opcionais no legado.
+Os dois ja tem quem os preencha: `cascataNoDescarte()` (T005) e
+`exclusaoDefinitivaDe()` (T017).
 
 ## O que T005 entrega, e so isso
 
@@ -589,6 +606,152 @@ lixeira, sim; sem aviso, nao**: o aviso de `MEDIA_TRASH` e o unico que o legado
 tem, e e exatamente a frase que CA-4.2 descreve. A contradicao e de REQ-051, que
 esta `bloqueado`, e fica registrada aqui porque foi esta tarefa que a encontrou.
 
+## O que T017 entrega, e so isso
+
+> *o comportamento de US-8 existe e os criterios CA-8.1, CA-8.2, CA-8.3, CA-8.4
+> passam contra o sistema novo*
+> — `.specify/specs/005-retencao-e-descarte/tasks.md`, T017
+
+| arquivo | o que e |
+|---|---|
+| `exclusao/apagar-em-definitivo.ts` | a operacao, e `wp_delete_post()` — tres desvios, **sete etapas** e um `DELETE` |
+| `exclusao/reposicionamento-no-avo.ts` | CA-8.1, CA-8.2 e o **censo de CA-8.4** |
+| `exclusao/comandos-da-exclusao.ts` | os nove comandos crus da cascata, sobre `{site}posts`, `{site}comments` e `{site}postmeta` |
+| `exclusao/contexto-de-exclusao.ts` | o que chega por argumento, de quem cada peca e, e os **oito** pontos de extensao |
+| `exclusao/permissao-de-exclusao.ts` | `delete_post` — **a mesma** capacidade do descarte — e os textos proprios da acao `delete` |
+| `exclusao/us-8-reparentar-filhos-e-anexos.test.ts` | as 26 afirmacoes de T017 |
+
+A operacao entrou na superficie do modulo (`apagarEmDefinitivo`), com a
+declaracao de permissao que o **P4** cobra, e `modulo.test.ts` passou a congelar
+**nove** chaves — a de T017 somada as duas operacoes de T005, que entraram em
+paralelo. `armazenamento/chaves-e-tabelas.ts` ganhou `tabelaDeConteudo` — a
+`tabelaDeComentarios` ja tinha entrado com T005 —, porque aquele arquivo declara
+que *"nenhum nome de tabela e montado fora dele"* e esta e a primeira tarefa deste
+modulo que monta comando sobre `{site}posts`.
+
+**Pasta propria, e nao dentro de `descarte/`.** As duas areas sao duas funcoes do
+legado que **chamam uma a outra** e cada uma tem o seu mundo: `wp_trash_post()`
+nao monta SQL nenhum, `wp_delete_post()` monta nove comandos crus e tem oito
+pontos de extensao proprios. O ciclo nao virou `import` circular — daqui para
+`descarte/` ha `import`, e de la para ca ha o **campo de contexto** que T003
+declarou (`exclusaoDefinitiva`), fechado por `exclusaoDefinitivaDe()`. **A
+recursao nao se fecha em laco**: o desvio de `:3851` exige lixeira **ligada** e o
+de `:4085` exige lixeira **desligada**, e nenhuma instalacao satisfaz os dois —
+ha teste para as duas direcoes.
+
+**O que esta tarefa achou e vale para as seguintes:**
+
+- 🔴 **`wp_delete_post()` fala com o banco direto, e o descarte nao.** T003
+  registrou que o descarte atravessa o caminho de gravacao de BC-01
+  (`wp_update_post()`); esta cascata e o oposto — `$wpdb->update()` cru nos dois
+  reposicionamentos (`:3908`, `:3923`) e `$wpdb->delete()` cru na linha
+  (`:3969`). Reproduzir o reposicionamento por `wp_update_post()` trocaria **um**
+  comando por uma travessia por filho, com `post_modified` reescrito e
+  `save_post` disparando em cada um.
+- **Os dois reposicionamentos sao o mesmo `UPDATE` com tres diferencas, e a do
+  meio e a que se perde:** os filhos tem `SELECT` antes e o `UPDATE` **so sai se
+  houver filho** (`:3907`); os anexos **nao tem leitura nem condicao de tipo** —
+  o `UPDATE` sai sempre, afetando zero linha quando nao ha anexo. "Zero linha com
+  comando emitido" e "comando nao emitido" sao estados diferentes, e a area 3 da
+  Decisao 2 compara a sequencia.
+- **A etapa das versoes e recursiva, e passa pela mesma funcao.** O legado o diz
+  na linha de cima (*"Use wp_delete_post (via wp_delete_post_revision) again"*,
+  `:3917`): cada versao roda as sete etapas dela, **inclusive o `UPDATE` de
+  anexos**. Um porte que apagasse as versoes com um `DELETE ... WHERE post_parent
+  = ? AND post_type = 'revision'` emitiria um comando no lugar de dezenas e
+  deixaria o metadado das versoes orfao.
+- **O `DELETE` da linha e o oitavo comando, e quando ele falha as sete etapas
+  ficam.** Nao ha transacao (BR-MIGRAR-104: zero `START TRANSACTION` em 1.467
+  arquivos), nada e desfeito e os tres ultimos pontos de extensao nao disparam
+  (`:3970`). E o cenario `@critico` de PT-003 sobre o estado parcial, e ha teste
+  que afirma o banco nesse ponto.
+- **A capacidade e a mesma do descarte, e isso nao e economia:** as acoes
+  `trash`, `untrash` e `delete` do painel perguntam `delete_post` do mesmo objeto
+  (`wp-admin/post.php:261`, `:299`, `:328`). **Nao existe capacidade de exclusao
+  definitiva no legado** — e e por isso que US-4 e historia de **tela**: a
+  diferenca entre os dois pedidos e o rotulo, a acao da rota e o `nonce`, nunca a
+  autorizacao. Ha teste que afirma a igualdade das duas constantes.
+- ⚠️ **O XML-RPC pede exclusao e recebe lixeira.** `wp.deletePost` chama
+  `wp_delete_post( $post_id )` **sem forca**
+  (`class-wp-xmlrpc-server.php:1886`), logo com a lixeira ligada o registro vai
+  para `trash` e o cliente recebe `true`. E por isso que `PedidoDeExclusao.forcar`
+  e obrigatorio: um default esconderia a unica superficie em que o nome da
+  operacao e o desfecho dela nao coincidem.
+- ⚠️ **A lista de tipos que desviam para a lixeira e literal e fechada**:
+  `'post'` e `'page'` (`:3852`). Tipo de terceiro pedido sem forca vai **direto**
+  para a exclusao definitiva, mesmo aparecendo na lixeira do painel.
+- **A ordem decrescente dos comentarios e observavel.** `ORDER BY comment_ID
+  DESC` (`:3929`) apaga as respostas antes das perguntas, e como
+  `wp_delete_comment()` reposiciona as respostas de quem ela apaga
+  (`wp-includes/comment.php:1590`), trocar para `ASC` mudaria os `UPDATE` que
+  aquela funcao emite.
+- **A contagem de comentarios e adiada em volta da etapa 6** (`:3925`, `:3935`):
+  sem o par, apagar um conteudo com 500 comentarios emitiria 500 recalculos de
+  `comment_count`, o ultimo deles sobre uma linha que o passo seguinte apaga.
+- 🔴 **O nucleo registra SETE escutas nos pontos desta funcao, e nenhuma roda
+  aqui.** Tres delas mudam dado observavel: a que zera `page_on_front` /
+  `page_for_posts` (`default-filters.php:593`), a que zera
+  `wp_page_for_privacy_policy` (`:594`) e a que apaga o item de menu que aponta
+  para o conteudo (`:472`). Sem o barramento — REQ-162, em `do-not-rewrite.md` —
+  o alvo deixa pendurado o que o legado desfaz. Os pontos estao **emitidos na
+  posicao exata**, com os nomes e os argumentos do legado, para que ligar o
+  barramento feche os tres de uma vez; o censo esta em
+  `exclusao/contexto-de-exclusao.ts`.
+
+🔴 **O que T017 deliberadamente NAO fez:** apagar **midia** (o desvio de `:3858`
+delega a BC-06, e a **resposta 9** ja decidiu que e definitivo, sem lixeira e sem
+aviso), recalcular os tres contadores desnormalizados (`DB-TRG1`, `DB-TRG2`, que
+vem de dentro das colaboracoes de BC-02 e BC-03), limpar cache (nao existe nesta
+arvore) e **avisar o ator** — a confirmacao que CA-4.2 cobra continua **parada**,
+e T017 nao a move.
+
+## O limite de CA-8.4
+
+**O criterio:** *"Nenhum registro fica apontando para um conteudo que nao existe
+mais"*.
+
+**Ele vale, e esta afirmado por teste, para tudo o que a cascata cobre.** No
+cenario de US-8 — uma pagina com filha, anexo, versao, comentarios, metadado e
+termos —, depois de `wp_delete_post()` nenhuma das quatro tabelas tem linha
+apontando para o identificador apagado: a filha e o anexo foram para a **avo**, a
+versao e o metadado dela sumiram, os comentarios e o metadado foram apagados e os
+vinculos de termo removidos.
+
+**O que ele nao pode significar e "o legado nao deixa vinculo pendurado em
+nenhum caso", porque deixa — e por escolha registrada.** Tres documentos do
+pacote poem o orfao **dentro** do que a paridade compara:
+
+- o **P5** manda que o teste da cascata afirme *"o conjunto exato do que sumiu e
+  do que permaneceu, **inclusive o que permaneceu orfao**"*;
+- a **Decisao 2** de `pending_decisions.md` descreve a area *"efeito no banco"*
+  como *"a cascata de exclusao das 7 etapas **e os orfaos que o legado deixa de
+  proposito**"*;
+- **PT-003** repete a frase no cabecalho (`area_da_decisao_2`) e em dois
+  cenarios.
+
+O censo, lido na arvore — os dois primeiros sao comportamento do legado e estao
+reproduzidos **com teste que afirma o orfao**; o terceiro e da etapa de BC-02:
+
+| # | caso | por que o vinculo sobrevive | ancora |
+|---|---|---|---|
+| 1 | **filho de outro tipo** | o `SELECT` e o `UPDATE` filtram `post_type = $post->post_type` | `:3900`, `:3908` |
+| 2 | **filho de tipo nao hierarquico** | o bloco inteiro e saltado, e `post_parent` e gravavel em **qualquer** tipo | `:3897`, `:4845` |
+| 3 | **vinculo de termo de taxonomia nao registrada no tipo** | o conjunto removido e `get_object_taxonomies( $post->post_type )` | `:3892` |
+
+E um **quarto grupo, que nao e do legado**: as tres escutas do nucleo que mudam
+dado e nao rodam sem o barramento (opcao da pagina inicial, opcao da politica de
+privacidade, item de menu). E **lacuna declarada do alvo**, nao paridade.
+
+**Nada disso e decisao desta tarefa, e nenhuma delas foi tomada aqui.** Fechar
+qualquer um dos tres primeiros casos seria acrescentar limpeza que o legado nao
+tem — a linha *"declarar restricao no armazenamento que mude a cascata
+observavel"* da tabela *Nao negociavel*, que e o **P5** inteiro. O que T017 fez
+foi reproduzir a cascata, afirmar o criterio no cenario que ele descreve e
+**escrever o limite** com `arquivo:linha`, para que quem revisar o ledger saiba o
+que *"CA-8.4 passa"* quer dizer: passa no escopo da cascata, e nao como
+invariante universal do banco. Se alguem quiser a invariante universal, e card
+novo e e decisao humana — ela muda o produto.
+
 ## O conflito que T001 declarou e nao decidiu
 
 `spec.md` registra, em *Perguntas em aberto*, duas decisoes humanas em sentidos
@@ -637,9 +800,14 @@ proibe inventar prazo de retencao para esse registro novo.
   default. E o risco 4 de `plan.md`: um porte "melhorado" que devolva ao estado
   anterior rompe a paridade de um comportamento que a pessoa que usa conhece.
 - **Cascata declarada no armazenamento.** Ao apagar em definitivo, filhos e anexos
-  sao **reparentados ao avo** (`wp-includes/post.php:3908`). Declarar restricao com
-  cascata no destino e a violacao de P5 que `plan.md` nomeia como o primeiro risco
-  do ERD.
+  sao **reparentados ao avo** (`wp-includes/post.php:3908`) — T017 o implementou
+  assim, em `UPDATE`. Declarar restricao com cascata no destino e a violacao de
+  P5 que `plan.md` nomeia como o primeiro risco do ERD, e o que ela apagaria esta
+  afirmado por teste: a filha e o anexo **continuam existindo** depois de o pai
+  morrer.
+- **Limpeza dos orfaos que o legado deixa.** Ver *O limite de CA-8.4*: tres casos
+  de vinculo pendurado sao comportamento do produto, e a Decisao 2 os poe dentro
+  do que a paridade compara. Fecha-los e card novo, nao tarefa deste pacote.
 - **Prazo de retencao para o que o legado nao tem** (registro editorial interno,
   solicitacao concluida, registro de cadastro em rede) e **limite de taxa**:
   `ESC-RETENCAO` e a resposta 19 poem isso fora do nucleo.
@@ -650,8 +818,9 @@ proibe inventar prazo de retencao para esse registro novo.
   `modulo.test.ts` (6) e `configuracao/prazo-de-retencao.test.ts` (4), as 19 de
   T002 em `armazenamento/armazenamento.test.ts`, as 19 de T003 em
   `descarte/us-1-descartar-conteudo.test.ts`, as 21 de T005 em
-  `cascata-de-comentarios/us-2-suspender-comentarios.test.ts` e as 23 de T009 em
-  `descarte/us-4-aviso-de-exclusao-definitiva.test.ts`.
+  `cascata-de-comentarios/us-2-suspender-comentarios.test.ts`, as 23 de T009 em
+  `descarte/us-4-aviso-de-exclusao-definitiva.test.ts` e as 26 de T017 em
+  `exclusao/us-8-reparentar-filhos-e-anexos.test.ts`.
 - A parte de **T005** e conferida pela **area 3 da Decisao 2** (*"efeito no banco
   ... snapshot + sequencia de comandos"*, **zero** divergencia), e e nela que a
   contagem de comandos aparece: a suspensao emite um `INSERT` e **um** `UPDATE`,
@@ -685,6 +854,20 @@ proibe inventar prazo de retencao para esse registro novo.
   devolvido por hook"*). 🔴 **CA-4.2 nao tem como ser conferido contra o oraculo:
   nao ha confirmacao no legado para comparar** — e a parada, nao a lacuna de
   teste.
+- A parte de **T017** se confere por **PT-003**
+  (`.specify/migration/parity_tests/03-exclusao-de-conteudo-em-sete-etapas.feature`),
+  e por quatro cenarios dele: *"Apagar reparenteia pagina filha e anexo para o
+  avo, e nao os apaga"* (`@critico @cascata @invariante`) e *"As sete etapas rodam
+  na mesma ordem e deixam o mesmo estado intermediario"* sao CA-8.1, CA-8.2 e
+  CA-8.3; *"Interromper a exclusao no meio deixa o MESMO estado parcial"* e o
+  desfecho `nao-apagado`; e *"A sequencia e equivalente com a porta de dados
+  substituida por duplo"* e o que a suite faz, com a porta que **registra todo
+  comando e falha em consulta nao prevista**. CA-8.4 se confere pelo mesmo
+  cenario, com o limite da secao *O limite de CA-8.4* — o oraculo deixa os
+  mesmos orfaos, e e o estado dele que a comparacao exige. O cenario
+  `@concorrencia` (*"duas exclusoes simultaneas em ramos vizinhos"*) **nao e
+  conferivel nesta arvore**: ele compara duas execucoes no mesmo processo contra o
+  oraculo, e nao ha processo nem adaptador ainda.
 - A parte de T002 e conferida pela **area 3 da Decisao 2** de `parity_specs.md`
   (*"efeito no banco ... snapshot + sequencia de comandos"*, **zero** divergencia)
   e, para os bytes do marcador agrupado, pelo cenario de

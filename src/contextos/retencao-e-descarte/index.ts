@@ -4,14 +4,15 @@
  * Tarefas fechadas aqui: **T001** (o esqueleto — as tres portas e o prazo de
  * retencao), **T002** (os marcadores de lixeira como metadado, em
  * `./armazenamento/`), **T003** (o descarte para a lixeira, US-1, em
- * `./descarte/`) e **T005** (a suspensao dos comentarios em cascata, US-2, em
- * `./cascata-de-comentarios/`). **T009** (US-4) entregou CA-4.1, CA-4.3 e CA-4.4
- * na pasta do descarte e **parou em CA-4.2**, por conflito registrado entre o
- * criterio e UC-09 — a tarefa continua aberta em `tasks.md` e a parada esta em
- * `./descarte/aviso-de-exclusao-definitiva.ts`. Restaurar o conteudo, coletar o
- * que venceu, expirar rascunho automatico, tolerar estado inconsistente e
- * reparentar filhos entram nas tarefas delas (T007 em diante), e a leitura
- * obrigatoria de cada uma esta em `./README.md`.
+ * `./descarte/`), **T005** (a suspensao dos comentarios em cascata, US-2, em
+ * `./cascata-de-comentarios/`) e **T017** (a exclusao definitiva com
+ * reposicionamento de filhos e anexos, US-8, em `./exclusao/`). **T009** (US-4)
+ * entregou CA-4.1, CA-4.3 e CA-4.4 na pasta do descarte e **parou em CA-4.2**,
+ * por conflito registrado entre o criterio e UC-09 — a tarefa continua aberta em
+ * `tasks.md` e a parada esta em `./descarte/aviso-de-exclusao-definitiva.ts`.
+ * Restaurar o conteudo, coletar o que venceu, expirar rascunho automatico e
+ * tolerar estado inconsistente entram nas tarefas delas (T007, T011, T013 e
+ * T015), e a leitura obrigatoria de cada uma esta em `./README.md`.
  *
  * ## A qual bounded context este modulo pertence — e sao dois
  *
@@ -75,6 +76,12 @@ import {
   type PedidoDeDescarte,
   type ResultadoDoDescarte,
 } from './descarte/index.js';
+import {
+  apagarEmDefinitivo,
+  type ContextoDeExclusao,
+  type PedidoDeExclusao,
+  type ResultadoDaExclusao,
+} from './exclusao/index.js';
 import type {
   PortaDeDados,
   PortaDeFilaAgendada,
@@ -86,6 +93,7 @@ export * from './configuracao/index.js';
 export * from './armazenamento/index.js';
 export * from './descarte/index.js';
 export * from './cascata-de-comentarios/index.js';
+export * from './exclusao/index.js';
 
 /**
  * **US-4, T009**: o que cada superficie oferece e diz ao ator **antes** de a
@@ -148,15 +156,17 @@ export interface OpcoesDeRetencaoEDescarte {
  *
  * Cada historia acrescenta aqui a sua operacao, com a declaracao explicita de
  * permissao que o **P4** da constituicao exige, e nenhuma antes da propria tarefa.
- * Hoje ha sete coisas e **tres delas sao operacao**: as portas e o prazo de
+ * Hoje ha oito coisas e **quatro delas sao operacao**: as portas e o prazo de
  * retencao (T001), o armazenamento dos marcadores (T002), o **descarte** (T003,
  * US-1), a **suspensao** e a **restauracao** dos comentarios em cascata (T005,
- * US-2) e o aviso de exclusao definitiva (T009, US-4). O armazenamento nao
- * declara permissao porque nao decide nada — ele le e grava metadado, e quem
- * cobra a capacidade e a operacao que o chama; o aviso declara a **mesma**
- * capacidade do descarte, e a recebe respondida porque no legado a tela ja a
- * perguntou; e as duas da cascata declaram **nenhuma**, que e o que o legado
- * tem.
+ * US-2), o aviso de exclusao definitiva (T009, US-4) e a **exclusao definitiva**
+ * (T017, US-8). O armazenamento nao declara permissao porque nao decide nada —
+ * ele le e grava metadado, e quem cobra a capacidade e a operacao que o chama; o
+ * aviso declara a **mesma** capacidade do descarte, e a recebe respondida porque
+ * no legado a tela ja a perguntou; as duas da cascata declaram **nenhuma**, que e
+ * o que o legado tem; e o descarte e a exclusao definitiva declaram **a mesma
+ * capacidade**, e isso e leitura do legado e nao economia: nao existe
+ * `delete_post_permanently`.
  *
  * As operacoes que a tabela *Contratos* de `plan.md` nomeia, com a permissao que o
  * pacote declara para cada uma — a primeira **declarada e construida** por T003,
@@ -169,7 +179,7 @@ export interface OpcoesDeRetencaoEDescarte {
  * | suspender e restaurar os comentarios em cascata | US-2 | **T005, feita** | **nenhuma.** As duas funcoes do legado nao tem portao e sao publicadas; quem verifica e o chamador |
  * | avisar que apagar nao tem volta | US-4 | **T009, feita menos CA-4.2** | `delete_post` do registro, a mesma — e no legado ela decide se a acao **aparece** |
  * | restaurar | US-3 | T007 | decidida **pelo estado anterior gravado no descarte** (CA-3.5, UC-10) |
- * | apagar em definitivo | US-8 | T017 | `delete_post`, com o reparenteamento de filhos e anexos (UC-09, fluxo alternativo) |
+ * | apagar em definitivo | US-8 | **T017, feita** | `delete_post`, **a mesma de descartar**: o legado nao tem capacidade separada para a exclusao irreversivel (UC-09, fluxo alternativo) |
  * | coletar o que venceu | US-5 | T011 | **nenhuma.** UC-11 e literal: *"a coleta roda sem usuario autenticado e sem verificacao de capacidade: o prazo e a autorizacao"* |
  *
  * A ultima linha e a que o P4 mais cobra que esteja escrita: ela e uma das
@@ -272,6 +282,44 @@ export interface ModuloDeRetencaoEDescarte {
   ): ResultadoDaRestauracao;
 
   /**
+   * Apaga o conteudo em definitivo, reposicionando os filhos e os anexos no avo
+   * em lugar de apaga-los (US-8, T017). E `wp_delete_post()`
+   * (`wp-includes/post.php:3834`), pela acao `delete` do painel
+   * (`wp-admin/post.php:316`).
+   *
+   * **Permissao exigida: `delete_post` daquele conteudo — a MESMA de
+   * `descartar`.** Nao existe, no legado, capacidade separada para a exclusao
+   * irreversivel: as acoes `trash`, `untrash` e `delete` do painel perguntam a
+   * mesma meta-capacidade, com o mesmo objeto (`wp-admin/post.php:261`, `:299`,
+   * `:328`). A diferenca entre descartar e apagar esta no **rotulo, na acao da
+   * rota e no `nonce`** (T009), nunca na autorizacao — e e por isso que US-4
+   * existe como historia de tela.
+   *
+   * ⚠️ **O nome da operacao e o do pedido, nao o do desfecho.** Com
+   * `forcar: false`, tipo `post` ou `page`, estado diferente de `trash` e
+   * lixeira ligada, esta operacao **descarta** em lugar de apagar
+   * (`wp-includes/post.php:3851`) — e e isso que acontece em todo
+   * `wp.deletePost` do XML-RPC, que nao passa forca nenhuma. Os oito desfechos
+   * estao em {@link DesfechoDaExclusao}.
+   *
+   * ⚠️ **A cascata nao tem transacao e nao desfaz nada.** As sete etapas de
+   * `EXT-EXCLUSAO` (BR-MIGRAR-104) acontecem antes do `DELETE` da linha, e
+   * quando o `DELETE` falha elas **ficam**: o **P5** poe esse estado no contrato
+   * observavel, e PT-003 tem cenario `@critico` para ele. Declarar chave
+   * estrangeira com cascata no destino apagaria filhos e anexos que o legado
+   * **reposiciona**, e cai na tabela *Nao negociavel*.
+   *
+   * O contexto chega por argumento, como o do descarte e pelos mesmos dois
+   * motivos (`EXT-CONTEXTO` e AD-10), e **estende** o dele: as duas funcoes do
+   * legado chamam uma a outra, logo o mundo e um so. Ver
+   * `exclusao/contexto-de-exclusao.ts`.
+   */
+  apagarEmDefinitivo(
+    contexto: ContextoDeExclusao,
+    pedido: PedidoDeExclusao,
+  ): ResultadoDaExclusao;
+
+  /**
    * **US-4, T009.** O que a tela e a API oferecem e dizem ao ator quando a
    * lixeira esta desligada — CA-4.3 (*"a diferenca ... e visivel na tela antes
    * da acao"*) e CA-4.4 (*"a tela nao oferece acao de restaurar"*).
@@ -327,6 +375,9 @@ export function criarModuloDeRetencaoEDescarte(
     // montado por requisicao e porque ligar aqui faria o modulo guardar estado.
     suspenderComentarios: suspenderComentariosDoConteudo,
     restaurarComentarios: restaurarComentariosDoConteudo,
+    // T017 (US-8): a mesma coisa, e o contexto dela **estende** o do descarte
+    // porque as duas funcoes do legado chamam uma a outra.
+    apagarEmDefinitivo,
     // US-4 (T009): so referencias. Nenhuma destas le o prazo da composicao — ele
     // chega por argumento em cada chamada, porque a tela de uma requisicao e o
     // `DELETE` de outra nao compartilham nada (`EXT-CONTEXTO`).

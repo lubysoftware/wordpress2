@@ -7,7 +7,7 @@
  *
  * | peca | arquivo | o que e |
  * |---|---|---|
- * | as duas tabelas e as tres chaves | `chaves-e-tabelas.ts` | o vocabulario, derivado como `_get_meta_table()` o deriva |
+ * | as tabelas e as tres chaves | `chaves-e-tabelas.ts` | o vocabulario, derivado como `_get_meta_table()` o deriva — mais `{site}comments`, que **T005** acrescentou para a cascata de comentarios, e `{site}posts`, que **T017** acrescentou para os comandos crus da exclusao definitiva |
  * | a familia de metadado | `metadado.ts` | `add`, `get` e `delete` de `wp-includes/meta.php`, parametrizados pelo tipo |
  * | os marcadores com nome | `marcadores-de-lixeira.ts` | o estado anterior, o instante, e os estados dos comentarios agrupados |
  * | o duplo da porta | `porta-falsa.ts` | registra comando, para que "nenhum comando" seja afirmavel |
@@ -96,6 +96,7 @@ export {
   METADADO_DE_COMENTARIO,
   METADADO_DE_CONTEUDO,
   tabelaDeComentarios,
+  tabelaDeConteudo,
   tabelaDeMetadado,
   type TipoDeMetadado,
 } from './chaves-e-tabelas.js';
