@@ -82,23 +82,34 @@ test('a superficie do modulo tem exatamente as operacoes das tarefas fechadas', 
   // decidir a situacao da resposta (`handle_404`) e o atendimento que as poe na
   // ordem do legado (`WP::main`). T003 acrescentou a quarta, a consulta de
   // conteudo (`WP_Query::query`), que e a etapa 3 do atendimento e a entrega de
-  // US-1. T005 acrescentou a quinta, a escolha de apresentacao
-  // (`template-loader.php`), que e a entrega de US-2 e que **nao** e etapa de
-  // `WP::main()`: `wp-blog-header.php:19` a carrega depois de `wp()` retornar.
-  // T015 acrescentou a sexta, a declaracao de pre-busca
+  // US-1. T005 acrescentou a escolha de apresentacao (`template-loader.php`),
+  // que e a entrega de US-2 e que **nao** e etapa de `WP::main()`:
+  // `wp-blog-header.php:19` a carrega depois de `wp()` retornar. T013
+  // acrescentou as quatro de US-6: o portao de senha (`post_password_required`),
+  // a liberacao do corpo (`get_the_content` no ponto do portao), a gravacao do
+  // atestado (`case 'postpass'`) e a recusa do comentario em conteudo
+  // protegido. T015 acrescentou a declaracao de pre-busca
   // (`speculative-loading.php:330`), que e a entrega de US-7 e que tambem nao e
   // etapa de `WP::main()`: `default-filters.php:367` a pendura em `wp_footer`.
-  // As seis declaram "nenhuma capacidade" na interface do modulo, porque UC-01
-  // registra que a leitura publica nao verifica capacidade nenhuma: o portao e o
-  // `post_status`, e ele chega em T009.
+  //
+  // As dez declaram "nenhuma capacidade" na interface do modulo, porque UC-01
+  // registra que a leitura publica nao verifica capacidade nenhuma: o portao de
+  // estado e o `post_status`, e ele chega em T009. As quatro de T013 declaram o
+  // mesmo por outro motivo, e mais forte: a senha de conteudo e um dos cinco
+  // atestados que BR-MIGRAR-098 (`PERM-12`) registra como decidindo acesso **sem
+  // consultar o modelo de capacidades**.
   assert.deepEqual(Object.keys(modulo).sort(), [
     'atender',
     'consultarConteudo',
     'declararPreBusca',
     'escolherApresentacao',
+    'gravarAtestadoDeSenha',
+    'liberarCorpoProtegido',
     'nome',
     'portas',
+    'recusarComentarioEmConteudoProtegido',
     'resolverEndereco',
+    'senhaDoConteudoExigida',
     'situacaoDaResposta',
   ]);
 });

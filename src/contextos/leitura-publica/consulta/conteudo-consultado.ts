@@ -35,12 +35,13 @@
  * |---|---|---|
  * | ✅ o total encontrado e o numero de paginas | `class-wp-query.php:3692-3741` (`set_found_posts`) | **T007** (US-3): o total que o banco devolve entrou aqui, em {@link ResultadoDaConsulta.totalEncontrado}, e a divisao em paginas esta em `./paginacao-da-listagem.ts` |
  * | o estado e o autor do conteudo | `class-wp-query.php:3500-3567` | **T009** (US-4), o portao de `post_status` |
- * | a senha do conteudo | `wp-includes/post-template.php:882` | **T013** (US-6) |
+ * | ~~a senha do conteudo~~ | `wp-includes/post-template.php:882` | ✅ **T013** (US-6): entrou, e e {@link ConteudoConsultado.senha} |
  * | o conteudo fixado no topo | `class-wp-query.php:3582-3629` | de quem tiver a opcao `sticky_posts`; nenhuma tarefa desta feature a nomeia |
  *
- * Os campos das tres primeiras linhas **entram quando a tarefa delas entrar**, e
+ * Os campos das duas primeiras linhas **entram quando a tarefa delas entrar**, e
  * ampliar o contrato na tarefa que precisa e o que `../portas/porta-de-dados.ts`
- * ja fez com o prefixo de tabela: nao e refazer o esqueleto.
+ * ja fez com o prefixo de tabela: nao e refazer o esqueleto. A terceira linha foi
+ * fechada por T013, pela mesma via.
  */
 
 import type { CriteriosDaConsulta } from './criterios-da-consulta.js';
@@ -74,6 +75,35 @@ export interface ConteudoConsultado {
   readonly corpo: string;
   /** `post_date` — texto no formato do banco. */
   readonly data: string;
+  /**
+   * `post_password` — a senha de acesso ao **corpo**, em texto claro.
+   *
+   * Entrou em **T013** (US-6). Tres coisas que ela nao e, e que a presenca dela
+   * nesta consulta prova:
+   *
+   * - **nao e filtro da consulta.** `WP_Query` nao recorta por senha no caminho
+   *   publico: `has_password` e `post_password` sao criterios que so existem
+   *   quando alguem os informa a `get_posts()` (`class-wp-query.php:2594-2600`),
+   *   e nenhum dos dois esta nas listas de nome publico ou privado de
+   *   `class-wp.php:18` e `:28`, logo nenhum vem da rede. Conteudo protegido sai
+   *   nesta lista como qualquer outro, que e CA-6.6;
+   * - **nao e hash.** BR-MIGRAR-044 (`D6`) poe o texto claro como desenho —
+   *   *"precisa poder ser exibida a quem edita"* —, e `BR-HUMANA-009` esta
+   *   PENDENTE sobre exatamente isto. Este porte reproduz o observavel, que e a
+   *   opcao (a), porque nenhuma decisao humana autorizou divergir (P1);
+   * - **nao e vazia por omissao.** A coluna e `NOT NULL default ''`
+   *   (`wp-admin/includes/schema.php:170`), e o texto vazio e o valor de um
+   *   conteudo sem senha. ⚠️ E a senha literal `'0'` tambem nao protege nada,
+   *   porque o portao usa `empty()` — ver `../senha-de-conteudo/senha-exigida.ts`.
+   *
+   * ⚠️ **Uma ressalva de CA-6.6 que e do legado e nao deste modulo:** a **busca**
+   * exclui conteudo protegido para quem nao esta autenticado —
+   * `AND post_password = ''` em `class-wp-query.php:1534-1537`, dentro de
+   * `parse_search()`. E clausula do SQL, logo e do repositorio (BC-01), e esta
+   * registrada aqui porque e a unica listagem do legado em que o protegido nao
+   * aparece.
+   */
+  readonly senha: string;
 }
 
 /**
