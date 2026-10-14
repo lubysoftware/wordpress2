@@ -65,6 +65,7 @@ function tabelaDeConteudo(quantos: number): readonly ConteudoConsultado[] {
       tipo: 'post',
       corpo: '',
       data: '2026-10-11 09:00:00',
+      senha: '',
     })),
   );
 }
@@ -434,6 +435,7 @@ test('CA-3.2 o total e a contagem discordam de proposito: `the_posts` muda uma e
               tipo: 'post',
               corpo: '',
               data: '2026-10-11 09:00:00',
+              senha: '',
             },
           ],
         ],

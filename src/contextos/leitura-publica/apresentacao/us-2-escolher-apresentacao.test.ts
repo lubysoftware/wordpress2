@@ -108,6 +108,7 @@ function conteudo(
     tipo: 'post',
     corpo: '',
     data: '2026-10-11 09:00:00',
+    senha: '',
     ...parcial,
   };
 }

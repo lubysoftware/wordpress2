@@ -254,6 +254,7 @@ function conteudo(
     tipo: 'post',
     corpo: 'o corpo gravado',
     data: '2026-10-11 09:00:00',
+    senha: '',
     ...parcial,
   };
 }

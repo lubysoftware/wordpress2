@@ -127,9 +127,19 @@ export function tabelaDeConteudo(dados: PortaDeDados): string {
 /**
  * `{site}comments` — o `$wpdb->comments` do legado.
  *
- * **Acrescentada por T017** (US-8) pela mesma razao da de cima, e com o mesmo
- * limite: o unico comando que esta feature monta sobre ela e a **leitura** dos
- * comentarios do conteudo que esta sendo apagado,
+ * **Duas tarefas chegam aqui, e por isso ela e uma so.** A T017 (US-8) a
+ * acrescentou pela mesma razao da de cima; a cascata de **T005** (US-2) escreve
+ * nela o estado dos comentarios. Uma declaracao por tarefa deixaria o arquivo
+ * sem compilar, que foi o que aconteceu no merge das duas.
+ *
+ * **Nao e derivada de `${tipo}meta`** como as duas de metadado: ver a secao *A
+ * terceira tabela* no cabecalho deste arquivo. Esta aqui, e nao na area de
+ * comportamento, porque **nenhum nome de tabela e montado fora deste arquivo** —
+ * a nota 3 de `target_data_model.md` explica o custo de montar nome no meio de
+ * uma consulta numa instalacao de rede.
+ *
+ * O limite da T017 continua valendo: o unico comando que ela monta sobre esta
+ * tabela e a **leitura** dos comentarios do conteudo que esta sendo apagado,
  * `SELECT comment_ID ... ORDER BY comment_ID DESC`
  * (`wp-includes/post.php:3927`-`:3929`). Apagar cada comentario e
  * `wp_delete_comment()`, que e de BC-03 e chega por ligacao tardia — ela tem
@@ -165,19 +175,6 @@ export function colunaDoObjeto(tipo: TipoDeMetadado): string {
  */
 export const COLUNA_DA_LINHA_DE_METADADO = 'meta_id';
 
-/**
- * `{site}comments` — `$wpdb->comments`, a tabela em que a cascata de **T005**
- * escreve o estado dos comentarios.
- *
- * Nao e derivada de `${tipo}meta` como as duas de metadado: ver a secao *A
- * terceira tabela* no cabecalho deste arquivo. Esta aqui, e nao na area de
- * comportamento, porque **nenhum nome de tabela e montado fora deste arquivo** —
- * a nota 3 de `target_data_model.md` explica o custo de montar nome no meio de
- * uma consulta numa instalacao de rede.
- */
-export function tabelaDeComentarios(dados: PortaDeDados): string {
-  return `${dados.prefixoDeTabela}comments`;
-}
 
 /**
  * `comment_ID` — a chave primaria de `{site}comments`, com a caixa **irregular**

@@ -44,6 +44,7 @@ import test from 'node:test';
 
 import {
   AGRESSIVIDADE_DE_FABRICA,
+  CONFIGURACAO_DE_FABRICA,
   BANDEIRAS_DA_CODIFICACAO,
   CAMINHOS_SEM_PATH,
   configuracaoDaPreBusca,
@@ -100,12 +101,16 @@ const EM_SUBDIRETORIO: CaminhosDaInstalacao = Object.freeze({
   stylesheet: '/blog/wp-content/themes/pai',
 });
 
-/** As opcoes do site com enderecos amigaveis ligados. */
+/**
+ * As opcoes do site com enderecos amigaveis ligados.
+ *
+ * Parte da **fabrica** e so troca o que o teste precisa: campo novo na
+ * configuracao entra aqui sozinho, com o valor que o legado tem. Montada a mao,
+ * esta fixture parou de compilar no dia em que `itensPorPagina` e `itensPorFeed`
+ * entraram — e o que ela queria dizer nao tinha nada a ver com paginacao.
+ */
 const COM_ENDERECO_AMIGAVEL: ConfiguracaoDoSiteNaConsulta = Object.freeze({
-  mostrarNaFrente: 'posts',
-  paginaDaFrente: 0,
-  paginaDeConteudos: 0,
-  paginaDePoliticaDePrivacidade: 0,
+  ...CONFIGURACAO_DE_FABRICA,
   formaDosEnderecos: '/%year%/%monthnum%/%day%/%postname%/',
 });
 
