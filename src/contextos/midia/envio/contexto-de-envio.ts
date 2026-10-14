@@ -75,6 +75,7 @@ import type {
 import type { PortaDeSistemaDeArquivos } from '../portas/index.js';
 import type { ListaDeTiposDeArquivo } from './tipos-de-arquivo-permitidos.js';
 import type { TextoNoEnvio } from './nome-de-arquivo-unico.js';
+import type { RegistroDeEnvioSemFiltro } from './registro-de-envio-sem-filtro.js';
 import type { DeteccaoDeTipoReal } from './tipo-real-do-arquivo.js';
 import type { SuperficieDeEnvio } from './permissao-de-envio.js';
 
@@ -379,6 +380,23 @@ export interface ContextoDeEnvio {
   readonly deteccao: DeteccaoDeTipoReal;
   /** As leituras de metadado embutido, todas opcionais. */
   readonly metadadoDoArquivo?: MetadadoDeArquivoNoEnvio;
+  /**
+   * O canal e o instante do registro de **envio sem filtro de tipo** (US-9,
+   * T019, **CA-9.4**).
+   *
+   * ⚠️ **Opcional, e a ausencia e o legado.** O legado nao registra nada em
+   * nenhum envio — zero arquivo de log na arvore —, logo omitir esta
+   * colaboracao devolve exatamente o comportamento dele: o envio acontece
+   * igual, com o mesmo resultado e a mesma sequencia de operacoes de disco, e
+   * nenhuma linha e escrita. E o limite que o **P7** poe no acrescimo:
+   * *"nenhuma decisao do sistema pode passar a depender"* do registro.
+   *
+   * Ela so e consultada no **unico** caminho que a usa: um envio em que o tipo
+   * nao foi reconhecido e `unfiltered_upload` respondeu sim. Ver
+   * `./registro-de-envio-sem-filtro.ts`, que e onde o porque de cada campo
+   * esta escrito.
+   */
+  readonly registroDeEnvioSemFiltro?: RegistroDeEnvioSemFiltro;
   /** `$uploads['baseurl']` — ver `area-de-envios.ts`. */
   readonly enderecoBaseDeEnvios: string;
   /** `ABSPATH` — ver `area-de-envios.ts`. */

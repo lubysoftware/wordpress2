@@ -30,6 +30,7 @@
  * | 9 | mover o arquivo | `file.php:1014` | **CA-1.5** |
  * | 10 | o registro do anexo, por BC-01 | `media.php:426` | **CA-1.5** (*"nenhum registro e criado"*) |
  * | 11 | o texto alternativo, so quando ha | `media.php:431` | — |
+ * | 12 | o registro do envio que contornou o filtro | — (o legado nao tem) | **CA-9.4** |
  *
  * **A ordem de 7, 8 e 9 e a prova de CA-1.5 pelo lado negativo:** o registro do
  * anexo e o passo **10**, logo qualquer falha de 3 a 9 devolve erro *"e nenhum
@@ -67,6 +68,22 @@
  *    `contexto-de-envio.ts`.
  * 5. **Nao confere nonce.** Ver o item 3 das diferencas menores em
  *    `permissao-de-envio.ts`.
+ *
+ * ---
+ *
+ * # O passo 12 nao e do legado, e e a unica coisa que T019 acrescentou aqui
+ *
+ * O legado tem o passo 6 e o passo 10; o **12 nao existe nele**, e nenhuma linha
+ * da arvore registra envio nenhum. Ele e o acrescimo que o **P7** autoriza para
+ * fechar **CA-9.4** (*"cada envio feito por esse caminho fica registrado com
+ * conta, arquivo e instante"*), e tudo sobre ele — por que no fim e nao no `if`,
+ * o que o evento carrega, o que ele nao carrega, e os dois alcances do contorno
+ * que este porte **nao** tem — esta em `./registro-de-envio-sem-filtro.ts`.
+ *
+ * O que vale repetir aqui e o limite: a colaboracao e **opcional**, omiti-la
+ * devolve o comportamento do legado, e nenhuma decisao deste fluxo olha o
+ * resultado de escrever — `registrarEnvioSemFiltro()` devolve `void` e nao
+ * lanca.
  */
 
 import {
@@ -87,6 +104,7 @@ import type {
 } from './contexto-de-envio.js';
 import { nomeDeArquivoUnico } from './nome-de-arquivo-unico.js';
 import { autorizarEnvio } from './permissao-de-envio.js';
+import { registrarEnvioSemFiltro } from './registro-de-envio-sem-filtro.js';
 import { tipoRealDoArquivo } from './tipo-real-do-arquivo.js';
 import {
   tiposPermitidos,
@@ -99,16 +117,18 @@ import {
  * (`wp-admin/includes/file.php:971`).
  *
  * ⚠️ **A pergunta esta aqui porque o legado a faz aqui**, dentro da validacao de
- * tipo, e nao porque esta tarefa implementa US-9. O que **US-9 / T019** entrega
- * e outra coisa: CA-9.4, *"cada envio feito por esse caminho fica registrado com
- * conta, arquivo e instante"*. O mecanismo que a nega por omissao —
- * `ALLOW_UNFILTERED_UPLOADS`, *"a inversa"* de BR-MIGRAR-098 — **ja existe**, em
- * `plataforma/autorizacao/revogacao-por-constante.ts`, e por isso
- * `perguntarPermissao()` aqui ja devolve falso numa instalacao de fabrica:
- * CA-9.1 e CA-9.3 fecham sem codigo novo.
+ * tipo, e nao porque T003 implementava US-9. O mecanismo que a nega por omissao —
+ * `ALLOW_UNFILTERED_UPLOADS`, *"a inversa"* de BR-MIGRAR-094 — **ja existia** em
+ * `plataforma/autorizacao/revogacao-por-constante.ts` quando T003 fechou, e por
+ * isso `perguntarPermissao()` aqui ja devolvia falso numa instalacao de fabrica:
+ * CA-9.1, CA-9.2 e CA-9.3 fecharam **sem codigo novo**.
  *
  * Omitir a pergunta tornaria a recusa **incondicional**, o que e mais fechado
- * que o legado (P1) e obrigaria T019 a reescrever este arquivo.
+ * que o legado (P1).
+ *
+ * O que **T019** acrescentou e o passo 12: CA-9.4, *"cada envio feito por esse
+ * caminho fica registrado com conta, arquivo e instante"*. Ver
+ * `./registro-de-envio-sem-filtro.ts`.
  */
 export const CAPACIDADE_DE_ENVIO_SEM_FILTRO: Capacidade = 'unfiltered_upload';
 
@@ -350,6 +370,17 @@ export function enviarArquivo(
   }
 
   /*
+    **CA-9.3 e o que esta linha afirma.** Chegar aqui com o tipo NAO reconhecido
+    so acontece de uma forma: `unfiltered_upload` respondeu sim. E ela so
+    responde sim quando a instalacao declarou `ALLOW_UNFILTERED_UPLOADS` — sem a
+    constante a capacidade pedida vira `do_not_allow`, que ninguem pode ter,
+    nem o super administrador (`wp-includes/capabilities.php:587`-`:592`).
+    Nao ha segundo caminho, e e por isso que o contorno e deduzivel do estado do
+    fluxo sem que nada precise ser carregado desde a pergunta.
+  */
+  const contornouOFiltroDeTipo = !validacao.tipo.reconhecido;
+
+  /*
     `if ( ! $type ) { $type = $file['type']; }` (`:975`) — com `unfiltered_upload`
     o envio passa, e o tipo gravado passa a ser o que o NAVEGADOR afirmou. E a
     unica porta de entrada do campo `tipoInformado` no registro, e e por ela que
@@ -521,9 +552,26 @@ export function enviarArquivo(
     );
   }
 
+  // ── 12. CA-9.4: o registro do envio que contornou o filtro (T019) ───────
+  if (contornouOFiltroDeTipo) {
+    /*
+      Depois do passo 10 de proposito: CA-9.4 e sobre envio **feito**, e so aqui
+      o anexo existe. Ver `./registro-de-envio-sem-filtro.ts` para a alternativa
+      que foi recusada, e por que.
+    */
+    registrarEnvioSemFiltro(contexto.registroDeEnvioSemFiltro, {
+      contaId: contexto.ator.contaId,
+      anexoId: resultado.anexoId,
+      nomeDeArquivo: nomeUnico.nome,
+      nomeInformado,
+      endereco,
+      tipoGravado: tipoMime,
+    });
+  }
+
   /*
-    Fim de T003. O que `media_handle_upload()` ainda faz, e que NAO e desta
-    tarefa:
+    Fim de T003, mais o passo 12 de T019. O que `media_handle_upload()` ainda
+    faz, e que NAO e de nenhuma das duas:
 
     - `header( 'X-WP-Upload-Attachment-ID: ' . $attachment_id )` (`media.php:437`)
       — borda de HTTP, ver `contexto-de-envio.ts`;

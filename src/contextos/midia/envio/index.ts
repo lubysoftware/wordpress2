@@ -11,9 +11,23 @@
  * | `contexto-de-envio.ts` | o contexto da operacao: autorizacao, BC-01, relogio, texto, deteccao | — |
  * | `enviar-arquivo.ts` | o fluxo, na ordem do legado | os seis |
  *
+ * E o contorno do filtro de tipo — **US-9**, entrega de **T019**, que mora aqui
+ * porque no legado ele e um ramo de `_wp_handle_upload()` e nao uma operacao
+ * propria:
+ *
+ * | arquivo | o que e | criterios |
+ * |---|---|---|
+ * | `registro-de-envio-sem-filtro.ts` | o evento de auditoria do envio que passou pelo contorno, e o censo das cinco ancoras da capacidade | CA-9.4 |
+ * | `us-9-envio-sem-filtro.test.ts` | os testes da entrega, pelo envio inteiro | os quatro |
+ *
+ * CA-9.1, CA-9.2 e CA-9.3 nao tem arquivo porque nao precisaram de codigo novo:
+ * a negacao por omissao de `ALLOW_UNFILTERED_UPLOADS` e de
+ * `plataforma/autorizacao/revogacao-por-constante.ts`, e o `if` que usa a
+ * resposta esta em `enviar-arquivo.ts`, onde o legado o faz.
+ *
  * O que esta pasta **nao** faz esta no cabecalho de `enviar-arquivo.ts`, item
  * por item, com a tarefa de cada coisa: derivada e T007, reducao na ingestao e
- * T009, relato de falha e T011, contorno do filtro com registro e T019.
+ * T009, relato de falha e T011.
  */
 
 export {
@@ -81,6 +95,14 @@ export {
   type DestinoExiste,
   type SuperficieDeEnvio,
 } from './permissao-de-envio.js';
+
+export {
+  ORIGEM_DO_ENVIO_SEM_FILTRO,
+  registrarEnvioSemFiltro,
+  SEVERIDADE_DO_ENVIO_SEM_FILTRO,
+  type EnvioSemFiltroRegistrado,
+  type RegistroDeEnvioSemFiltro,
+} from './registro-de-envio-sem-filtro.js';
 
 export {
   ESPERADOS_TOLERADOS_EM_CSV,

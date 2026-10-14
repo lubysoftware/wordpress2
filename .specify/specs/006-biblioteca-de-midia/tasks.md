@@ -73,7 +73,7 @@
       *entrega:* 6 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-063-1, UT-063-2, UT-063-3, UT-063-4, UT-063-5, UT-063-6), com o mesmo dado de entrada, ação e resultado esperado. Os 2 testes de regra de negócio (UT-063-5, UT-063-6) entram na mesma suíte.
       *satisfaz:* CA-8.1, CA-8.2, CA-8.3, CA-8.4
       *depende de:* T017
-- [ ] **T019** Contornar o filtro de tipo de arquivo só por decisão declarada da instalação (US-9)
+- [x] **T019** Contornar o filtro de tipo de arquivo só por decisão declarada da instalação (US-9)
       *entrega:* o comportamento de US-9 existe e os critérios CA-9.1, CA-9.2, CA-9.3, CA-9.4 passam contra o sistema novo
       *satisfaz:* CA-9.1, CA-9.2, CA-9.3, CA-9.4
       *depende de:* T001, T002, T003
