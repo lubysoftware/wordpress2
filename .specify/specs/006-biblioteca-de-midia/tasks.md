@@ -25,7 +25,7 @@
       *entrega:* 5 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-057-1, UT-057-2, UT-057-3, UT-057-4, UT-057-5), com o mesmo dado de entrada, ação e resultado esperado. O teste de regra de negócio (UT-057-5) entra na mesma suíte.
       *satisfaz:* CA-2.1, CA-2.2, CA-2.3, CA-2.4
       *depende de:* T005
-- [ ] **T007** Gerar as derivadas de cada tamanho registrado ao receber uma imagem (US-3)
+- [x] **T007** Gerar as derivadas de cada tamanho registrado ao receber uma imagem (US-3)
       *entrega:* o comportamento de US-3 existe e os critérios CA-3.1, CA-3.2, CA-3.3, CA-3.4 passam contra o sistema novo
       *satisfaz:* CA-3.1, CA-3.2, CA-3.3, CA-3.4
       *depende de:* T001, T002, T003

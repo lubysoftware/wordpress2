@@ -209,13 +209,18 @@ test('a superficie do modulo tem exatamente o que as tarefas fechadas entregaram
   // explicita de permissao". T001 e T002 nao trouxeram operacao nenhuma: as
   // portas e o dado dos tamanhos de fabrica (T001) e o armazenamento (T002),
   // que nao decide nada. **T003** trouxe a primeira, `enviarArquivo`, com as
-  // duas capacidades de CA-1.1 declaradas na interface. A pauta do que entra em
-  // cada tarefa esta na tabela do `index.ts`.
+  // duas capacidades de CA-1.1 declaradas na interface. **T007** trouxe duas, e
+  // as duas declaram que a permissao e da SUPERFICIE — porque o legado nao
+  // pergunta capacidade nenhuma nelas e porque as duas superficies que as chamam
+  // perguntam coisas diferentes. A pauta do que entra em cada tarefa esta na
+  // tabela do `index.ts`.
   assert.deepEqual(Object.keys(modulo).sort(), [
     'armazenamento',
+    'criarDerivadasDeImagem',
     'enviarArquivo',
     'nome',
     'portas',
+    'regerarDerivadasQueFaltam',
     'tamanhosDeFabrica',
   ]);
 });
