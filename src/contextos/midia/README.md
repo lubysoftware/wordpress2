@@ -3,8 +3,9 @@
 Feature `006-biblioteca-de-midia`. Tarefas fechadas com nota de entrega neste
 arquivo: **T001** (esqueleto, as tres portas e os tamanhos de fabrica), **T002**
 (a forma de armazenamento do anexo e das derivadas), **T003** (o envio com
-validacao do tipo real, US-1), **T005** (a visibilidade herdada do anexo, US-2)
-e **T007** (a geracao das derivadas de cada tamanho registrado, US-3). Este
+validacao do tipo real, US-1), **T005** (a visibilidade herdada do anexo, US-2),
+**T007** (a geracao das derivadas de cada tamanho registrado, US-3) e **T019**
+(o contorno do filtro de tipo, com o registro de quem o usou, US-9). Este
 arquivo e a leitura obrigatoria de quem pegar a tarefa seguinte: ele diz o que ja
 esta decidido, o que esta decidido **em outro lugar**, e o que **ninguem**
 decidiu.
@@ -25,13 +26,21 @@ mesmo artefato em disco e compartilham o modo de falha de `M4`"*.
 > secao *O que T001 encontrou aberto*, primeiro item. **Quem fechar T009 escreve
 > esse passo e ai precisa da resposta.**
 
-> 🔴 **E se a sua tarefa encosta na permissao do envio (T019):** a `spec.md` e a
+> 🔴 **E se a sua tarefa encosta na permissao do envio:** a `spec.md` e a
 > arvore analisada **discordam** sobre o que acontece com quem nao pode editar o
 > conteudo de destino — CA-1.1 diz que o envio e exigido, e duas das tres
 > superficies do legado **descartam o destino e seguem** em vez de recusar. T003
 > reproduziu os dois comportamentos e **nao resolveu**; T005 encostou nisso pelo
-> outro lado (o anexo sem pai e o caminho de CA-2.3) e **tambem nao resolveu**.
-> Esta na secao *O que T003 encontrou aberto*.
+> outro lado (o anexo sem pai e o caminho de CA-2.3) e **tambem nao resolveu**;
+> T019 fechou a outra permissao do mesmo fluxo e **nao encostou nesta**. Esta na
+> secao *O que T003 encontrou aberto*.
+
+> 🔴 **E se a sua tarefa e de rede, ou mexe em `plataforma/autorizacao/`:** o
+> `case` de `unfiltered_upload` tem **tres** termos no legado e este porte tem
+> dois — o recorte de super administrador de `capabilities.php:588` nao esta
+> portado, e numa instalacao de rede isso deixa a capacidade **mais aberta** que
+> o legado. T019 topou nisso ao fechar US-9 e **nao resolveu**, porque o
+> mecanismo e da feature `001`. Esta na secao *O que T019 NAO portou*.
 
 > 🔴 **E se a sua tarefa le o estado de um anexo (T013, T017, e quem compor a
 > requisicao):** o valor da coluna **nao e** a visibilidade. `inherit` e a
@@ -441,6 +450,120 @@ T015 (US-7).
 
 ---
 
+## O que T019 entrega, e so isso
+
+A linha da tarefa: *"o comportamento de US-9 existe e os criterios CA-9.1,
+CA-9.2, CA-9.3 e CA-9.4 passam contra o sistema novo"*. E a **quarta historia**
+implementada deste modulo, e a primeira que fecha **sem acrescentar operacao a
+superficie**: no legado o contorno do filtro de tipo e um ramo de
+`_wp_handle_upload()`, dentro do envio que T003 ja portou.
+
+No legado o contorno sao **cinco ocorrencias em quatro arquivos**, e o censo foi
+feito arquivo por arquivo na arvore do 7.1.2 — nao por busca recursiva:
+
+| ancora | o que e | criterio | onde esta |
+|---|---|---|---|
+| `wp-includes/capabilities.php:587`-`:592` | o `case` de `map_meta_cap()`: com a constante a capacidade resolve em si mesma, sem ela em `do_not_allow` | CA-9.1, CA-9.2, CA-9.3 | `plataforma/autorizacao/revogacao-por-constante.ts`, **feature 001** |
+| `wp-admin/includes/schema.php:894` | `populate_roles_230()` concede `unfiltered_upload` ao administrador, e a ninguem mais | CA-9.1 | `contextos/identidade-e-acesso/armazenamento/matriz-de-fabrica.ts:221` |
+| `wp-admin/includes/file.php:971` | o `if` que deixa o envio passar com o tipo nao reconhecido | CA-9.3 | `envio/enviar-arquivo.ts`, passo 6 — **T003** |
+| `wp-includes/functions.php:2934` | o mesmo contorno em `wp_upload_bits()` | — | 🔴 **nao portado**, ver abaixo |
+| `wp-includes/capabilities.php:588`, o termo `( ! is_multisite() \|\| is_super_admin( ... ) )` | em rede, so o super administrador alcanca a capacidade **mesmo com a constante** | CA-9.3 | 🔴 **nao portado**, ver abaixo |
+
+Logo **tres dos quatro criterios ja tinham codigo quando esta tarefa comecou**, e
+o que ela escreveu foi CA-9.4:
+
+| arquivo | o que e | criterios |
+|---|---|---|
+| `envio/registro-de-envio-sem-filtro.ts` | o evento de auditoria do envio que passou pelo contorno, e o censo acima | CA-9.4 |
+| `envio/enviar-arquivo.ts`, passo 12 | o ponto de emissao, depois de o anexo existir | CA-9.4 |
+| `envio/contexto-de-envio.ts`, `registroDeEnvioSemFiltro` | o canal e o instante, **opcionais** | CA-9.4 |
+| `envio/us-9-envio-sem-filtro.test.ts` | os 21 testes da entrega, todos **pelo envio inteiro** | os quatro |
+
+### As cinco decisoes de T019 que a proxima tarefa precisa conhecer
+
+1. **CA-9.4 e acrescimo, e o P7 e quem o autoriza.** O legado **nao registra
+   nada**, nem aqui nem em lugar nenhum: zero arquivo de log na arvore, e das 49
+   chamadas de `error_log(` nenhuma num caminho de dominio. O principio permite
+   acrescentar registro e poe o limite — *"nenhuma decisao do sistema pode passar
+   a depender dele"* —, e dai saem as tres propriedades do passo 12: a porta
+   devolve `void`, nao lanca, e a colaboracao e **opcional**. Omitida, o envio e
+   byte a byte o do legado, e ha teste afirmando que o resultado, o que foi
+   gravado e a sequencia de operacoes de disco sao identicos com e sem canal.
+2. **O evento sai no fim, e nao no `if`.** CA-9.4 diz *"cada envio **feito** por
+   esse caminho"*, e um contorno que passou da validacao e morreu depois (pasta
+   nao gravavel, `mover` que falhou, insercao que devolveu erro) nao e um envio
+   feito — registra-lo diria a quem audita que um arquivo de tipo arbitrario
+   entrou, quando nao entrou. A alternativa esta escrita em
+   `envio/registro-de-envio-sem-filtro.ts`, com o que ela ganharia: ali o
+   **contorno** nunca escapa, mesmo com o envio falhando depois. Se um dia a
+   tentativa precisar de registro, ela e **outro** evento, com outra origem —
+   dois eventos pelo mesmo envio fariam a conta de *"quantos envios sem filtro
+   houve"* contar duas vezes.
+3. **Sao DOIS relogios, e junta-los estraga o registro.** O relogio do envio e
+   `current_time( 'mysql' )` (`media.php:297`): hora local em texto, e
+   **retrodatada pelo conteudo de destino** (`:301`) — ele existe para escolher a
+   subpasta `/AAAA/MM`. O instante do evento e milissegundos desde a epoca, do
+   relogio de agora. Carimbar o evento com o primeiro diria que o envio aconteceu
+   na data do rascunho a que o arquivo foi anexado, que pode ser de anos antes.
+   Os dois chegam por campos diferentes e ha teste para a diferenca.
+4. **Nenhum numero nasceu aqui** (P6). Nao ha prazo de guarda do registro, nao ha
+   teto de eventos e nao ha contagem de contornos. O conflito pelo outro lado —
+   CA-1.3 de REQ-159 pede *"prazo de retencao declarado"* e `ESC-RETENCAO` diz
+   que o nucleo nao declara nenhum — esta registrado em
+   `plataforma/registro-de-operacao/README.md`, e esta tarefa **nao o resolve**.
+   Pelo mesmo motivo a **severidade** do evento vive numa constante so: a escala
+   do sistema novo e trabalho de T003 da feature `015`, que nao fechou.
+5. **CA-9.1, CA-9.2 e CA-9.3 fecharam por teste, e o teste passa pelo envio.** O
+   mecanismo ja tinha teste em `plataforma/autorizacao/`; repeti-lo aqui
+   afirmaria a feature 001 de novo. O que esta tarefa tinha de provar e que **o
+   envio** se comporta como UC-12 descreve, e e por isso que todo teste de
+   `us-9-envio-sem-filtro.test.ts` chama `enviarArquivo()` e olha a recusa, o que
+   foi gravado e o que foi registrado.
+
+### Um achado do legado que a `spec.md` nao diz, e que um porte perde
+
+**O tipo gravado num envio por este caminho e o que o NAVEGADOR afirmou.**
+`if ( ! $type ) { $type = $file['type']; }` (`file.php:974`-`:976`): passado o
+contorno, o `post_mime_type` do anexo nao foi confrontado com o conteudo de nada
+— ele e o cabecalho que o cliente mandou. E a consequencia que torna CA-9.4 util,
+e e por isso que o evento a carrega num campo proprio (`tipoGravado`): sem ela, o
+registro diria *quem* e *quando* e nao diria **o que** entrou.
+
+⚠️ E ter `unfiltered_upload` **nao devolve `htm|html` e `js` a lista permitida**:
+quem decide a lista e `unfiltered_html`, que e outra capacidade, em outro ponto
+(`functions.php:3702`). Sao duas perguntas diferentes no mesmo envio, e ha teste
+para a distincao.
+
+### O que T019 NAO portou, com o motivo de cada coisa
+
+| o que | ancora | por que |
+|---|---|---|
+| `wp_upload_bits()`, a **segunda** porta de entrada do contorno | `wp-includes/functions.php:2924`-`:2936` | grava **bytes** em vez de elemento de `$_FILES`, olha **so a extensao** (sem o confronto com o conteudo) e devolve a mesma mensagem. Nenhuma historia desta feature a descreve e a lista *Implementado em* de UC-12 nao a inclui. ⚠️ **Quando ela entrar, CA-9.4 exige que o registro saia dela tambem**, ou *"cada envio feito por esse caminho"* passa a ter um caminho fora da conta |
+| o recorte de rede do proprio `case` | `wp-includes/capabilities.php:588` | a condicao do legado tem **tres** termos e `plataforma/autorizacao/` porta dois. Ver abaixo |
+
+#### 🔴 O terceiro termo de `capabilities.php:588`, e por que esta tarefa nao o conserta
+
+A linha do legado e
+`if ( defined( 'ALLOW_UNFILTERED_UPLOADS' ) && ALLOW_UNFILTERED_UPLOADS && ( ! is_multisite() || is_super_admin( $user_id ) ) )`.
+`revogacao-por-constante.ts` porta os dois primeiros termos e **nao** o terceiro.
+Aquele arquivo declara a ausencia, mas pela regra **inferida** de `PERM-10`
+(BR-MIGRAR-096), cuja enumeracao o pacote nao traz — e para `unfiltered_upload` o
+termo **nao e inferido**: ele esta literal, na mesma linha do `case`.
+
+A consequencia cai em cima de **CA-9.3**: numa instalacao de **rede** com a
+constante definida, este porte concede a capacidade a quem a tem no papel, e o
+legado so a concede ao super administrador. **Mais aberto que o legado**, logo
+P1.
+
+Esta tarefa **nao conserta**, e o motivo nao e preguica: o mecanismo e de
+`plataforma/autorizacao/`, entrega da feature `001`, e mexer nele muda a resposta
+de uma pergunta de capacidade para **todo** contexto que a faz — nenhuma tarefa
+deste pacote autoriza isso, e `LACUNA-IN-06` registra que *"nao se sabe se a
+instalacao e multisite"*. Fica registrado aqui e em
+`envio/registro-de-envio-sem-filtro.ts`, nos dois lugares em que alguem olharia.
+
+---
+
 ## Por que estas tres portas, e nao outras
 
 **Dados e sistema de arquivos** sao duas das cinco bordas de AD-08, e as duas
@@ -819,6 +942,33 @@ O que **T007** acrescenta a essa lista:
   e inteiro de T009, e o da **lista de origens responsivas** (`M3`) e de T013.
   Nenhum dos dois depende de decisao desta tarefa, e o primeiro depende da que
   ninguem tomou.
+
+O que **T019** acrescenta a essa lista — e o que ele NAO acrescenta:
+
+- ⚠️ **`PT-014` nao tem cenario para o contorno do filtro.** Os 11 cenarios dela
+  sao sobre `M1`–`M4`, `P2` e `R3`, e `unfiltered_upload` nao aparece em nenhum.
+  Quem confere US-9 por paridade confere por **`PT-007`**
+  (`07-autorizacao-por-capacidade.feature`), cujo esquema de cenario *"Uma
+  constante retira poder de quem ja o tem, inclusive do super administrador"*
+  tem `ALLOW_UNFILTERED_UPLOADS` entre os quatro exemplos. A rastreabilidade
+  esta certa — a regra e `PERM-8`, que e de autorizacao —, mas quem procurar o
+  cenario na spec desta feature nao o encontra.
+- 🔴 **E aquele cenario nao pega a lacuna do terceiro termo**: ele verifica a
+  capacidade *"para um super administrador"*, e para o super administrador as
+  duas metades concedem. A divergencia aparece so com **nao-super-admin em rede
+  com a constante definida**, que nenhum exemplo exercita. Ou seja: a lacuna da
+  secao *O que T019 NAO portou* passaria verde pela paridade. Esta registrado
+  aqui porque e exatamente o tipo de coisa que so se descobre lendo o `.feature`
+  ao lado do `case` do legado.
+- O cenario **`@composicao`** continua valendo sem mudanca, e ha teste que o
+  afirma: um envio pelo contorno **com** canal e um **sem** canal produzem o
+  mesmo resultado, as mesmas insercoes e a **mesma sequencia de operacoes de
+  disco**. O registro de CA-9.4 nao entra na comparacao porque nao toca nenhuma
+  das portas que ela compara — e nao poderia, por P7.
+- A area *efeito no banco* ganha uma afirmacao de **conteudo**, nao so de
+  ausencia: num envio pelo contorno o `post_mime_type` gravado e o **afirmado
+  pelo cliente** (`file.php:974`-`:976`), e ha teste para o valor exato. Um
+  oraculo comparado so por "o anexo existe" nao veria a diferenca.
 
 ⚠️ `parity_specs.md` registra que a suite de *characterization tests* **nao
 existe** nesta arvore, e que a paridade de tela tem de ser derivada secao por

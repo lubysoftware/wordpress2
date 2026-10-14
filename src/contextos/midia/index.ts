@@ -2,29 +2,29 @@
  * Modulo de midia — BC-04 de `target_architecture.md`.
  *
  * Feature `006-biblioteca-de-midia`, tarefas fechadas **T001**, **T002**,
- * **T003**, **T005** e **T007**. O que existe aqui e o que as cinco entregam:
-* modulo carrega com as portas de dados, de sistema de arquivos e de
- * T001, *"o modulo carrega com as portas de dados, de sistema de arquivos e de
- * processamento de imagem declaradas, e os tamanhos de fabrica do legado
- * registrados como dado"*; T002, *"o anexo existe como registro de conteudo com
- * estado herdado, e o metadado que descreve as derivadas e gravado e lido pela
- * porta de dados com a mesma forma do legado"*; T003, *"o comportamento de US-1
- * existe e os criterios CA-1.1 a CA-1.6 passam contra o sistema novo"*; T005,
- * *"o comportamento de US-2 existe e os criterios CA-2.1 a CA-2.4 passam contra
-* o sistema novo"*.
- * o sistema novo"*; T007, *"o comportamento de US-3 existe e os criterios
- * CA-3.1 a CA-3.4 passam contra o sistema novo"*.
+ * **T003**, **T005**, **T007** e **T019**. O que existe aqui e o que as seis
+ * entregam: T001, *"o modulo carrega com as portas de dados, de sistema de
+ * arquivos e de processamento de imagem declaradas, e os tamanhos de fabrica do
+ * legado registrados como dado"*; T002, *"o anexo existe como registro de
+ * conteudo com estado herdado, e o metadado que descreve as derivadas e gravado
+ * e lido pela porta de dados com a mesma forma do legado"*; T003, *"o
+ * comportamento de US-1 existe e os criterios CA-1.1 a CA-1.6 passam contra o
+ * sistema novo"*; T005, *"o comportamento de US-2 existe e os criterios CA-2.1 a
+ * CA-2.4 passam contra o sistema novo"*; T007, *"o comportamento de US-3 existe
+ * e os criterios CA-3.1 a CA-3.4 passam contra o sistema novo"*; T019, *"o
+ * comportamento de US-9 existe e os criterios CA-9.1 a CA-9.4 passam contra o
+ * sistema novo"*.
  *
- * **As tres regras de negocio implementadas sao as de US-1, US-2 e US-3** — o
- * envio com validacao do tipo real do arquivo, em `envio/`; a visibilidade
- * herdada do anexo, em `visibilidade/`, que e a metade de leitura de `P2` (a
- * metade de gravacao e de BC-01 e ja existia); e a geracao das derivadas de cada
- * tamanho registrado, em `derivadas/`. A reducao na ingestao, o relato de falha,
-* reducao na ingestao, o relato de falha, a escolha da derivada, a
- * a escolha da derivada, a transformacao, o descarte do arquivo e o contorno do
-* transformacao, o descarte do arquivo e o contorno do filtro com registro
- * filtro com registro entram nas tarefas delas (T009 em diante), e a leitura
- * obrigatoria de cada uma esta em `./README.md`.
+ * **As quatro regras de negocio implementadas sao as de US-1, US-2, US-3 e
+ * US-9** — o envio com validacao do tipo real do arquivo, em `envio/`; a
+ * visibilidade herdada do anexo, em `visibilidade/`, que e a metade de leitura
+ * de `P2` (a metade de gravacao e de BC-01 e ja existia); a geracao das
+ * derivadas de cada tamanho registrado, em `derivadas/`; e o contorno do filtro
+ * de tipo com registro, tambem em `envio/`, porque no legado ele e um ramo de
+ * `_wp_handle_upload()` e nao uma operacao propria. A reducao na ingestao, o
+ * relato de falha, a escolha da derivada, a transformacao e o descarte do
+ * arquivo entram nas tarefas delas (T009 em diante), e a leitura obrigatoria de
+ * cada uma esta em `./README.md`.
  *
  * A pasta e `contextos/midia/` porque e assim que `target_architecture.md`
  * nomeia BC-04 no esboco de arvore; a feature se chama `006-biblioteca-de-midia`
@@ -98,7 +98,6 @@ export interface PortasDeMidia {
  *
  * Cada historia acrescenta aqui a sua operacao, com a declaracao explicita de
  * permissao que o P4 da constituicao exige, e nenhuma antes da propria tarefa.
-* Hoje ha cinco coisas: as portas e os tamanhos de fabrica, de T001, o
  * Hoje ha as portas e os tamanhos de fabrica, de T001, o armazenamento, de T002,
  * e **quatro** operacoes: **uma** de T003 — {@link ModuloDeMidia.enviarArquivo}
  * —, **uma** de T005 — {@link ModuloDeMidia.visibilidadeDoAnexo} — e **duas**
@@ -107,6 +106,14 @@ export interface PortasDeMidia {
  * historia: US-3 pede a geracao no envio (CA-3.1) e, no mesmo criterio CA-3.3,
  * *"uma acao explicita para regerar"* — e no legado sao duas funcoes, com duas
  * superficies e duas respostas de permissao diferentes.
+ *
+ * ⚠️ **T019 fechou sem acrescentar operacao, e isso e declaracao e nao
+ * omissao.** US-9 nao e uma coisa que alguem chama: no legado o contorno do
+ * filtro e um ramo de `_wp_handle_upload()` (`wp-admin/includes/file.php:971`)
+ * dentro do envio que ja existe, e o registro de CA-9.4 e um passo do mesmo
+ * fluxo. Expo-lo como operacao propria criaria uma superficie que o legado nao
+ * tem, e o **P8** e sobre nao tirar da superficie — nao sobre acrescentar.
+ * Quem compoe liga o canal em {@link ContextoDeEnvio.registroDeEnvioSemFiltro}.
  *
  * A tabela abaixo e o que a secao *Contratos* de `plan.md` lista, com a
  * capacidade que a `spec.md` cobra em cada uma. Ela esta aqui como **pauta**, e
@@ -122,7 +129,7 @@ export interface PortasDeMidia {
  * | transformar imagem | US-7 | T015 | *"a capacidade de editar aquele anexo"* (CA-7.1), sem que o pacote a nomeie |
  * | restaurar original | US-7 | T015 | a mesma (CA-7.4) |
  * | apagar anexo | US-8 | T017 | `plan.md` registra so o erro *"sem permissao"*, sem nomear capacidade — e o apagamento e **definitivo** (`R3`) |
- * | contornar filtro de tipo | US-9 | T019 | `unfiltered_upload`, que UC-12 nomeia e que **so existe se a instalacao declarar** (CA-9.1, CA-9.2) |
+ * | contornar filtro de tipo ✔ | US-9 | T019 | `unfiltered_upload`, que UC-12 nomeia e que **so existe se a instalacao declarar** (CA-9.1, CA-9.2) — perguntada dentro de {@link ModuloDeMidia.enviarArquivo}, onde o legado a pergunta, e **sem operacao propria** |
  */
 export interface ModuloDeMidia {
   readonly nome: 'midia';
@@ -158,9 +165,17 @@ export interface ModuloDeMidia {
    * desfechos do legado sao devolvidos como sao.
    *
    * **O que esta operacao NAO faz:** nao gera derivada (T007), nao reduz imagem
-   * na ingestao (T009), nao relata falha de processamento (T011) e nao registra
-   * o envio sem filtro de tipo (T019, CA-9.4). Os quatro pontos estao nomeados
-   * no lugar exato do fluxo, em `envio/enviar-arquivo.ts`.
+   * na ingestao (T009) e nao relata falha de processamento (T011). Os tres
+   * pontos estao nomeados no lugar exato do fluxo, em
+   * `envio/enviar-arquivo.ts`.
+   *
+   * **E o que T019 acrescentou a ela:** o passo 12, o registro de **CA-9.4** —
+   * *"cada envio feito por esse caminho fica registrado com conta, arquivo e
+   * instante"*. O contorno do filtro de tipo (US-9) acontece **dentro** desta
+   * operacao, porque e dentro de `_wp_handle_upload()` que o legado o faz
+   * (`wp-admin/includes/file.php:971`). O canal chega por
+   * {@link ContextoDeEnvio.registroDeEnvioSemFiltro}, e **omiti-lo devolve o
+   * comportamento do legado**, que e nao registrar nada (P7).
    *
    * O contexto chega por argumento, e nao pela composicao, porque identidade,
    * matriz de papeis e estado de rede sao escopo de REQUISICAO (AD-02,
