@@ -5,14 +5,15 @@
  * retencao), **T002** (os marcadores de lixeira como metadado, em
  * `./armazenamento/`), **T003** (o descarte para a lixeira, US-1, em
  * `./descarte/`), **T005** (a suspensao dos comentarios em cascata, US-2, em
- * `./cascata-de-comentarios/`) e **T017** (a exclusao definitiva com
- * reposicionamento de filhos e anexos, US-8, em `./exclusao/`). **T009** (US-4)
- * entregou CA-4.1, CA-4.3 e CA-4.4 na pasta do descarte e **parou em CA-4.2**,
- * por conflito registrado entre o criterio e UC-09 — a tarefa continua aberta em
- * `tasks.md` e a parada esta em `./descarte/aviso-de-exclusao-definitiva.ts`.
- * Restaurar o conteudo, coletar o que venceu, expirar rascunho automatico e
- * tolerar estado inconsistente entram nas tarefas delas (T007, T011, T013 e
- * T015), e a leitura obrigatoria de cada uma esta em `./README.md`.
+ * `./cascata-de-comentarios/`), **T011** (a coleta do que venceu, US-5, em
+ * `./coleta/` — com **CA-5.1 e CA-5.5 declarados abertos**, ver `./README.md`) e
+ * **T017** (a exclusao definitiva com reposicionamento de filhos e anexos, US-8,
+ * em `./exclusao/`). **T009** (US-4) entregou CA-4.1, CA-4.3 e CA-4.4 na pasta do
+ * descarte e **parou em CA-4.2**, por conflito registrado entre o criterio e
+ * UC-09 — a tarefa continua aberta em `tasks.md` e a parada esta em
+ * `./descarte/aviso-de-exclusao-definitiva.ts`. Restaurar o conteudo, expirar
+ * rascunho automatico e tolerar estado inconsistente entram nas tarefas delas
+ * (T007, T013 e T015), e a leitura obrigatoria de cada uma esta em `./README.md`.
  *
  * ## A qual bounded context este modulo pertence — e sao dois
  *
@@ -61,6 +62,11 @@ import {
   type ResultadoDaSuspensao,
 } from './cascata-de-comentarios/index.js';
 import {
+  coletarALixeiraVencida,
+  type ContextoDeColeta,
+  type ResultadoDaColeta,
+} from './coleta/index.js';
+import {
   PRAZO_DE_RETENCAO_DE_FABRICA,
   type PrazoDeRetencao,
 } from './configuracao/index.js';
@@ -94,6 +100,7 @@ export * from './armazenamento/index.js';
 export * from './descarte/index.js';
 export * from './cascata-de-comentarios/index.js';
 export * from './exclusao/index.js';
+export * from './coleta/index.js';
 
 /**
  * **US-4, T009**: o que cada superficie oferece e diz ao ator **antes** de a
@@ -156,22 +163,23 @@ export interface OpcoesDeRetencaoEDescarte {
  *
  * Cada historia acrescenta aqui a sua operacao, com a declaracao explicita de
  * permissao que o **P4** da constituicao exige, e nenhuma antes da propria tarefa.
- * Hoje ha oito coisas e **quatro delas sao operacao**: as portas e o prazo de
+ * Hoje ha nove coisas e **cinco delas sao operacao**: as portas e o prazo de
  * retencao (T001), o armazenamento dos marcadores (T002), o **descarte** (T003,
  * US-1), a **suspensao** e a **restauracao** dos comentarios em cascata (T005,
- * US-2), o aviso de exclusao definitiva (T009, US-4) e a **exclusao definitiva**
- * (T017, US-8). O armazenamento nao declara permissao porque nao decide nada —
- * ele le e grava metadado, e quem cobra a capacidade e a operacao que o chama; o
- * aviso declara a **mesma** capacidade do descarte, e a recebe respondida porque
- * no legado a tela ja a perguntou; as duas da cascata declaram **nenhuma**, que e
- * o que o legado tem; e o descarte e a exclusao definitiva declaram **a mesma
- * capacidade**, e isso e leitura do legado e nao economia: nao existe
+ * US-2), o aviso de exclusao definitiva (T009, US-4), a **coleta** (T011, US-5) e
+ * a **exclusao definitiva** (T017, US-8). O armazenamento nao declara permissao
+ * porque nao decide nada — ele le e grava metadado, e quem cobra a capacidade e a
+ * operacao que o chama; o aviso declara a **mesma** capacidade do descarte, e a
+ * recebe respondida porque no legado a tela ja a perguntou; as duas da cascata e
+ * a coleta declaram **nenhuma**, que e o que o legado tem e o caso que o P4 manda
+ * escrever em lugar de omitir; e o descarte e a exclusao definitiva declaram **a
+ * mesma capacidade**, e isso e leitura do legado e nao economia: nao existe
  * `delete_post_permanently`.
  *
  * As operacoes que a tabela *Contratos* de `plan.md` nomeia, com a permissao que o
- * pacote declara para cada uma — a primeira **declarada e construida** por T003,
- * as tres seguintes **citadas, nao decididas aqui**, para que a tarefa que
- * construir cada uma nasca com a declaracao que o P4 cobra:
+ * pacote declara para cada uma — as que estao marcadas como feitas **declaradas e
+ * construidas** pela tarefa delas, a de restaurar o conteudo **citada, nao
+ * decidida aqui**, para que T007 nasca com a declaracao que o P4 cobra:
  *
  * | operacao | historia | tarefa | permissao, como o pacote a declara |
  * |---|---|---|---|
@@ -180,11 +188,12 @@ export interface OpcoesDeRetencaoEDescarte {
  * | avisar que apagar nao tem volta | US-4 | **T009, feita menos CA-4.2** | `delete_post` do registro, a mesma — e no legado ela decide se a acao **aparece** |
  * | restaurar | US-3 | T007 | decidida **pelo estado anterior gravado no descarte** (CA-3.5, UC-10) |
  * | apagar em definitivo | US-8 | **T017, feita** | `delete_post`, **a mesma de descartar**: o legado nao tem capacidade separada para a exclusao irreversivel (UC-09, fluxo alternativo) |
- * | coletar o que venceu | US-5 | T011 | **nenhuma.** UC-11 e literal: *"a coleta roda sem usuario autenticado e sem verificacao de capacidade: o prazo e a autorizacao"* |
+ * | coletar o que venceu | US-5 | **T011, feita** | **nenhuma.** UC-11 e literal: *"a coleta roda sem usuario autenticado e sem verificacao de capacidade: o prazo e a autorizacao"* |
  *
  * A ultima linha e a que o P4 mais cobra que esteja escrita: ela e uma das
  * operacoes que *"decidem acesso sem consultar capacidade alguma"*, e uma matriz
- * que a ignore descreve um sistema mais fechado do que o real.
+ * que a ignore descreve um sistema mais fechado do que o real. O contexto dela
+ * nao tem ator — ver `coleta/contexto-de-coleta.ts`.
  */
 export interface ModuloDeRetencaoEDescarte {
   readonly nome: 'retencao-e-descarte';
@@ -340,6 +349,39 @@ export interface ModuloDeRetencaoEDescarte {
    * a leitura, esta em `descarte/aviso-de-exclusao-definitiva.ts`.
    */
   readonly avisoDeExclusaoDefinitiva: AvisoDeExclusaoDefinitiva;
+
+  /**
+   * Apaga em definitivo o que passou do prazo de retencao (US-5, T011). E
+   * `wp_scheduled_delete()` (`wp-includes/functions.php:6974`): varre o marcador
+   * `_wp_trash_meta_time` de `{site}postmeta` e de `{site}commentmeta` por
+   * `meta_value < %d`, apaga em definitivo o que ainda esta na lixeira e, do que
+   * nao esta mais, apaga **so o marcador** (`R6`).
+   *
+   * **Permissao exigida: NENHUMA**, e e a declaracao que o **P4** cobra. UC-11,
+   * campo *Autorizacao*: *"nenhuma. A coleta roda sem usuario autenticado e sem
+   * verificacao de capacidade: **o prazo e a autorizacao**"*. Por isso
+   * `ContextoDeColeta` nao tem `base` nem `ator`, ao contrario do contexto de
+   * descarte — ver `coleta/contexto-de-coleta.ts`.
+   *
+   * 🔴 **Dois criterios de US-5 NAO estao fechados, e nao por descuido:**
+   *
+   * - **CA-5.1** (*"o agendamento ... sem depender de ninguem ter entrado no
+   *   painel"*) e **conflito aberto**: quatro registros humanos — resposta 10 de
+   *   `questions.md`, ADR-0006, BR-MIGRAR-034 e a resposta da Decisao 1 de
+   *   `pending_decisions.md` — dizem o contrario do criterio, e PT-004 cobra o
+   *   lado deles como `@critico`. T011 portou o **corpo** do registro em
+   *   `coleta/agendamento-da-coleta.ts` e **ninguem o chama**: o ponto de chamada
+   *   e a decisao que falta.
+   * - **CA-5.5** (*"cada execucao registra quantos registros apagou"*) esta pela
+   *   metade: a contagem sai como **valor de retorno**
+   *   ({@link ResultadoDaColeta.registrosApagados}), que e o que o **P7**
+   *   permite, e o registro **persistido** e divergencia que ninguem aceitou.
+   *
+   * ⚠️ **Nada aqui agenda e nada aqui dispara.** Chamar esta operacao e executar
+   * a tarefa, nao registra-la na fila; o disparo da fila e de BC-11 / feature
+   * `011`, e AD-07 manda que ele **falhe**.
+   */
+  coletarALixeiraVencida(contexto: ContextoDeColeta): ResultadoDaColeta;
 }
 
 /**
@@ -389,5 +431,9 @@ export function criarModuloDeRetencaoEDescarte(
       confirmacaoPedidaAoAtor: CONFIRMACAO_PEDIDA_AO_ATOR,
       recusaNaApiSemForca: recusaDeLixeiraNaoSuportadaNaApi,
     },
+    // US-5 (T011): idem para a coleta. ⚠️ Compor o modulo **nao agenda** a
+    // coleta e **nao a executa**: `modulo.test.ts` afirma as duas coisas, e a
+    // primeira e o que mantem o conflito de CA-5.1 na mao de quem decide.
+    coletarALixeiraVencida,
   };
 }

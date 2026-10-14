@@ -4,9 +4,10 @@ Tarefas com nota de entrega neste arquivo: **T001** (esqueleto, as tres
 portas e o prazo de retencao), **T002** (os marcadores de lixeira como
 metadado), **T003** (o descarte para a lixeira, US-1), **T005** (a suspensao dos
 comentarios em cascata, US-2), **T009** (o aviso de que apagar nao tem volta,
-US-4 — **tres dos quatro criterios**, ver o 🔴 abaixo) e **T017** (a exclusao
-definitiva com reposicionamento de filhos e anexos, US-8). Este arquivo e a
-leitura obrigatoria de quem pegar a tarefa seguinte: ele diz o que ja esta
+US-4 — **tres dos quatro criterios**, ver o 🔴 abaixo), **T011** (a coleta do que
+venceu, US-5 — **com dois dos cinco criterios declarados abertos**) e **T017** (a
+exclusao definitiva com reposicionamento de filhos e anexos, US-8). Este arquivo e
+a leitura obrigatoria de quem pegar a tarefa seguinte: ele diz o que ja esta
 decidido, o que esta decidido **em outro lugar**, e o que **ninguem decidiu**.
 
 > 🔴 **Se a sua tarefa e T007 (restaurar o conteudo, US-3):** a restauracao dos
@@ -45,14 +46,19 @@ decidido, o que esta decidido **em outro lugar**, e o que **ninguem decidiu**.
 > O censo inteiro esta na secao *O conflito que T009 encontrou e nao decidiu* e no
 > cabecalho de `descarte/aviso-de-exclusao-definitiva.ts`.
 
-> 🔴 **Antes de qualquer coisa, se a sua tarefa toca o agendamento da coleta
-> (T011, US-5):** o conflito entre **CA-5.1** e a **resposta 10** de
-> `questions.md` **esta aberto**, e T001 **nao o resolveu** nem o podia. O que
-> T001 fez foi declarar a porta da fila de modo a servir os dois lados sem
-> favorecer nenhum, e escrever um teste que afirma que **compor o modulo nao
-> agenda nada**. A explicacao inteira esta na secao *O conflito que T001 declarou
-> e nao decidiu* deste arquivo e no cabecalho de
-> `portas/porta-de-fila-agendada.ts`.
+> 🔴 **Antes de qualquer coisa, se a sua tarefa toca o agendamento da coleta:** o
+> conflito entre **CA-5.1** e a **resposta 10** de `questions.md` **continua
+> aberto**, e nem T001 nem T011 o resolveram — nem podiam. T001 declarou a porta
+> da fila de modo a servir os dois lados sem favorecer nenhum e afirmou por teste
+> que **compor o modulo nao agenda nada**; **T011 portou o corpo do registro**
+> (`coleta/agendamento-da-coleta.ts`) e **nao o chamou de lugar nenhum**. A
+> explicacao inteira esta nas secoes *O conflito que T001 declarou e nao decidiu*
+> e *O que T011 entrega, e so isso* deste arquivo, no cabecalho de
+> `portas/porta-de-fila-agendada.ts` e no de `coleta/agendamento-da-coleta.ts`.
+>
+> **Se o que lhe interessa e so executar a coleta** — T013 (US-6) e T015 (US-7)
+> dependem dela —, ela esta pronta e nao depende do conflito:
+> `modulo.coletarALixeiraVencida( contexto )`.
 
 > 🔴 **E se a sua tarefa toca a expiracao do rascunho automatico (T013, US-6):** o
 > prazo de 7 dias do legado **nao e constante e nao e decidido pelo relogio do
@@ -165,6 +171,8 @@ a for fazer:** no legado e `meta_value < %d`, **estritamente menor**, sobre
 descartado **exatamente** no instante limite ainda **nao** vence — e a borda de
 UT-052-2 (*"poupa o que esta no limite"*). Trocar por `<=` e mudanca de
 comportamento observavel.
+**T011 a fez assim**: as duas consultas, com o `<` estritamente menor, estao em
+`coleta/varredura-do-vencido.ts` — ver *O que T011 entrega, e so isso*.
 
 ## O que T002 entrega, e so isso
 
@@ -228,6 +236,7 @@ registro" que T002 entrega, e o `%d` dela vem de `instanteLimiteDeRetencao()`, q
 e o numero de T001. Ela e de **T011**, com a borda de UT-052-2. O leitor
 `instanteDoDescarte()` existe para afirmar o byte gravado e **nao** substitui a
 varredura: filtrar em memoria mudaria o conjunto de linhas apagadas.
+T011 a entregou em `coleta/varredura-do-vencido.ts`, como consulta, e nao como filtro.
 
 **E nao existe `esquema.ts` neste armazenamento, por decisao e nao por
 esquecimento.** `plan.md` abre a secao *Modelo de dados* com *"Esta feature nao
@@ -752,6 +761,155 @@ que *"CA-8.4 passa"* quer dizer: passa no escopo da cascata, e nao como
 invariante universal do banco. Se alguem quiser a invariante universal, e card
 novo e e decisao humana — ela muda o produto.
 
+## O que T011 entrega, e so isso
+
+> *o comportamento de US-5 existe e os criterios CA-5.1, CA-5.2, CA-5.3, CA-5.4,
+> CA-5.5 passam contra o sistema novo*
+> — `.specify/specs/005-retencao-e-descarte/tasks.md`, T011
+
+🔴 **Tres dos cinco criterios passam. Dois nao, e nao por falta de trabalho:**
+
+| criterio | estado |
+|---|---|
+| **CA-5.2** apaga o conteudo vencido | **fechado** |
+| **CA-5.3** apaga o comentario pelo mesmo criterio | **fechado** |
+| **CA-5.4** retomada sem apagar duas vezes nem saltar registro | **fechado** |
+| **CA-5.1** o agendamento existe sem visita ao painel | 🔴 **conflito aberto, nao resolvido** |
+| **CA-5.5** cada execucao registra quantos apagou | 🔴 **pela metade, de proposito** |
+
+| arquivo | o que e |
+|---|---|
+| `coleta/coletar-a-lixeira-vencida.ts` | a operacao, e `wp_scheduled_delete()` — os **nove** passos na ordem do legado |
+| `coleta/varredura-do-vencido.ts` | as duas consultas do prazo, com o `<` **estritamente** menor |
+| `coleta/contexto-de-coleta.ts` | o que chega por argumento, e de quem cada peca e — **sem ator** |
+| `coleta/agendamento-da-coleta.ts` | 🔴 o **corpo** do registro do evento, que **ninguem chama** |
+| `coleta/us-5-coletar-a-lixeira-vencida.test.ts` | as 23 afirmacoes de T011 |
+
+A operacao entrou na superficie do modulo (`coletarALixeiraVencida`), com a
+declaracao de permissao que o **P4** cobra — **nenhuma** —, e `modulo.test.ts`
+passou a congelar **dez** chaves — a de T011 somada as de T005, T009 e T017, que
+entraram em paralelo. Da tabela *Contratos*, so a restauracao do conteudo (T007)
+continua so citada.
+
+### A permissao e NENHUMA, e e por isso que ela esta escrita
+
+UC-11, campo *Autorizacao*: *"nenhuma. A coleta roda sem usuario autenticado e sem
+verificacao de capacidade: **o prazo e a autorizacao**"*. Por isso
+`ContextoDeColeta` **nao tem `base` nem `ator`**, ao contrario de
+`ContextoDeDescarte`, e `us-5-...test.ts` afirma a ausencia das duas chaves. O
+**P4** e literal sobre isso: a coleta e uma das operacoes que *"decidem acesso sem
+consultar capacidade alguma"*, e *"uma matriz que ignore esses cinco descreve um
+sistema mais fechado do que o real"*.
+
+### O que esta tarefa achou e vale para as seguintes
+
+- 🔴 **O ramo de tolerancia de `R6` e uma das duas pernas do `if` desta funcao, e
+  nao ha onde mais ele caiba.** `wp_scheduled_delete()` e um `if`/`else` por
+  registro (`wp-includes/functions.php:6989`): **ou** apaga so os dois
+  marcadores, **ou** apaga o registro. Logo **CA-7.1 e CA-7.2 de US-7 passam por
+  consequencia** desta tarefa. O que falta a **T015** e **CA-7.3**, o registro da
+  inconsistencia *"com identificador do registro e instante"* — que e registro
+  novo, da mesma familia de CA-5.5, e que esta tarefa **nao** fez pelo mesmo
+  motivo.
+- ⚠️ **A ordem das duas exclusoes de marcador e INVERTIDA entre os dois lacos.**
+  Conteudo: estado (`:6990`) e depois instante (`:6991`). Comentario: instante
+  (`:7008`) e depois estado (`:7009`). Sao quatro comandos por registro
+  (`SELECT meta_id` + `DELETE` em cada chamada), logo a assimetria aparece inteira
+  na sequencia que a area 3 da Decisao 2 compara. Normalizar as duas ordens e
+  divergencia sem referencia autorizada.
+- **O relogio e lido UMA vez por execucao.** As duas varreduras comparam o
+  **mesmo** instante limite (`:6977`). Uma coleta longa nao move a propria borda,
+  e relê-lo entre os dois lacos mudaria o conjunto de comentarios apagados para a
+  mesma entrada.
+- ⚠️ **Os dois chamadores de exclusao recebem argumentos diferentes, e os dois
+  importam.** `wp_delete_post( $post_id )` recebe o **identificador** (`:6993`) e
+  `wp_delete_comment( $del_comment )` recebe o **registro** (`:7011`). E
+  **nenhum dos dois passa forca**: a guarda que desviaria para a lixeira
+  (`wp-includes/post.php:3851`, `wp-includes/comment.php:1574`) nao desvia porque
+  o passo anterior ja confirmou `trash`. Por isso
+  `ExclusaoDeConteudoNaColeta` e um tipo **distinto** de
+  `ExclusaoDefinitivaNoDescarte` de T003, que e `wp_delete_post( $id, true )`,
+  **com** forca — mesma funcao do legado, dois chamadores, dois contratos.
+- **CA-5.4 nao precisou de mecanismo nenhum, e inventar um a quebraria.** A
+  retomada e consequencia de **o marcador ser a fila**: a varredura olha
+  `_wp_trash_meta_time`, e todo registro tratado perde o marcador — por dentro de
+  `wp_delete_post()` (`wp-includes/post.php:3889`) ou pelo ramo de tolerancia.
+  Logo a execucao seguinte varre exatamente o que falta. Esta funcao **nao guarda
+  cursor, nao marca progresso e nao recebe ponto de partida**: cursor perdido na
+  interrupcao salta registro, e cursor gravado fora de transacao (e nao ha
+  transacao, BR-MIGRAR-104) apaga duas vezes.
+- **Nao ha `try`/`catch`, e a falha no meio sobe.** O legado nao tem nenhum, e
+  UC-11 registra o caso nas excecoes (*"a execucao e abandonada no meio"*).
+  Envolver os lacos num `catch` que seguisse para o registro seguinte seria
+  inventar resiliencia que o produto nao tem (**P7**).
+- **Zero ponto de extensao nesta funcao.** `wp_scheduled_delete()` nao tem
+  `apply_filters` nem `do_action`: nenhuma extensao observa, cancela ou altera a
+  coleta. Os pontos que uma execucao dispara sao todos de **dentro** da exclusao
+  definitiva, que e ligacao tardia. Acrescentar um gancho de coleta inventaria
+  contrato publico que o legado nao tem — o erro que o **P2** proibe na direcao
+  oposta.
+- **A coleta NAO pergunta se a lixeira esta ligada.** Ela nao testa
+  `EMPTY_TRASH_DAYS` por verdade, so o usa na aritmetica. Com o prazo em **zero** o
+  limite cai no proprio agora e tudo que **ja estava** na lixeira vence; com prazo
+  **negativo** o limite cai no **futuro** e tudo vence de imediato. Nenhuma guarda
+  foi acrescentada, porque o legado nao tem nenhuma (P1).
+- **A ordem dos dois lacos e observavel.** Conteudo primeiro, comentario depois:
+  apagar um conteudo apaga os comentarios dele em cascata, logo o comentario que
+  chega ao segundo laco e o que foi para a lixeira **por si**. Inverter os lacos
+  mudaria qual exclusao emitiu qual cascata.
+
+### 🔴 CA-5.1 — o que T011 fez, e o que deliberadamente nao fez
+
+**Sao quatro registros humanos de um lado e um criterio de aceite do outro**, e a
+constituicao poe *"resolver um dos conflitos entre card `wont` e resposta
+humana"* na tabela do que nao se decide sozinho:
+
+| lado | onde esta escrito |
+|---|---|
+| **a spec** | **CA-5.1**, e UT-052-6 / UT-052-7 em `backlog/tests.md` |
+| **a analise** | **resposta 10** de `questions.md` · **ADR-0006** · **BR-MIGRAR-034** · a resposta da **Decisao 1** de `pending_decisions.md`, que poe *"agendador por requisicao ao proprio host, com a consequencia de que site sem visita nao limpa a propria lixeira"* na lista do que a escolha **nao afrouxa** · **PT-004**, cenario de abertura, `@critico` |
+
+**O que T011 portou, porque os dois lados concordam nele letra por letra:** o
+corpo de `wp-admin/admin.php:107`-`:109` —
+`! wp_next_scheduled( 'wp_scheduled_delete' ) && ! wp_installing()`, entao
+`wp_schedule_event( time(), 'daily', 'wp_scheduled_delete' )`. O nome do gancho, a
+recorrencia, o instante do primeiro disparo e a guarda sao os mesmos se a chamada
+ficar antes ou depois de `auth_redirect()`. **O que esta em disputa e so o ponto
+de chamada**, e nenhum arquivo desta arvore chama `registrarAColeta()`.
+
+Tres consequencias praticas, para quem vier:
+
+1. `registrarAColeta` **nao** esta na superficie do modulo, de proposito:
+   `modulo.test.ts` congela dez chaves e ela nao e uma delas. Poe-la ali diria
+   que este modulo decide **quando** a coleta e agendada.
+2. Quando a decisao chegar, ela e **uma linha** no ponto de entrada — nao uma
+   reescrita deste modulo. ⚠️ E o ponto de entrada **nao existe nesta arvore**:
+   nao ha `entradas/` e nao ha adaptador concreto.
+3. ⚠️ **T013 nao deve copiar esta guarda de memoria.**
+   `wp_scheduled_auto_draft_delete` e registrado em
+   `wp-admin/includes/post.php:798`-`:799` com `! wp_next_scheduled( ... )` e
+   **sem** `! wp_installing()`. A assimetria e do legado.
+
+### 🔴 CA-5.5 — a contagem existe, o registro nao
+
+`ResultadoDaColeta.registrosApagados` devolve quantos registros a coleta apagou,
+como **valor de retorno**: nenhum comando sai para grava-lo, nenhum ramo da funcao
+o le, e `us-5-...test.ts` afirma as duas coisas. E o que o **P7** permite —
+*"registro e diagnostico novos podem ser acrescentados, mas nenhuma decisao do
+sistema pode passar a depender deles"* —, e nao e divergencia observavel, porque
+`wp_scheduled_delete()` devolve `void` e o barramento descarta retorno de acao
+(`add_action( 'wp_scheduled_delete', 'wp_scheduled_delete' )`,
+`wp-includes/default-filters.php:465`).
+
+**O que nao foi feito e o registro persistido que a palavra "registra" pede.**
+UC-11 e literal nas pos-condicoes: *"nenhum registro do que foi apagado foi
+guardado"*. `spec.md` declara CA-5.5 como *"divergencia a ser aceita
+explicitamente"*, essa aceitacao **nao existe**, e `ESC-RETENCAO`
+(BR-MIGRAR-113) proibe inventar o prazo de retencao que o registro novo
+precisaria — o que a constituicao poe, textualmente, na tabela do que exige
+decisao humana (*"introduzir limite de taxa, prazo de retencao ou qualquer numero
+que o legado nao tem"*). Gravar um aqui seria decidir no lugar de quem decide.
+
 ## O conflito que T001 declarou e nao decidiu
 
 `spec.md` registra, em *Perguntas em aberto*, duas decisoes humanas em sentidos
@@ -775,9 +933,12 @@ quem decide:
 3. `modulo.test.ts` afirma que **compor o modulo nao agenda nada**: se o esqueleto
    agendasse a coleta ao ser criado, ele teria decidido o conflito por omissao.
 
-**Quem pegar T011 esbarra nisso.** Construir CA-5.1 como esta escrita rompe a
-paridade que PT-004 cobra como `@critico`; construir a paridade deixa CA-5.1 falso.
-Pare e registre, como a constituicao manda.
+**T011 esbarrou nisso, e nao escolheu.** Construir CA-5.1 como esta escrita rompe
+a paridade que PT-004 cobra como `@critico`; construir a paridade deixa CA-5.1
+falso. O que T011 fez foi separar o que o conflito **nao** alcanca — a tarefa de
+coleta em si, que e CA-5.2, CA-5.3 e CA-5.4 e que T013 e T015 precisam — do que
+ele alcanca, e entregar o primeiro deixando o segundo escrito e parado. Ver *O que
+T011 entrega, e so isso* e `coleta/agendamento-da-coleta.ts`.
 
 **E ha um segundo item aberto na mesma historia:** CA-5.5 exige que cada execucao
 *"registre quantos registros apagou"*, e o legado nao guarda registro nenhum de
@@ -814,13 +975,17 @@ proibe inventar prazo de retencao para esse registro novo.
 
 ## Como esta entrega se confere
 
-- `npm run typecheck` e `npm test` — as 10 afirmacoes de T001 estao em
-  `modulo.test.ts` (6) e `configuracao/prazo-de-retencao.test.ts` (4), as 19 de
+- `npm run typecheck` e `npm test` — as afirmacoes de T001 estao em
+  `modulo.test.ts` e `configuracao/prazo-de-retencao.test.ts` (4), as 19 de
   T002 em `armazenamento/armazenamento.test.ts`, as 19 de T003 em
   `descarte/us-1-descartar-conteudo.test.ts`, as 21 de T005 em
   `cascata-de-comentarios/us-2-suspender-comentarios.test.ts`, as 23 de T009 em
-  `descarte/us-4-aviso-de-exclusao-definitiva.test.ts` e as 26 de T017 em
-  `exclusao/us-8-reparentar-filhos-e-anexos.test.ts`.
+  `descarte/us-4-aviso-de-exclusao-definitiva.test.ts`, as 23 de T011 em
+  `coleta/us-5-coletar-a-lixeira-vencida.test.ts` e as 26 de T017 em
+  `exclusao/us-8-reparentar-filhos-e-anexos.test.ts`. `modulo.test.ts` ganhou de
+  T011 a afirmacao de que **ter a coleta na superficie nao a agenda nem a
+  executa** — a contraparte, na composicao, do que
+  `coleta/agendamento-da-coleta.ts` declara.
 - A parte de **T005** e conferida pela **area 3 da Decisao 2** (*"efeito no banco
   ... snapshot + sequencia de comandos"*, **zero** divergencia), e e nela que a
   contagem de comandos aparece: a suspensao emite um `INSERT` e **um** `UPDATE`,
@@ -842,6 +1007,23 @@ proibe inventar prazo de retencao para esse registro novo.
   passar pela lixeira"*: a primeira linha delega, e nenhum marcador, nenhuma
   cascata e nenhum ponto de extensao acontece. O apagamento em si e a cascata de
   T017, e o resto do cenario depende da coleta (T011).
+- **A coleta de T011 fecha a outra metade daquele cenario** — *"o tempo avanca ate
+  um dia antes do prazo / entao nenhuma das duas metades o apaga"* e *"o tempo
+  avanca alem do prazo ... entao as duas o apagam"* —, que e o `<` estritamente
+  menor de `coleta/varredura-do-vencido.ts`, com o relogio controlado que o **P6**
+  exige. E fecha o cenario `@critico @invariante` *"A coleta tolera estado
+  inconsistente e nao aborta"*: *"conteudo na lixeira sem o metadado de estado
+  anterior"* e *"com metadado apontando para um estado que nao existe mais"* caem
+  os dois no ramo de `R6`, nenhuma das duas metades aborta, e **nenhum `DELETE`
+  sai quando o `SELECT meta_id` nao devolve linha**.
+- 🔴 **O que a paridade NAO pode conferir de T011, e por que:** o cenario de
+  abertura de PT-004, *"Um site que ninguem administra nunca executa a propria
+  coleta de lixeira"*, e o conflito de **CA-5.1**. Ele e afirmavel nos dois
+  sentidos — *"nenhuma das duas tem a tarefa de coleta registrada na fila"* e *"as
+  duas metades registram a tarefa de coleta"* — assim que a decisao humana
+  escolher o ponto de chamada de `registrarAColeta()`. Enquanto ela nao vier, o
+  cenario fica **sem a metade do alvo**: o lado legado roda, o lado novo nao tem
+  quem registre. E e assim de proposito.
 - A parte de **T009** entra no mesmo cenario `@invariante` de PT-004: a ultima
   linha — *"as duas metades o apagam na hora, sem passar pela lixeira"* — e CA-4.1,
   e T009 acrescenta a ela a **pergunta** que cada superficie faz

@@ -3,6 +3,12 @@
  * relogio e de fila agendada declaradas, e o prazo de retencao lido de um ponto de
  * configuracao nomeado com o valor de fabrica do legado"*.
  *
+ * A lista de chaves da superficie cresce aqui a cada tarefa de historia — T003
+ * acrescentou `descartar`, T005 `suspenderComentarios` e `restaurarComentarios`,
+ * T009 `avisoDeExclusaoDefinitiva`, T011 `coletarALixeiraVencida` e T017
+ * `apagarEmDefinitivo` —, e as invariantes de arquitetura continuam as mesmas
+ * duas.
+ *
  * Nao sao os testes de nenhuma historia — esses sao T004, T006, T008 e os demais
  * `[P]` de `tasks.md`, um por caso de `backlog/tests.md`. Aqui se afirma so o que
  * T001 entrega, mais as duas invariantes de arquitetura que um esqueleto pode
@@ -117,14 +123,22 @@ test('a superficie do modulo tem exatamente o que as tarefas fechadas entregam',
   // publicadas, logo quem verifica e o chamador. **T017 acrescentou mais uma
   // operacao**, `apagarEmDefinitivo` (US-8), com a **mesma** capacidade de
   // `descartar` declarada — no legado nao existe capacidade separada para a
-  // exclusao irreversivel. As outras duas que a tabela *Contratos* de `plan.md`
-  // nomeia (restaurar o conteudo, coletar) entram em T007 e T011 — inclusive a
-  // da coleta, que UC-11 declara como NENHUMA ("o prazo e a autorizacao"), e que
-  // o P4 manda escrever justamente por isso.
+  // exclusao irreversivel. **T011 acrescentou mais uma**,
+  // `coletarALixeiraVencida` (US-5), cuja permissao declarada e NENHUMA — UC-11
+  // e literal ("o prazo e a autorizacao"), e e justamente o caso que o P4 manda
+  // escrever em lugar de omitir. A unica que a tabela *Contratos* de `plan.md`
+  // nomeia e ainda nao entrou e restaurar o conteudo, em T007.
+  //
+  // ⚠️ `registrarAColeta` **nao** esta nesta lista, e a ausencia e a entrega de
+  // T011 sobre CA-5.1: poe-la na superficie do modulo diria que este modulo
+  // decide **quando** a coleta e agendada, que e exatamente o conflito aberto.
+  // Ela e exportada de `coleta/` para quem receber a decisao humana, e nada
+  // nesta arvore a chama. Ver `coleta/agendamento-da-coleta.ts`.
   assert.deepEqual(Object.keys(modulo).sort(), [
     'apagarEmDefinitivo',
     'armazenamento',
     'avisoDeExclusaoDefinitiva',
+    'coletarALixeiraVencida',
     'descartar',
     'nome',
     'portas',
@@ -157,6 +171,25 @@ test('compor o modulo nao agenda nada: quem registra o evento e a tarefa dele', 
   // existe para que a decisao continue de quem decide, e nao de quem importou o
   // modulo. Ver a secao do conflito em `portas/porta-de-fila-agendada.ts`.
   assert.deepEqual(toques.agendar, []);
+  // E nem consultou a fila: o `! wp_next_scheduled( ... )` do legado tambem e do
+  // ponto de chamada, nao da composicao.
+  assert.deepEqual(toques.consultaDeFila, []);
+});
+
+test('T011 nao mudou isso: ter a coleta na superficie nao a agenda nem a executa', () => {
+  const { portas, toques } = portasDeTeste();
+
+  const modulo = criarModuloDeRetencaoEDescarte(portas);
+
+  // A operacao de US-5 existe e esta exposta, e **nada** aconteceu por ela
+  // existir: nenhuma varredura saiu, nenhum evento foi pedido a fila e o relogio
+  // nao foi lido. Expor a tarefa agendada e uma coisa; registra-la na fila e a
+  // decisao de CA-5.1, que continua aberta.
+  assert.equal(typeof modulo.coletarALixeiraVencida, 'function');
+  assert.deepEqual(toques.selecionar, []);
+  assert.deepEqual(toques.agendar, []);
+  assert.deepEqual(toques.consultaDeFila, []);
+  assert.equal(toques.relogio, 0);
 });
 
 test('duas composicoes nao compartilham estado (EXT-CONTEXTO, BR-MIGRAR-105)', () => {
