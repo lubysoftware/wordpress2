@@ -185,12 +185,17 @@ test('a superficie do modulo tem exatamente o que as tarefas fechadas entregaram
 
   // Esta lista cresce NA TAREFA DE CADA HISTORIA, nunca antes: e o que o P4 da
   // constituicao cobra, "toda operacao exposta nova nasce com declaracao
-  // explicita de permissao". T001 e T002: nenhuma operacao — as portas e o
-  // registro (T001) e o armazenamento (T002), que nao decide nada. A tabela de
-  // quem entra, com a permissao de cada uma ja lida dos casos de uso, esta no
-  // comentario de `ModuloDePrivacidade`.
+  // explicita de permissao". T001 e T002 nao trouxeram operacao nenhuma — as
+  // portas e o registro (T001) e o armazenamento (T002), que nao decide nada —,
+  // e T003 trouxe as tres de US-1: a funcao da API, que no legado nao tem
+  // portao; a superficie, que tem o portao das duas telas; e a lista, que
+  // tambem nao tem. A tabela de quem entra, com a permissao de cada uma ja
+  // lida dos casos de uso, esta no comentario de `ModuloDePrivacidade`.
   assert.deepEqual(Object.keys(modulo).sort(), [
+    'abrirSolicitacao',
+    'abrirSolicitacaoPelaTela',
     'armazenamento',
+    'listarSolicitacoes',
     'nome',
     'portas',
     'provedores',

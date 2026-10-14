@@ -9,7 +9,7 @@
       *entrega:* a solicitação existe como tipo de conteúdo próprio, com os quatro estados do legado e a chave de confirmação guardada com resumo criptográfico, lida e gravada pela porta de dados
       *satisfaz:* — (infraestrutura)
       *depende de:* T001
-- [ ] **T003** Abrir solicitação de dados pessoais identificada pelo endereço de e-mail (US-1)
+- [x] **T003** Abrir solicitação de dados pessoais identificada pelo endereço de e-mail (US-1)
       *entrega:* o comportamento de US-1 existe e os critérios CA-1.1, CA-1.2, CA-1.3, CA-1.4, CA-1.5 passam contra o sistema novo
       *satisfaz:* CA-1.1, CA-1.2, CA-1.3, CA-1.4, CA-1.5
       *depende de:* T001, T002

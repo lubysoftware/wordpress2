@@ -1,14 +1,22 @@
 /**
  * Modulo de privacidade — BC-06 de `target_architecture.md`.
  *
- * Esqueleto da feature `008-privacidade-e-dados-pessoais`, tarefa **T001**. O que
- * existe aqui e o que T001 entrega: *"o modulo carrega com as portas de dados, de
- * relogio, de envio de e-mail e de sistema de arquivos declaradas, e o registro
- * de provedores de dado pessoal vazio e inspecionavel"*. **Nenhuma regra de
- * negocio esta implementada.** A solicitacao como registro de conteudo com os
- * quatro estados entra em T002, e cada historia na tarefa dela (T003 em diante).
- * A leitura obrigatoria de quem pegar a tarefa seguinte esta em `./README.md` —
- * ela tem tres divergencias registradas e nao resolvidas.
+ * Feature `008-privacidade-e-dados-pessoais`, tarefas fechadas **T001**, **T002**
+ * e **T003**. O que existe aqui e o que as tres entregam: T001, *"o modulo carrega
+ * com as portas de dados, de relogio, de envio de e-mail e de sistema de arquivos
+ * declaradas, e o registro de provedores de dado pessoal vazio e inspecionavel"*;
+ * T002, *"a solicitacao existe como tipo de conteudo proprio, com os quatro
+ * estados do legado e a chave de confirmacao guardada com resumo criptografico"*;
+ * T003, *"o comportamento de US-1 existe e os criterios CA-1.1 a CA-1.5 passam
+ * contra o sistema novo"*.
+ *
+ * **A unica regra de negocio implementada e a de US-1**: abrir a solicitacao
+ * identificada pelo endereco de e-mail, em `abertura/`. A confirmacao com prazo
+ * (T005), a falha de envio como estado (T007), a expiracao (T009), a exportacao
+ * (T011), o apagamento (T013), o descarte do arquivo (T015) e o poder de rede
+ * (T017) entram nas tarefas delas. A leitura obrigatoria de quem pegar a tarefa
+ * seguinte esta em `./README.md` — ele abre com as **tres caixas de
+ * divergencia** que T001, T002 e T003 registraram e nao resolveram.
  *
  * **Por que este contexto existe separado, sendo 1-para-1 com um tipo de
  * registro.** `target_architecture.md` exige justificativa para contexto que nao
@@ -41,6 +49,18 @@
  */
 
 import {
+  abrirSolicitacao,
+  abrirSolicitacaoPelaTela,
+  listarSolicitacoes,
+  type ContextoDeAbertura,
+  type PedidoDaListaDeSolicitacoes,
+  type PedidoDaTelaDeAbertura,
+  type PedidoDeAbertura,
+  type ResultadoDaAbertura,
+  type ResultadoDaListaDeSolicitacoes,
+  type ResultadoDaTelaDeAbertura,
+} from './abertura/index.js';
+import {
   criarArmazenamentoDePrivacidade,
   type ArmazenamentoDePrivacidade,
 } from './armazenamento/index.js';
@@ -55,6 +75,7 @@ import {
   type RegistroDeProvedores,
 } from './registro/index.js';
 
+export * from './abertura/index.js';
 export * from './armazenamento/index.js';
 export * from './portas/index.js';
 export * from './registro/index.js';
@@ -72,8 +93,8 @@ export interface PortasDePrivacidade {
  *
  * Cada historia acrescenta aqui a sua operacao, com a declaracao explicita de
  * permissao que o **P4** da constituicao exige, e **nenhuma antes da propria
- * tarefa**. Hoje ha tres coisas e nenhuma operacao: as portas e o registro, de
- * T001, e o armazenamento, de T002 — que nao decide nada.
+ * tarefa**. Hoje ha as portas e o registro (T001), o armazenamento (T002) — que
+ * nao decide nada — e as **tres** operacoes de US-1 (T003).
  *
  * As operacoes que vao entrar sao as da tabela *Contratos* do `plan.md`, e a
  * permissao de cada uma ja esta lida dos casos de uso — fica registrada aqui
@@ -112,6 +133,92 @@ export interface ModuloDePrivacidade {
    * `armazenamento/solicitacao.ts`.
    */
   readonly armazenamento: ArmazenamentoDePrivacidade;
+
+  /**
+   * Abre a solicitacao de dados pessoais, identificada pelo **endereco de
+   * e-mail** e nao pela conta (US-1, T003). E `wp_create_user_request()`
+   * (`wp-includes/user.php:4804`), e e o passo 3 de UC-25.
+   *
+   * **Permissao exigida: nenhuma, e isso e o legado.** As 53 linhas da funcao
+   * nao perguntam capacidade alguma — quem pergunta e a tela, e para ela a
+   * resposta esta em {@link ModuloDePrivacidade.abrirSolicitacaoPelaTela}. O
+   * **P4** manda que toda superficie que expuser esta operacao declare a
+   * permissao dela; a decisao esta pronta em
+   * `abertura/permissao-de-abertura.ts`.
+   *
+   * **O que esta operacao NAO faz:** nao gera chave, nao envia e-mail e nao
+   * toca o registro de provedores — nada e exportado nem apagado na abertura
+   * (CA-1.5). A chave nasce no **envio**, que e T005, e o ponto exato dele esta
+   * marcado em `abertura/tela-de-abertura.ts`.
+   *
+   * ⚠️ **Nenhum comando sai pela porta deste modulo**, e isso e medido: o
+   * caminho da privacidade do legado nao emite comando proprio sobre `posts`.
+   * A duplicidade e a insercao atravessam a ligacao tardia do contexto — a
+   * razao, com as ancoras, esta em `abertura/contexto-de-abertura.ts`.
+   *
+   * O contexto chega por argumento, e nao pela composicao, porque identidade,
+   * matriz de papeis e estado de rede sao escopo de REQUISICAO (AD-02,
+   * BR-MIGRAR-105) — e porque a colaboracao com BC-01, BC-05 e a consulta de
+   * conteudo e de ligacao tardia (AD-10, regra de dependencia 3).
+   */
+  abrirSolicitacao(
+    contexto: ContextoDeAbertura,
+    pedido?: PedidoDeAbertura,
+  ): ResultadoDaAbertura;
+
+  /**
+   * A **superficie** da abertura: o portao da tela mais o ramo de criacao de
+   * `_wp_personal_data_handle_actions()`
+   * (`wp-admin/includes/privacy-tools.php:73`) — US-1, T003, **CA-1.1**.
+   *
+   * **Permissao exigida: `export_others_personal_data` na tela de exportacao;
+   * `erase_others_personal_data` E `delete_users` na tela de apagamento**
+   * (`wp-admin/export-personal-data.php:12` e
+   * `wp-admin/erase-personal-data.php:12`). A recusa e **valor**, com o texto,
+   * o titulo e o codigo HTTP que `wp_die()` produz.
+   *
+   * 🔴 **A capacidade conferida e a da TELA, nao a da acao pedida**, e CA-1.1
+   * diz *"da acao pedida"*. A divergencia e do legado — o campo
+   * `type_of_action` chega do formulario e nao e reconferido —, esta registrada
+   * em `abertura/permissao-de-abertura.ts` e no `./README.md`, e **nao foi
+   * resolvida**: fecha-la mudaria o que uma conta com
+   * `export_others_personal_data` pode fazer, sem decisao humana (P1).
+   *
+   * ⚠️ **O nonce `personal-data-request` nao e conferido aqui** (`:101`): e um
+   * dos cinco atestados do P4, e de BC-05 / feature 001, e a superficie o
+   * confere antes de chamar.
+   */
+  abrirSolicitacaoPelaTela(
+    contexto: ContextoDeAbertura,
+    pedido: PedidoDaTelaDeAbertura,
+  ): ResultadoDaTelaDeAbertura;
+
+  /**
+   * A lista de solicitacoes de uma acao, com o estado de cada uma visivel
+   * (US-1, T003, **CA-1.4**). E
+   * `WP_Privacy_Requests_Table::prepare_items()`
+   * (`wp-admin/includes/class-wp-privacy-requests-table.php:367`), e e o passo
+   * 6 de UC-25.
+   *
+   * **Permissao exigida: nenhuma, e isso e declaracao explicita e nao
+   * omissao** (P4). No legado o portao e a primeira linha da tela, que **ja**
+   * passou quando `prepare_items()` roda; a funcao nao pergunta nada. Quem
+   * expuser a lista fora daquelas duas telas declara a permissao dela.
+   *
+   * ⚠️ **Nao monta HTML**: devolve as variaveis entregues a consulta, os itens
+   * e o estado visivel de cada um. O **rotulo** do estado nao esta aqui — e
+   * texto traduzivel com contexto de gettext proprio, de `plataforma/traducao/`
+   * (ver `abertura/lista-de-solicitacoes.ts`).
+   *
+   * ⚠️ **A limpeza das pendentes vencidas roda ANTES desta lista no legado**
+   * (`wp-admin/export-personal-data.php:73`) e e **T009**: sem ela, esta lista
+   * mostra como pendente uma solicitacao que o legado ja teria movido para
+   * falha.
+   */
+  listarSolicitacoes(
+    contexto: ContextoDeAbertura,
+    pedido: PedidoDaListaDeSolicitacoes,
+  ): ResultadoDaListaDeSolicitacoes;
 }
 
 /**
@@ -145,5 +252,8 @@ export function criarModuloDePrivacidade(
     // Compor o armazenamento monta nome de tabela e nada mais: nenhuma consulta
     // sai daqui (`EXT-ORDEM`, BR-MIGRAR-106).
     armazenamento: criarArmazenamentoDePrivacidade(portas.dados),
+    abrirSolicitacao,
+    abrirSolicitacaoPelaTela,
+    listarSolicitacoes,
   };
 }
