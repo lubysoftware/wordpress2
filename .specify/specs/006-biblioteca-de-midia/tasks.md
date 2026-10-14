@@ -13,7 +13,7 @@
       *entrega:* o comportamento de US-1 existe e os critérios CA-1.1, CA-1.2, CA-1.3, CA-1.4, CA-1.5, CA-1.6 passam contra o sistema novo
       *satisfaz:* CA-1.1, CA-1.2, CA-1.3, CA-1.4, CA-1.5, CA-1.6
       *depende de:* T001, T002
-- [ ] **T004** [P] Testes de US-1
+- [x] **T004** [P] Testes de US-1
       *entrega:* 6 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-056-1, UT-056-2, UT-056-3, UT-056-4, UT-056-5, UT-056-6), com o mesmo dado de entrada, ação e resultado esperado.
       *satisfaz:* CA-1.1, CA-1.2, CA-1.3, CA-1.4, CA-1.5, CA-1.6
       *depende de:* T003
