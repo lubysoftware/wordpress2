@@ -209,14 +209,18 @@ test('a superficie do modulo tem exatamente o que as tarefas fechadas entregaram
   // explicita de permissao". T001 e T002 nao trouxeram operacao nenhuma: as
   // portas e o dado dos tamanhos de fabrica (T001) e o armazenamento (T002),
   // que nao decide nada. **T003** trouxe a primeira, `enviarArquivo`, com as
-  // duas capacidades de CA-1.1 declaradas na interface. A pauta do que entra em
-  // cada tarefa esta na tabela do `index.ts`.
+  // duas capacidades de CA-1.1 declaradas na interface. **T005** trouxe a
+  // segunda, `visibilidadeDoAnexo`, cuja declaracao de permissao e "nenhuma", e
+  // isso tambem e declaracao: e ela que alimenta a decisao de capacidade
+  // (`wp-includes/capabilities.php:350`). A pauta do que entra em cada tarefa
+  // esta na tabela do `index.ts`.
   assert.deepEqual(Object.keys(modulo).sort(), [
     'armazenamento',
     'enviarArquivo',
     'nome',
     'portas',
     'tamanhosDeFabrica',
+    'visibilidadeDoAnexo',
   ]);
 });
 
