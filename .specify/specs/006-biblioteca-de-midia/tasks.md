@@ -17,7 +17,7 @@
       *entrega:* 6 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-056-1, UT-056-2, UT-056-3, UT-056-4, UT-056-5, UT-056-6), com o mesmo dado de entrada, ação e resultado esperado.
       *satisfaz:* CA-1.1, CA-1.2, CA-1.3, CA-1.4, CA-1.5, CA-1.6
       *depende de:* T003
-- [ ] **T005** Herdar do conteúdo de destino a visibilidade do arquivo enviado (US-2)
+- [x] **T005** Herdar do conteúdo de destino a visibilidade do arquivo enviado (US-2)
       *entrega:* o comportamento de US-2 existe e os critérios CA-2.1, CA-2.2, CA-2.3, CA-2.4 passam contra o sistema novo
       *satisfaz:* CA-2.1, CA-2.2, CA-2.3, CA-2.4
       *depende de:* T001, T002, T003

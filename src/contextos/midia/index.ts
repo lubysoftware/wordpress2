@@ -1,20 +1,24 @@
 /**
  * Modulo de midia — BC-04 de `target_architecture.md`.
  *
- * Feature `006-biblioteca-de-midia`, tarefas fechadas **T001**, **T002** e
- * **T003**. O que existe aqui e o que as tres entregam: T001, *"o modulo carrega
- * com as portas de dados, de sistema de arquivos e de processamento de imagem
- * declaradas, e os tamanhos de fabrica do legado registrados como dado"*; T002,
- * *"o anexo existe como registro de conteudo com estado herdado, e o metadado
- * que descreve as derivadas e gravado e lido pela porta de dados com a mesma
- * forma do legado"*; T003, *"o comportamento de US-1 existe e os criterios
- * CA-1.1 a CA-1.6 passam contra o sistema novo"*.
+ * Feature `006-biblioteca-de-midia`, tarefas fechadas **T001**, **T002**,
+ * **T003** e **T005**. O que existe aqui e o que as quatro entregam: T001, *"o
+ * modulo carrega com as portas de dados, de sistema de arquivos e de
+ * processamento de imagem declaradas, e os tamanhos de fabrica do legado
+ * registrados como dado"*; T002, *"o anexo existe como registro de conteudo com
+ * estado herdado, e o metadado que descreve as derivadas e gravado e lido pela
+ * porta de dados com a mesma forma do legado"*; T003, *"o comportamento de US-1
+ * existe e os criterios CA-1.1 a CA-1.6 passam contra o sistema novo"*; T005,
+ * *"o comportamento de US-2 existe e os criterios CA-2.1 a CA-2.4 passam contra
+ * o sistema novo"*.
  *
- * **A unica regra de negocio implementada e a de US-1** — o envio com validacao
- * do tipo real do arquivo, em `envio/`. A heranca de visibilidade, a geracao de
- * derivadas, a reducao na ingestao, o relato de falha, a escolha da derivada, a
+ * **As duas regras de negocio implementadas sao a de US-1** — o envio com
+ * validacao do tipo real do arquivo, em `envio/` — **e a de US-2**, a
+ * visibilidade herdada do anexo, em `visibilidade/`, que e a metade de leitura de
+ * `P2` (a metade de gravacao e de BC-01 e ja existia). A geracao de derivadas, a
+ * reducao na ingestao, o relato de falha, a escolha da derivada, a
  * transformacao, o descarte do arquivo e o contorno do filtro com registro
- * entram nas tarefas delas (T005 em diante), e a leitura obrigatoria de cada uma
+ * entram nas tarefas delas (T007 em diante), e a leitura obrigatoria de cada uma
  * esta em `./README.md`.
  *
  * A pasta e `contextos/midia/` porque e assim que `target_architecture.md`
@@ -56,11 +60,17 @@ import {
   TAMANHOS_DE_IMAGEM_DE_FABRICA,
   type TamanhoDeImagemDeFabrica,
 } from './tamanhos/index.js';
+import {
+  visibilidadeDoAnexo,
+  type ContextoDeVisibilidade,
+  type RegistroNaVisibilidade,
+} from './visibilidade/index.js';
 
 export * from './armazenamento/index.js';
 export * from './envio/index.js';
 export * from './portas/index.js';
 export * from './tamanhos/index.js';
+export * from './visibilidade/index.js';
 
 /** As tres portas de que este modulo depende, na forma em que ele as recebe. */
 export interface PortasDeMidia {
@@ -74,9 +84,10 @@ export interface PortasDeMidia {
  *
  * Cada historia acrescenta aqui a sua operacao, com a declaracao explicita de
  * permissao que o P4 da constituicao exige, e nenhuma antes da propria tarefa.
- * Hoje ha quatro coisas: as portas e os tamanhos de fabrica, de T001, o
- * armazenamento, de T002, e **uma** operacao, de T003 — {@link
- * ModuloDeMidia.enviarArquivo}.
+ * Hoje ha cinco coisas: as portas e os tamanhos de fabrica, de T001, o
+ * armazenamento, de T002, e **duas** operacoes — {@link
+ * ModuloDeMidia.enviarArquivo}, de T003, e {@link
+ * ModuloDeMidia.visibilidadeDoAnexo}, de T005.
  *
  * A tabela abaixo e o que a secao *Contratos* de `plan.md` lista, com a
  * capacidade que a `spec.md` cobra em cada uma. Ela esta aqui como **pauta**, e
@@ -86,6 +97,7 @@ export interface PortasDeMidia {
  * | operacao | historia | tarefa | permissao, como o pacote a declara |
  * |---|---|---|---|
  * | enviar arquivo ✔ | US-1 | T003 | `upload_files`, mais `edit_post` do destino quando ha destino — UC-12 nomeia as duas, CA-1.1 as cobra |
+ * | visibilidade do anexo ✔ | US-2 | T005 | **nenhuma**, e e declaracao e nao omissao: e esta leitura que alimenta a decisao de capacidade (`capabilities.php:350`) — ver {@link ModuloDeMidia.visibilidadeDoAnexo} |
  * | gerar derivadas | US-3 | T007 | o pacote nao declara nenhuma; CA-3.3 pede uma acao explicita para regerar, e quem a expor declara a dela (P4) |
  * | servir derivada | US-6 | T013 | nenhuma: a historia e do visitante, e a rastreabilidade dela aponta UC-01 |
  * | transformar imagem | US-7 | T015 | *"a capacidade de editar aquele anexo"* (CA-7.1), sem que o pacote a nomeie |
@@ -142,6 +154,44 @@ export interface ModuloDeMidia {
   ): ResultadoDoEnvio;
 
   /**
+   * A visibilidade com que o arquivo e visto — a do conteudo de destino, nunca a
+   * propria (US-2, T005). E `get_post_status()`
+   * (`wp-includes/post.php:1290`-`:1348`), e e a **metade de leitura** de `P2`
+   * (BR-MIGRAR-002).
+   *
+   * **Permissao exigida: nenhuma, e isso e declaracao explicita e nao
+   * omissao** (P4). A funcao do legado nao pergunta capacidade alguma, e nao
+   * poderia: e ela que **alimenta** a decisao de capacidade —
+   * `map_meta_cap()` resolve `read_post` com
+   * `get_post_status_object( get_post_status( $post ) )`
+   * (`wp-includes/capabilities.php:350`) e `is_post_publicly_viewable()` decide
+   * o acesso do visitante com o mesmo valor (`wp-includes/post.php:2550`).
+   * Exigir capacidade aqui inverteria a ordem das duas.
+   *
+   * ⚠️ **A outra metade de `P2` nao esta neste modulo, e nao e esquecimento.** A
+   * reescrita do estado na **gravacao** (`:4705`) acontece dentro de
+   * `wp_insert_post()`, que e BC-01, e ja existe em
+   * `contextos/conteudo/gravacao/estado-na-gravacao.ts`. O que esta feature
+   * garante do lado da escrita e que o pedido que atravessa a ligacao tardia
+   * **nao tem campo de estado** — ver `PedidoDeAnexo`.
+   *
+   * ⚠️ **Nao escreve nada, nem corrige a coluna.** O valor resolvido vive so na
+   * resposta, e e por isso que CA-2.4 — *"mudar a visibilidade do conteudo de
+   * destino muda a do anexo junto"* — acontece sem escrita nenhuma no anexo.
+   *
+   * Devolve `null` onde o legado devolve `false`: identificador que nao existe.
+   *
+   * O contexto chega por argumento, e nao pela composicao, porque as duas
+   * leituras que ela faz sao do **conteudo pai** — `get_post()` de BC-01 e o
+   * marcador de lixeira de BC-05 —, e colaboracao entre contextos e ligacao
+   * tardia (AD-10, regra de dependencia 3).
+   */
+  visibilidadeDoAnexo(
+    contexto: ContextoDeVisibilidade,
+    conteudo: number | RegistroNaVisibilidade,
+  ): string | null;
+
+  /**
    * Os seis tamanhos de fabrica do legado, na ordem dele (`M2`,
    * BR-MIGRAR-058; CA-3.2).
    *
@@ -175,6 +225,7 @@ export function criarModuloDeMidia(portas: PortasDeMidia): ModuloDeMidia {
     // sai daqui (`EXT-ORDEM`, BR-MIGRAR-106).
     armazenamento: criarArmazenamentoDeMidia(portas.dados),
     enviarArquivo,
+    visibilidadeDoAnexo,
     tamanhosDeFabrica: TAMANHOS_DE_IMAGEM_DE_FABRICA,
   };
 }

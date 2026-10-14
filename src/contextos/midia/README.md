@@ -2,10 +2,11 @@
 
 Feature `006-biblioteca-de-midia`. Tarefas fechadas com nota de entrega neste
 arquivo: **T001** (esqueleto, as tres portas e os tamanhos de fabrica), **T002**
-(a forma de armazenamento do anexo e das derivadas) e **T003** (o envio com
-validacao do tipo real, US-1). Este arquivo e a leitura obrigatoria de quem pegar
-a tarefa seguinte: ele diz o que ja esta decidido, o que esta decidido **em outro
-lugar**, e o que **ninguem** decidiu.
+(a forma de armazenamento do anexo e das derivadas), **T003** (o envio com
+validacao do tipo real, US-1) e **T005** (a visibilidade herdada do anexo, US-2).
+Este arquivo e a leitura obrigatoria de quem pegar a tarefa seguinte: ele diz o
+que ja esta decidido, o que esta decidido **em outro lugar**, e o que **ninguem**
+decidiu.
 
 A pasta e `contextos/midia/` porque e assim que `target_architecture.md` nomeia
 BC-04 no esboco de arvore. BC-04 e a fusao de `midia-e-anexos` com
@@ -18,12 +19,19 @@ mesmo artefato em disco e compartilham o modo de falha de `M4`"*.
 > ancorar a porta de processamento de imagem e **nao resolveu**. Esta na secao
 > *O que T001 encontrou aberto*, e e o primeiro item.
 
-> 🔴 **E se a sua tarefa encosta na permissao do envio (T005, T019):** a
-> `spec.md` e a arvore analisada **discordam** sobre o que acontece com quem nao
-> pode editar o conteudo de destino — CA-1.1 diz que o envio e exigido, e duas
-> das tres superficies do legado **descartam o destino e seguem** em vez de
-> recusar. T003 reproduziu os dois comportamentos e **nao resolveu**. Esta na
-> secao *O que T003 encontrou aberto*.
+> 🔴 **E se a sua tarefa encosta na permissao do envio (T019):** a `spec.md` e a
+> arvore analisada **discordam** sobre o que acontece com quem nao pode editar o
+> conteudo de destino — CA-1.1 diz que o envio e exigido, e duas das tres
+> superficies do legado **descartam o destino e seguem** em vez de recusar. T003
+> reproduziu os dois comportamentos e **nao resolveu**; T005 encostou nisso pelo
+> outro lado (o anexo sem pai e o caminho de CA-2.3) e **tambem nao resolveu**.
+> Esta na secao *O que T003 encontrou aberto*.
+
+> 🔴 **E se a sua tarefa le o estado de um anexo (T013, T017, e quem compor a
+> requisicao):** o valor da coluna **nao e** a visibilidade. `inherit` e a
+> instrucao de ir buscar uma, e quem resolve e `visibilidade/` (T005). Ler a
+> coluna direto, como `media.php:1575` faz para pular o item na lixeira, e
+> **tambem** do legado — mas e outra pergunta. Esta na secao *O que T005 entrega*.
 
 ---
 
@@ -242,6 +250,90 @@ esta no legado, dentro da validacao de tipo.
 
 ---
 
+## O que T005 entrega, e so isso
+
+A linha da tarefa: *"o comportamento de US-2 existe e os criterios CA-2.1,
+CA-2.2, CA-2.3 e CA-2.4 passam contra o sistema novo"*. E a **segunda** operacao
+deste modulo, e a declaracao de permissao dela (P4) e **nenhuma** — ver abaixo
+por que isso e declaracao e nao omissao.
+
+No legado e **uma** funcao: `get_post_status()`
+(`wp-includes/post.php:1290`-`:1348`).
+
+| arquivo | o que e | criterios |
+|---|---|---|
+| `visibilidade/visibilidade-de-anexo.ts` | `get_post_status()`, com os cinco desfechos do anexo e o ponto de extensao | CA-2.1, CA-2.2, CA-2.3, CA-2.4 |
+| `visibilidade/contexto-de-visibilidade.ts` | o contexto da operacao: as **duas** leituras do conteudo pai | — |
+| `visibilidade/us-2-visibilidade-herdada.test.ts` | os 21 testes da entrega | os quatro |
+
+### As cinco decisoes de T005 que a proxima tarefa precisa conhecer
+
+1. **`P2` tem DUAS metades, em dois arquivos e dois momentos, e esta tarefa e a
+   segunda.** A metade de **gravacao** — *"status fora de `inherit`, `private`,
+   `trash`, `auto-draft` e reescrito para `inherit`"* (`:4705`-`:4707`) — e de
+   **BC-01** e **ja existia** antes desta tarefa, em
+   `contextos/conteudo/gravacao/estado-na-gravacao.ts`, porque e a linha seguinte
+   da funcao que T005 da feature `002` portou. A metade de **leitura** — resolver
+   o `inherit` gravado na visibilidade do pai — e esta. Sem a segunda, **tres dos
+   quatro criterios nao fecham**: `inherit` na coluna nao e uma visibilidade, e
+   CA-2.1, CA-2.3 e CA-2.4 sao sobre o valor **resolvido**.
+2. **A coluna nao e a resposta, e isso vale para quem ler anexo em T013 e T017.**
+   Nenhum dos cinco desfechos escreve: a linha continua `inherit` e o valor
+   resolvido vive so na resposta. E por isso que **CA-2.4 acontece sem escrita
+   nenhuma no anexo** — mudar o estado do pai muda a resposta na leitura
+   seguinte, e o teste afirma que nenhum comando sai pela porta de dados deste
+   modulo. Gravar o estado resolvido no anexo acrescentaria escrita que o legado
+   nao emite **e** congelaria a heranca na primeira leitura.
+3. **A operacao nao exige capacidade, e a declaracao e essa.** `get_post_status()`
+   nao pergunta capacidade alguma, e nao poderia: e ela que **alimenta** a decisao
+   de capacidade — `map_meta_cap()` resolve `read_post` com
+   `get_post_status_object( get_post_status( $post ) )`
+   (`wp-includes/capabilities.php:350`) e `is_post_publicly_viewable()` decide o
+   acesso do visitante com o mesmo valor (`wp-includes/post.php:2550`). Exigir
+   capacidade aqui inverteria a ordem das duas.
+4. **A fronteira que esta tarefa preenche foi nomeada pela feature 001.**
+   `plataforma/autorizacao/conteudo-na-autorizacao.ts` declara
+   `ConteudoNaAutorizacao.estadoParaLeitura` com o aviso de que *"essa resolucao
+   e da biblioteca de midia — feature 006, nao esta"*. Quem compoe a requisicao
+   preenche esse campo com a operacao de T005 quando a linha e de `attachment`, e
+   com a propria coluna quando nao e — que e o que o legado faz, porque para os
+   outros 15 tipos do nucleo a funcao devolve `$post->post_status` sem tocar em
+   nada.
+5. **As duas leituras do pai sao ligacao tardia, e nenhuma passa pelo
+   armazenamento desta feature.** `get_post()` emite
+   `SELECT * FROM $wpdb->posts WHERE ID = %d LIMIT 1`
+   (`wp-includes/class-wp-post.php:289`); o `obterPorId` de T002 emite a consulta
+   de `wp_delete_attachment()` (`:6817`), **sem** `LIMIT`. Sao duas cadeias para a
+   mesma leitura, e a area 3 da Decisao 2 compara *"snapshot + sequencia de
+   comandos"*. A segunda leitura e o marcador `_wp_trash_meta_status` do **pai**,
+   que e vocabulario de BC-05 — mesmo precedente do campo injetado de
+   `plataforma/autorizacao/`.
+
+### Dois achados do legado que a `spec.md` nao diz, e que um porte perde
+
+1. **O pai comum e lido TRES vezes, e isso esta na forma do `if`.** `:1313`
+   resolve o estado do pai para compara-lo com `trash` e **descarta o
+   resultado**; `:1322` resolve de novo; e `:1308` ja havia lido para saber se o
+   pai existe. Com *"o cache de objeto desligado nas duas metades"* — que e o
+   `Contexto` de `PT-014` — cada resolucao e uma consulta. Economizar uma leitura
+   aqui e divergir em sequencia de comandos e, com pai tambem anexo, em numero de
+   disparos do ponto de extensao `get_post_status`.
+2. **A ordem dos tres termos de `:1306`-`:1310` e observavel.** O `0` do vinculo
+   ausente curto-circuita e **nenhuma** leitura sai; a existencia do pai e
+   perguntada **antes** da auto-referencia, logo o anexo que aponta para si mesmo
+   **ainda emite** a leitura do pai. Quem testar a auto-referencia primeiro
+   economiza uma consulta que o legado emite.
+
+### O que T005 NAO portou, com o motivo de cada coisa
+
+| o que | ancora | por que |
+|---|---|---|
+| o disparo de `get_post_status` | `post.php:1347` | o barramento e `REQ-162`, em `do-not-rewrite.md` — escopo **recusado**. O ponto esta **declarado** no arquivo que o emitiria, com nome, argumentos, posicao (o fim da funcao) e a nota de que ele dispara **uma vez por chamada, inclusive nas recursivas** |
+| o salto de normalizacao de `get_sample_permalink()` | `post.php:1292` | e o campo `filter` do objeto do legado, que nao existe nesta arvore; aqui o registro ja normalizado chega **como registro**, que e a mesma coisa sem o campo de controle |
+| a reescrita do estado na gravacao | `post.php:4705` | e de **BC-01** e ja existe (decisao 1 acima). Uma segunda copia aqui permitiria mudar uma sem a outra |
+
+---
+
 ## Por que estas tres portas, e nao outras
 
 **Dados e sistema de arquivos** sao duas das cinco bordas de AD-08, e as duas
@@ -451,6 +543,47 @@ leitura do destino, o `absint()` e o nonce), esta no cabecalho de
 
 ---
 
+## 🔴 O que T005 encontrou, e NAO resolveu
+
+Nenhum dos dois e conflito entre afirmacoes opostas: nos dois a `spec.md` diz
+**menos** do que a arvore, e o P1 poe a arvore como a especificacao. Ficam
+registrados porque sao onde um porte guiado so pela spec perde paridade — mesma
+forma dos dois achados de T002.
+
+### 1. CA-2.3 diz "declarada no registro", e o legado presume `publish`
+
+- **CA-2.3, literal:** *"anexo sem conteudo de destino passa a ter visibilidade
+  propria, declarada no registro"*. O fluxo alternativo *Arquivo sem conteudo de
+  destino* de **UC-12** repete: *"sua visibilidade deixa de ser herdada e passa a
+  ser a do proprio registro"*.
+- **A arvore presume.** O registro de um anexo solto recem-criado diz `inherit`, e
+  `inherit` nao e visibilidade: `:1311`-`:1312` e literal — *"Unattached
+  attachments with inherit status are assumed to be published"*,
+  `$post_status = 'publish'`. O que vem **do registro** nesse caso e so a decisao
+  de nao herdar; o valor e presumido.
+
+A metade de CA-2.3 que o registro de fato declara e a dos tres estados proprios:
+`private`, `trash` e `auto-draft` atravessam a resolucao intactos, com pai ou sem.
+T005 **implementou a arvore** (P1) e nao reescreveu o criterio.
+
+### 2. A secao *Contratos* do `plan.md` nao tem operacao para US-2
+
+A tabela de contratos do plano lista sete operacoes — enviar, gerar derivadas,
+servir derivada, transformar, restaurar, apagar e contornar o filtro — e **US-2
+nao esta entre elas**. O que o plano diz de US-2 esta na secao *Modelo de dados*,
+e e so a metade de gravacao: *"o estado do anexo e sempre herdado: qualquer valor
+fora da lista permitida e reescrito para herdar"*.
+
+Lido so pelo plano, T005 seria uma tarefa sem codigo — a reescrita de gravacao e
+de BC-01 e ja existia. Mas CA-2.1, CA-2.3 e CA-2.4 cobram o valor **resolvido**, a
+arvore tem a funcao que o resolve, e `plataforma/autorizacao/` ja havia atribuido
+essa resolucao a esta feature pelo nome. Por isso a operacao existe, e por isso a
+tabela de pauta do `index.ts` — que se apresenta como *"o que a secao Contratos de
+`plan.md` lista"* — passou a ter uma linha que o plano nao tem. Fica registrado
+para quem revisar a conta das operacoes.
+
+---
+
 ## O que este modulo nao vai ter, por decisao de outra pessoa
 
 - **Lixeira de midia.** `REQ-051` (*"dar lixeira a midia pelo mesmo comportamento
@@ -533,6 +666,25 @@ O que **T003** acrescenta a essa lista:
   garantido por este codigo e nao era no legado. Esta declarado no cabecalho de
   `nomeDeArquivoUnico()`; introduzir trava seria introduzir comportamento que o
   produto nao tem.
+
+O que **T005** acrescenta a essa lista:
+
+- O cenario **`@invariante`** de `P2` fecha a segunda metade por aqui. T002 havia
+  entregue o vocabulario, e o teste dele afirmava que `publish` nao esta entre os
+  quatro estados aceitos; agora a frase *"a visibilidade efetiva do arquivo e a do
+  conteudo pai nas duas"* tem codigo que a decide, com os cinco desfechos
+  afirmados um por um. A primeira metade — *"as duas reescrevem o estado para o de
+  heranca"* e *"quando o estado informado ja e um dos aceitos, nenhuma das duas o
+  reescreve"* — continua sendo de BC-01, onde a reescrita mora.
+- O mesmo cenario ganha o lado que ninguem escreveu como passo: o anexo cujo
+  **estado na coluna** nao e `inherit` nem um dos tres proprios responde
+  `publish` (`:1335`), e e isso que impede a leitura de relatar um estado que a
+  gravacao nao deixaria passar. E o unico ponto em que a anomalia do default do
+  DDL (`schema.php:167`) deixa de ser observavel.
+- E acrescenta uma afirmacao de **ausencia** a area *efeito no banco*: a
+  resolucao nao emite comando nenhum pela porta de dados deste modulo. E assim que
+  o teste afirma que CA-2.4 acontece **sem escrita no anexo**, que e o oposto do
+  que um porte faria ao "normalizar" a coluna.
 
 ⚠️ `parity_specs.md` registra que a suite de *characterization tests* **nao
 existe** nesta arvore, e que a paridade de tela tem de ser derivada secao por
