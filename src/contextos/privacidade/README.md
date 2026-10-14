@@ -2,8 +2,9 @@
 
 Feature `008-privacidade-e-dados-pessoais`. Tarefas fechadas com nota de entrega
 neste arquivo: **T001** (esqueleto, as quatro portas e o registro de provedores
-vazio) e **T002** (a solicitacao como registro de conteudo, os quatro estados e a
-forma da chave com resumo). Este arquivo e a leitura obrigatoria de quem pegar a
+vazio), **T002** (a solicitacao como registro de conteudo, os quatro estados e a
+forma da chave com resumo) e **T017** (US-8: o poder do nivel mais alto sobre
+dado pessoal de terceiro). Este arquivo e a leitura obrigatoria de quem pegar a
 tarefa seguinte: ele diz o que ja esta decidido, o que esta decidido **em outro
 lugar**, e o que **ninguem** decidiu.
 
@@ -146,6 +147,53 @@ Logo a ligacao com BC-01 e **tardia** (AD-10; a regra de dependencia 3 proibe o
 grava, e grava aqui pela porta de dados, sao as duas linhas de `postmeta`, que o
 caminho da privacidade escreve por conta propria com `update_post_meta()`
 (`user.php:4256` e `privacy-tools.php:55`).
+
+---
+
+## O que T017 entrega, e so isso
+
+A linha da tarefa: *"tratar exportar e apagar dado de terceiro como poder do
+nivel mais alto da instalacao"* (US-8, `REQ-095`). `satisfaz: CA-8.1, CA-8.2,
+CA-8.3, CA-8.4`. E a **primeira historia** desta feature a fechar, e ela fecha
+antes das outras sete porque `depende de: T001, T002` e de mais nada — US-8 nao
+depende da abertura (T003) nem da confirmacao (T005).
+
+| arquivo | o que e |
+|---|---|
+| `poder-sobre-dado-de-terceiro/caso-de-poder-de-privacidade.ts` | o `case` de **tres rotulos** de `wp-includes/capabilities.php:795`-`:799`, e a pergunta sobre a matriz que `CA-8.3` faz |
+| `poder-sobre-dado-de-terceiro/permissao-nas-telas-de-dado-pessoal.ts` | os quatro portoes que consomem esses nomes, com o `msgid` de cada recusa |
+| `poder-sobre-dado-de-terceiro/index.ts` | o barril, e a declaracao de por que `CA-8.4` nao tem codigo aqui |
+| `poder-sobre-dado-de-terceiro/us-8-poder-sobre-dado-de-terceiro.test.ts` | os 19 testes da historia, um bloco por criterio |
+
+**Tres fatos desta entrega que a proxima onda precisa saber:**
+
+1. **A regra de rede nao foi reimplementada.** `capacidadesDePrivacidade( emRede )`
+   — a unica copia do `is_multisite() ? 'manage_network' : 'manage_options'` —
+   ja estava em `plataforma/autorizacao/traducao-de-conteudo.ts`, posta la por
+   T017 da feature `001` porque o ramo da pagina de politica precisava dela.
+   Aquele arquivo **nomeou esta tarefa por escrito** (*"quem portar a feature 008
+   acrescenta os dois nomes de dados pessoais ... em lugar de reimplementar a
+   regra"*), e e o que T017 fez: acrescentou os dois rotulos que faltavam.
+2. **`CA-8.4` nao tem codigo nesta arvore, e isso e o certo.** A soma da pagina
+   de politica (`capabilities.php:180` ao apagar, `:283` ao editar) e o *ramo 7*
+   de `casoDeConteudo()`, ja portado em `plataforma/autorizacao`. T017 o
+   **afirma** — seis testes, inclusive o de rede e o de editar — em vez de
+   produzir uma segunda copia que so poderia divergir da primeira.
+3. **Nenhuma operacao entrou em `ModuloDePrivacidade`, e a superficie nao mudou.**
+   US-8 nao e um verbo: e a resolucao de capacidade de que os sete verbos da
+   tabela de `index.ts` dependem. O teste de superficie do modulo continua com
+   `armazenamento`, `nome`, `portas` e `provedores`.
+
+⚠️ **Quem compuser qualquer operacao desta feature tem de declarar
+`casoDePoderDePrivacidade` nos casos de traducao, ou usar os portoes desta
+pasta, que o acrescentam sozinhos.** Sem o caso, o `default:` da traducao
+devolve o proprio nome pedido, nenhum papel o concede e **nem o administrador
+exporta dado pessoal** — um sistema mais fechado do que o legado, que e
+exatamente o defeito que `BR-MIGRAR-092` descreve.
+
+**T017 nao encontrou divergencia nova**, e nao depende de nenhuma das cinco ja
+registradas: as cinco sao sobre estado, chave e provedor, e esta tarefa so
+resolve capacidade. Nenhuma dependencia entrou em `package.json`.
 
 ---
 
@@ -622,6 +670,28 @@ O que **T002** acrescenta a essa lista:
   emite. A comparacao de *"snapshot + sequencia de comandos"* da abertura, da
   confirmacao e da expiracao so existe depois que a tarefa que grava declarar a
   ligacao tardia com BC-01.
+
+O que **T017** torna conferivel:
+
+- O cenario `@regulatorio` *"Exportar ou apagar dado de terceiro e poder de
+  rede"* tem as duas metades afirmadas: o administrador de site em instalacao de
+  rede e recusado nos tres portoes, o administrador de rede passa nos tres, e
+  *"a diferenca entre as duas decisoes"* e exatamente o modo de instalacao — a
+  mesma conta, a mesma matriz e a mesma pergunta decidem diferente so por causa
+  dele.
+- O cenario `@regulatorio` *"A pagina de politica de privacidade e protegida
+  pela propria capacidade de privacidade"* tem os dois lados: o ator sem a
+  capacidade e recusado e o ator com ela passa, e a lista exigida e afirmada
+  campo a campo, inclusive a ordem do `array_merge`. ⚠️ A metade *"com a mesma
+  mensagem"* e *"o mesmo efeito no banco"* nao esta aqui: a recusa e o efeito de
+  apagar uma pagina sao da feature do conteudo (`contextos/conteudo` e
+  `contextos/retencao-e-descarte`), nao desta. O que T017 afirma e a **lista
+  exigida**, que e onde `D5` vive.
+- ⚠️ **O que T017 NAO torna conferivel:** o disparo do ponto de extensao
+  `user_has_cap` a cada pergunta. O portao de apagar pergunta **duas** vezes com
+  curto-circuito justamente porque o numero de disparos e observavel, e a forma
+  esta preservada — mas o barramento que os emitiria e `REQ-162`, que esta em
+  `do-not-rewrite.md`. Contar disparo contra o oraculo depende dele.
 
 ⚠️ `parity_specs.md` registra que a suite de *characterization tests* **nao
 existe** nesta arvore e que o corpus do Parallel Run **nao existe** — *"sem ele

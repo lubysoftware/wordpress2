@@ -4,9 +4,11 @@
  * Esqueleto da feature `008-privacidade-e-dados-pessoais`, tarefa **T001**. O que
  * existe aqui e o que T001 entrega: *"o modulo carrega com as portas de dados, de
  * relogio, de envio de e-mail e de sistema de arquivos declaradas, e o registro
- * de provedores de dado pessoal vazio e inspecionavel"*. **Nenhuma regra de
- * negocio esta implementada.** A solicitacao como registro de conteudo com os
- * quatro estados entra em T002, e cada historia na tarefa dela (T003 em diante).
+ * de provedores de dado pessoal vazio e inspecionavel"*. A solicitacao como
+ * registro de conteudo com os quatro estados entrou em T002, e **T017** trouxe a
+ * primeira historia: US-8, o poder do nivel mais alto sobre dado pessoal de
+ * terceiro, em `poder-sobre-dado-de-terceiro/`. As demais historias chegam cada
+ * uma na tarefa dela (T003 em diante).
  * A leitura obrigatoria de quem pegar a tarefa seguinte esta em `./README.md` —
  * ela tem tres divergencias registradas e nao resolvidas.
  *
@@ -56,6 +58,7 @@ import {
 } from './registro/index.js';
 
 export * from './armazenamento/index.js';
+export * from './poder-sobre-dado-de-terceiro/index.js';
 export * from './portas/index.js';
 export * from './registro/index.js';
 
@@ -90,6 +93,13 @@ export interface PortasDePrivacidade {
  * | apagar | US-6 | T013 | a de abrir, somada ao estado confirmado; `D4` poe as duas no nivel de rede |
  * | apagar o arquivo de exportacao | US-7 | T015 | **nenhuma.** Varredura horaria registrada no arranque (`R7`), sem usuario |
  * | apagar a pagina de politica de privacidade | US-8 | T017 | **`manage_privacy_options` somada as capacidades normais de apagar conteudo** (`D5`, `wp-includes/capabilities.php:179`) |
+ *
+ * ✅ **A coluna "permissao exigida" desta tabela deixou de ser promessa em T017.**
+ * Os tres nomes que ela cita resolvem, agora, pelo caso de
+ * `poder-sobre-dado-de-terceiro/`, e os portoes que os consomem estao escritos
+ * la com o `msgid` de cada recusa. A linha de US-8 nao acrescentou operacao
+ * nenhuma a {@link ModuloDePrivacidade}, e isso e a propria entrega: US-8 nao e
+ * um verbo, e a resolucao de capacidade de que os outros sete verbos dependem.
  *
  * Tres linhas declaram *"nenhuma capacidade"* e isso **e** a declaracao que o P4
  * pede: as duas rotinas agendadas e a confirmacao do titular decidem acesso sem

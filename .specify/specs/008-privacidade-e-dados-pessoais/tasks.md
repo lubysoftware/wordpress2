@@ -65,7 +65,7 @@
       *entrega:* 6 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-093-1, UT-093-2, UT-093-3, UT-093-4, UT-093-5, UT-093-6), com o mesmo dado de entrada, ação e resultado esperado. O teste de regra de negócio (UT-093-6) entra na mesma suíte.
       *satisfaz:* CA-7.1, CA-7.2, CA-7.3, CA-7.4, CA-7.5
       *depende de:* T015
-- [ ] **T017** Tratar exportar e apagar dado de terceiro como poder do nível mais alto da instalação (US-8)
+- [x] **T017** Tratar exportar e apagar dado de terceiro como poder do nível mais alto da instalação (US-8)
       *entrega:* o comportamento de US-8 existe e os critérios CA-8.1, CA-8.2, CA-8.3, CA-8.4 passam contra o sistema novo
       *satisfaz:* CA-8.1, CA-8.2, CA-8.3, CA-8.4
       *depende de:* T001, T002
