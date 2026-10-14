@@ -2,8 +2,9 @@
 
 Feature `008-privacidade-e-dados-pessoais`. Tarefas fechadas com nota de entrega
 neste arquivo: **T001** (esqueleto, as quatro portas e o registro de provedores
-vazio) e **T002** (a solicitacao como registro de conteudo, os quatro estados e a
-forma da chave com resumo). Este arquivo e a leitura obrigatoria de quem pegar a
+vazio), **T002** (a solicitacao como registro de conteudo, os quatro estados e a
+forma da chave com resumo) e **T003** (US-1: abrir a solicitacao identificada
+pelo endereco de e-mail). Este arquivo e a leitura obrigatoria de quem pegar a
 tarefa seguinte: ele diz o que ja esta decidido, o que esta decidido **em outro
 lugar**, e o que **ninguem** decidiu.
 
@@ -41,6 +42,18 @@ de `post_status`"*.
 > **T002 nao depende de nenhuma das duas**: ela declara a forma do que e gravado
 > e a interface de quem resume, e nao resume nada. E e por isso que esta tarefa
 > fechou.
+
+> 🔴 **T003 achou a sexta e a setima, e corrigiu uma afirmacao de T002.** As duas
+> estao na secao *O que T003 encontrou*, e nenhuma e decidivel por um agente:
+>
+> | divergencia | quem bate de frente | tarefa que depende |
+> |---|---|---|
+> | a capacidade conferida e a da **tela aberta**, e nao a da **acao pedida**: o campo `type_of_action` chega do formulario e nao e reconferido, logo a tela de exportacao cria pedido de **apagamento** sem `erase_others_personal_data` nem `delete_users` | CA-1.1 | **nenhuma** — T003 reproduziu o legado e registrou |
+> | a tela abre a solicitacao **ja confirmada** quando a caixa *"Confirmation email"* vem desmarcada: sem chave, sem e-mail e sem o titular autorizar — e dali ela e executavel | `D2` / BR-MIGRAR-039, `UT-086-7`, CA-5.1, CA-6.1 | **T005**, **T011** e **T013** leem antes de comecar |
+>
+> **T003 nao dependeu de nenhuma das duas para fechar**: os cinco criterios de
+> US-1 sao afirmaveis com o legado reproduzido como esta, e e por isso que esta
+> tarefa fechou.
 
 ---
 
@@ -146,6 +159,49 @@ Logo a ligacao com BC-01 e **tardia** (AD-10; a regra de dependencia 3 proibe o
 grava, e grava aqui pela porta de dados, sao as duas linhas de `postmeta`, que o
 caminho da privacidade escreve por conta propria com `update_post_meta()`
 (`user.php:4256` e `privacy-tools.php:55`).
+
+> ✅ **T003 declarou essa ligacao, e e a entrega dela.** `ConteudoNaPrivacidade`
+> em `abertura/contexto-de-abertura.ts` e a chamada a `wp_insert_post( $postarr,
+> true )` com as **oito** chaves de `wp-includes/user.php:4842`-`:4851`, e o
+> `ResultadoDaInsercaoDaSolicitacao` e o `int|WP_Error` que ela devolve. As
+> outras quatro escritas da maquina de estado continuam sem ligacao declarada: a
+> chave no envio (T005, T007), a confirmacao (T005), a conclusao (T011, T013) e
+> a expiracao (T009).
+
+---
+
+## O que T003 entrega, e so isso
+
+A linha da tarefa: *"o comportamento de US-1 existe e os criterios CA-1.1,
+CA-1.2, CA-1.3, CA-1.4, CA-1.5 passam contra o sistema novo"*. E a **primeira
+regra de negocio** deste modulo, e o caso de uso e
+[UC-25](../../../.specify/use-cases/UC-25-abrir-solicitacao-de-dados-pessoais.md).
+
+| arquivo | o que e |
+|---|---|
+| `abertura/contexto-de-abertura.ts` | os colaboradores de ligacao tardia: as duas leituras de conta (BC-05), a insercao (BC-01), os dois `WP_Query` (feature 004), os dois instantes no formato do banco e as quatro sanitizacoes de `plataforma/formatacao/` |
+| `abertura/permissao-de-abertura.ts` | **CA-1.1**: as capacidades de cada tela, o `wp_die()` de cada uma com titulo, codigo e **500**, e a divergencia 🔴 entre *"a acao pedida"* e o que o legado confere |
+| `abertura/abrir-solicitacao.ts` | **CA-1.2**, **CA-1.3** e **CA-1.5**: `wp_create_user_request()` com os sete passos na ordem, os quatro erros como valor e a duplicidade por `found_posts` |
+| `abertura/tela-de-abertura.ts` | **CA-1.1 aplicada**: o portao, o tratador da tela, os avisos acumulados **na ordem** e o ponto em que T005 encaixa o envio |
+| `abertura/lista-de-solicitacoes.ts` | **CA-1.4**: `prepare_items()`, a paginacao de fabrica com a borda, e o dado da coluna de estado |
+| `abertura/index.ts` | o barril da area |
+| `abertura/us-1-abrir-solicitacao.test.ts` | os 28 testes dos cinco criterios, e nada de catalogo — `UT-086-1` a `UT-086-7` sao **T004** |
+
+Tres coisas que esta tarefa **nao** faz, e as duas primeiras sao afirmadas pelos
+testes:
+
+1. **Nao gera chave e nao envia e-mail.** A chave nasce no **envio**
+   (`wp_send_user_request`, `user.php:4901`), que a tela chama numa linha
+   separada (`privacy-tools.php:169`) e que e **T005**. A solicitacao nasce com
+   `post_password` vazio porque a abertura nao menciona a coluna.
+2. **Nao toca o registro de provedores.** Nada e exportado nem apagado na
+   abertura (CA-1.5), e a abertura nem recebe o registro no contexto.
+3. **Nao emite comando pela porta de dados deste modulo.** A duplicidade e a
+   insercao atravessam a ligacao tardia; a **unica** parte de T003 que emite
+   comando e a lista, que le uma linha por solicitacao como o legado
+   (`class-wp-privacy-requests-table.php:401`).
+
+**Nenhuma dependencia nova em `package.json`**, pelo mesmo motivo de T001 e T002.
 
 ---
 
@@ -293,6 +349,16 @@ cada numero nao as redescubra:
 > (`pluggable.php:2989`) antes de voltar. ⚠️ E vem com a metade negativa do P6
 > junto: **nao ha limite de tentativa de chave**, e UC-26 e literal — *"nenhum
 > contador de tentativa existe"*. Introduzir um cai na tabela *Nao negociavel*.
+
+> ✅ **T003 declarou o quinto numero**, que tambem nao e prazo: os **20 itens por
+> pagina** da lista de solicitacoes, de `get_items_per_page( $option,
+> $default_value = 20 )` (`wp-admin/includes/class-wp-list-table.php:990`), com o
+> mesmo valor na opcao de tela que as duas paginas registram
+> (`wp-admin/export-personal-data.php:80`). Vive em
+> `abertura/lista-de-solicitacoes.ts` como constante nomeada, com os **dois**
+> pontos de configuracao — a opcao por conta `{acao}_requests_per_page` e o
+> filtro dinamico com o nome dela (`:1020`) — e com o teste de borda que o P6
+> pede: `empty()` ou `< 1` cai no default, `1` passa.
 
 E o numero que esta feature **nao** tem, que o P6 cobra com a mesma forca: **a
 solicitacao concluida nao tem prazo de retencao.** UC-27 e explicito — *"o arquivo
@@ -550,6 +616,73 @@ do metadado** — vem do estado da solicitacao e das duas chaves
 
 ---
 
+## 🔴 O que T003 encontrou, e NAO resolveu
+
+### 1. A capacidade conferida e a da TELA, e CA-1.1 diz "da acao pedida"
+
+CA-1.1: *"a solicitacao exige a capacidade de privacidade correspondente **a acao
+pedida**, verificada antes de a tela abrir"*. A segunda metade e exata — a
+verificacao e a primeira linha das duas telas. A primeira nao:
+
+- `wp-admin/export-personal-data.php:12` pergunta `export_others_personal_data`;
+  `wp-admin/erase-personal-data.php:12` pergunta `erase_others_personal_data` **e**
+  `delete_users`. As duas perguntam pela **tela**, nao pelo que o formulario pede;
+- a acao vem do campo oculto `type_of_action` (`export-personal-data.php:143`), e
+  `_wp_personal_data_handle_actions()` **nao recebe a tela**: o `switch` dela
+  aceita os dois valores de `action` (`privacy-tools.php:99` e `:100`) em
+  qualquer uma das duas;
+- logo quem tem **so** `export_others_personal_data` abre a tela de exportacao,
+  envia `type_of_action = remove_personal_data`, e a solicitacao de **apagamento**
+  e criada sem que nenhuma das duas capacidades de apagar seja perguntada em
+  lugar nenhum.
+
+**T003 reproduziu o legado** — `autorizarAbertura()` recebe a superficie, e
+`abrirSolicitacaoPelaTela()` cria com a acao do formulario — e tem teste que
+afirma o desfecho como ele e. Fechar a brecha mudaria o que uma conta com
+`export_others_personal_data` pode fazer, e o P1 e literal: *"divergir exige uma
+decisao humana registrada, citada no codigo que divergiu"*. Nenhuma das tres
+divergencias autorizadas e esta. Mesmo precedente e mesma postura de
+`contextos/midia/envio/permissao-de-envio.ts`.
+
+### 2. A tela abre a solicitacao JA confirmada, e isso contradiz `D2`
+
+⚠️ **Correcao de uma afirmacao de T002, conferida na arvore.**
+`armazenamento/estados-da-solicitacao.ts` diz, sobre o estado `'confirmed'` da
+abertura: *"Nao e caminho de tela: o parametro foi acrescentado na 5.7.0 e e por
+ele que uma extensao abre solicitacao ja autorizada"*. **E caminho de tela**, com
+duas ancoras:
+
+- `if ( ! isset( $_POST['send_confirmation_email'] ) ) { $status = 'confirmed'; }`
+  (`wp-admin/includes/privacy-tools.php:116`-`:118`);
+- a caixa *"Confirmation email"* existe nos dois formularios e vem **marcada** de
+  fabrica (`wp-admin/export-personal-data.php:130` e
+  `wp-admin/erase-personal-data.php:130`).
+
+Desmarcar a caixa abre a solicitacao em `request-confirmed` — **sem chave, sem
+e-mail e sem o titular autorizar nada** — e dali ela e executavel, porque CA-5.1
+e CA-6.1 pedem *"o estado confirmado"*. `D2` / BR-MIGRAR-039 diz *"nada acontece
+sem confirmacao do titular"* e `UT-086-7` cobra *"trava a execucao enquanto o
+titular nao confirmar"*: o caminho normal da tela honra as duas, porque o default
+e `pending`; este desvio nao.
+
+**T003 nao decide nada**: o default fica `pending` (CA-1.2 descreve o caminho
+normal, e ele esta portado), a opcao continua existindo porque e superficie
+publicada (P8), e o desfecho tem teste. **Quem pegar T005, T011 ou T013 le isto
+antes de comecar**: as tres tratam `request-confirmed` como *"o titular
+autorizou"*, e ha um caminho em que ele nao autorizou.
+
+### 3. Reforco da divergencia 1 de T001: o retorno do envio e descartado
+
+Nao e achado novo, e e evidencia nova para a divergencia 1 (*"nada move a
+solicitacao para o estado de falha quando o envio nao sai"*, CA-3.1): a tela
+chama `wp_send_user_request( $request_id )` em `privacy-tools.php:169` **sem
+atribuir o retorno** — nao ha `$result =`, nao ha `is_wp_error` — e monta
+*"Confirmation request initiated successfully."* em `:171` independentemente de o
+e-mail ter saido. Quem pegar **T007** le isto antes de decidir onde o estado de
+falha e escrito.
+
+---
+
 ## O que este modulo nao vai ter, por decisao de outra pessoa
 
 - **Verificacao de identidade para baixar o arquivo de exportacao.** `REQ-092`
@@ -622,6 +755,30 @@ O que **T002** acrescenta a essa lista:
   emite. A comparacao de *"snapshot + sequencia de comandos"* da abertura, da
   confirmacao e da expiracao so existe depois que a tarefa que grava declarar a
   ligacao tardia com BC-01.
+
+O que **T003** acrescenta, e e a metade que faltava acima:
+
+- O cenario `@invariante` de `D1` passa a ser conferivel **pela escrita**, e nao
+  so pela forma: o pedido que atravessa a ligacao tardia e o `$postarr` do
+  legado, com as oito chaves, e o teste o compara campo por campo — *"as duas a
+  gravam como conteudo do mesmo tipo"* (`post_type`), *"o campo que guarda o
+  endereco do titular e o mesmo nas duas"* (`post_title`) e *"o estado inicial
+  gravado e o mesmo nas duas"* (`request-pending`).
+- O cenario `@invariante` de `D2` tem a primeira metade fechada: *"nenhuma das
+  duas exporta nem apaga nada"* antes da confirmacao — o registro de provedores
+  sai intocado da abertura, e a porta de e-mail tambem. A segunda metade,
+  *"nenhuma das duas muda o estado da solicitacao"*, e de T005. 🔴 E com uma
+  ressalva que nao e de T003 resolver: o desvio da caixa desmarcada (achado 2)
+  **nasce** confirmada, e nesse caminho `D2` nao vale no legado.
+- A sequencia de comandos da abertura e afirmada **pelas ausencias**: endereco
+  invalido, acao invalida e estado invalido nao leem conta, nao consultam
+  duplicidade e nao inserem; e a recusa do portao da tela nao faz nada. Lista
+  vazia e afirmacao, nao ausencia.
+- ⚠️ **O que T003 NAO torna conferivel:** nada que dependa de chave, de prazo ou
+  de e-mail, porque a chave nasce no envio (T005). E a lista desta tarefa roda
+  **sem** a limpeza das pendentes vencidas, que no legado passa antes dela
+  (`wp-admin/export-personal-data.php:73`) e e T009: ate T009 fechar, a lista
+  mostra como pendente uma solicitacao que o legado ja teria movido para falha.
 
 ⚠️ `parity_specs.md` registra que a suite de *characterization tests* **nao
 existe** nesta arvore e que o corpus do Parallel Run **nao existe** — *"sem ele
