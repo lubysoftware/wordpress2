@@ -2,24 +2,29 @@
  * Modulo de midia — BC-04 de `target_architecture.md`.
  *
  * Feature `006-biblioteca-de-midia`, tarefas fechadas **T001**, **T002**,
- * **T003** e **T005**. O que existe aqui e o que as quatro entregam: T001, *"o
- * modulo carrega com as portas de dados, de sistema de arquivos e de
+ * **T003**, **T005** e **T007**. O que existe aqui e o que as cinco entregam:
+* modulo carrega com as portas de dados, de sistema de arquivos e de
+ * T001, *"o modulo carrega com as portas de dados, de sistema de arquivos e de
  * processamento de imagem declaradas, e os tamanhos de fabrica do legado
  * registrados como dado"*; T002, *"o anexo existe como registro de conteudo com
  * estado herdado, e o metadado que descreve as derivadas e gravado e lido pela
  * porta de dados com a mesma forma do legado"*; T003, *"o comportamento de US-1
  * existe e os criterios CA-1.1 a CA-1.6 passam contra o sistema novo"*; T005,
  * *"o comportamento de US-2 existe e os criterios CA-2.1 a CA-2.4 passam contra
- * o sistema novo"*.
+* o sistema novo"*.
+ * o sistema novo"*; T007, *"o comportamento de US-3 existe e os criterios
+ * CA-3.1 a CA-3.4 passam contra o sistema novo"*.
  *
- * **As duas regras de negocio implementadas sao a de US-1** — o envio com
- * validacao do tipo real do arquivo, em `envio/` — **e a de US-2**, a
- * visibilidade herdada do anexo, em `visibilidade/`, que e a metade de leitura de
- * `P2` (a metade de gravacao e de BC-01 e ja existia). A geracao de derivadas, a
- * reducao na ingestao, o relato de falha, a escolha da derivada, a
- * transformacao, o descarte do arquivo e o contorno do filtro com registro
- * entram nas tarefas delas (T007 em diante), e a leitura obrigatoria de cada uma
- * esta em `./README.md`.
+ * **As tres regras de negocio implementadas sao as de US-1, US-2 e US-3** — o
+ * envio com validacao do tipo real do arquivo, em `envio/`; a visibilidade
+ * herdada do anexo, em `visibilidade/`, que e a metade de leitura de `P2` (a
+ * metade de gravacao e de BC-01 e ja existia); e a geracao das derivadas de cada
+ * tamanho registrado, em `derivadas/`. A reducao na ingestao, o relato de falha,
+* reducao na ingestao, o relato de falha, a escolha da derivada, a
+ * a escolha da derivada, a transformacao, o descarte do arquivo e o contorno do
+* transformacao, o descarte do arquivo e o contorno do filtro com registro
+ * filtro com registro entram nas tarefas delas (T009 em diante), e a leitura
+ * obrigatoria de cada uma esta em `./README.md`.
  *
  * A pasta e `contextos/midia/` porque e assim que `target_architecture.md`
  * nomeia BC-04 no esboco de arvore; a feature se chama `006-biblioteca-de-midia`
@@ -41,10 +46,18 @@
  *   `modulo.test.ts` afirma as duas coisas.
  */
 
+import type { ValorPhp } from '../../plataforma/serializacao/index.js';
 import {
   criarArmazenamentoDeMidia,
   type ArmazenamentoDeMidia,
 } from './armazenamento/index.js';
+import {
+  criarDerivadasDeImagem,
+  regerarDerivadasQueFaltam,
+  type ContextoDeDerivadas,
+  type PedidoDeIngestaoDeImagem,
+  type ResultadoDaRegeracao,
+} from './derivadas/index.js';
 import {
   enviarArquivo,
   type ContextoDeEnvio,
@@ -67,6 +80,7 @@ import {
 } from './visibilidade/index.js';
 
 export * from './armazenamento/index.js';
+export * from './derivadas/index.js';
 export * from './envio/index.js';
 export * from './portas/index.js';
 export * from './tamanhos/index.js';
@@ -84,10 +98,15 @@ export interface PortasDeMidia {
  *
  * Cada historia acrescenta aqui a sua operacao, com a declaracao explicita de
  * permissao que o P4 da constituicao exige, e nenhuma antes da propria tarefa.
- * Hoje ha cinco coisas: as portas e os tamanhos de fabrica, de T001, o
- * armazenamento, de T002, e **duas** operacoes — {@link
- * ModuloDeMidia.enviarArquivo}, de T003, e {@link
- * ModuloDeMidia.visibilidadeDoAnexo}, de T005.
+* Hoje ha cinco coisas: as portas e os tamanhos de fabrica, de T001, o
+ * Hoje ha as portas e os tamanhos de fabrica, de T001, o armazenamento, de T002,
+ * e **quatro** operacoes: **uma** de T003 — {@link ModuloDeMidia.enviarArquivo}
+ * —, **uma** de T005 — {@link ModuloDeMidia.visibilidadeDoAnexo} — e **duas**
+ * de T007, {@link ModuloDeMidia.criarDerivadasDeImagem} e {@link
+ * ModuloDeMidia.regerarDerivadasQueFaltam}. As duas de T007 sao **uma**
+ * historia: US-3 pede a geracao no envio (CA-3.1) e, no mesmo criterio CA-3.3,
+ * *"uma acao explicita para regerar"* — e no legado sao duas funcoes, com duas
+ * superficies e duas respostas de permissao diferentes.
  *
  * A tabela abaixo e o que a secao *Contratos* de `plan.md` lista, com a
  * capacidade que a `spec.md` cobra em cada uma. Ela esta aqui como **pauta**, e
@@ -98,7 +117,7 @@ export interface PortasDeMidia {
  * |---|---|---|---|
  * | enviar arquivo ✔ | US-1 | T003 | `upload_files`, mais `edit_post` do destino quando ha destino — UC-12 nomeia as duas, CA-1.1 as cobra |
  * | visibilidade do anexo ✔ | US-2 | T005 | **nenhuma**, e e declaracao e nao omissao: e esta leitura que alimenta a decisao de capacidade (`capabilities.php:350`) — ver {@link ModuloDeMidia.visibilidadeDoAnexo} |
- * | gerar derivadas | US-3 | T007 | o pacote nao declara nenhuma; CA-3.3 pede uma acao explicita para regerar, e quem a expor declara a dela (P4) |
+ * | gerar derivadas ✔ | US-3 | T007 | o pacote nao declara nenhuma, e o legado nao pergunta: **a superficie declara a dela** — ver {@link ModuloDeMidia.regerarDerivadasQueFaltam} |
  * | servir derivada | US-6 | T013 | nenhuma: a historia e do visitante, e a rastreabilidade dela aponta UC-01 |
  * | transformar imagem | US-7 | T015 | *"a capacidade de editar aquele anexo"* (CA-7.1), sem que o pacote a nomeie |
  * | restaurar original | US-7 | T015 | a mesma (CA-7.4) |
@@ -192,6 +211,66 @@ export interface ModuloDeMidia {
   ): string | null;
 
   /**
+   * Gera as derivadas de cada tamanho registrado para uma imagem recebida
+   * (US-3, T007). E o ramo de imagem de `wp_generate_attachment_metadata()`
+   * com `wp_create_image_subsizes()` dentro
+   * (`wp-admin/includes/image.php:586` e `:240`), que e onde
+   * `media_handle_upload()` termina (`wp-admin/includes/media.php:444`) e onde
+   * T003 parou.
+   *
+   * **Permissao exigida: nenhuma, e isso e o legado.**
+   * `wp_create_image_subsizes()` nao pergunta capacidade alguma — quem pergunta
+   * e a superficie que envia o arquivo, e para ela a resposta esta em
+   * {@link ModuloDeMidia.enviarArquivo}. A pauta acima registra isso desde
+   * T001: *"o pacote nao declara nenhuma"*.
+   *
+   * **A falha e silencio, nao erro** (`M4`, BR-MIGRAR-060, e o P7 da
+   * constituicao): derivada que nao pode ser gerada simplesmente **nao entra**
+   * no metadado, ninguem e avisado e nada e registrado. O resultado e o metadado
+   * do anexo, e o envio continua valendo como bem-sucedido.
+   *
+   * **O que esta operacao NAO faz:** nao reduz imagem acima de 2.560 px e nao
+   * converte formato do arquivo principal (T009, US-4), nao relata falha
+   * (T011, US-5) e nao monta marcacao (T013, US-6). 🔴 O passo da reducao esta
+   * nomeado no lugar exato do fluxo, em
+   * `derivadas/criar-derivadas-na-ingestao.ts`, **com o conflito aberto** entre
+   * a `spec.md` (CA-4.3) e a arvore analisada sobre de qual arquivo as
+   * derivadas saem — que esta tarefa nao resolve e nao precisou resolver.
+   *
+   * **A gravacao final de `media.php:444` e do chamador**, como no legado: esta
+   * operacao devolve o metadado e nao o grava uma segunda vez.
+   */
+  criarDerivadasDeImagem(
+    contexto: ContextoDeDerivadas,
+    pedido: PedidoDeIngestaoDeImagem,
+  ): ValorPhp;
+
+  /**
+   * A **acao explicita** de regerar as derivadas que faltam (CA-3.3, T007). E
+   * `wp_update_image_subsizes( $attachment_id )`
+   * (`wp-admin/includes/image.php:159`).
+   *
+   * Ela existe porque *"tamanho registrado depois do envio nao e gerado
+   * retroativamente"*: nada no legado reprocessa um anexo por conta propria, e
+   * esta e a unica porta de entrada para o reprocessamento.
+   *
+   * **Permissao exigida: a da superficie, e as duas superficies do legado pedem
+   * coisas diferentes** — `upload_files` no envio assincrono do editor
+   * (`wp-admin/includes/ajax-actions.php:2552`, que tambem confere o nonce
+   * `media-form`) e `edit_post` **daquele** anexo na rota REST de
+   * pos-processamento
+   * (`class-wp-rest-attachments-controller.php:1052`). Trazer uma das duas para
+   * dentro tornaria a outra mais fechada ou mais aberta que o legado, e o P1 nao
+   * autoriza nem uma coisa nem outra. **Toda superficie que expuser esta
+   * operacao declara a permissao dela, explicitamente** (P4): e a mesma leitura
+   * que a pauta acima registrou em T001.
+   */
+  regerarDerivadasQueFaltam(
+    contexto: ContextoDeDerivadas,
+    anexoId: number,
+  ): ResultadoDaRegeracao;
+
+  /**
    * Os seis tamanhos de fabrica do legado, na ordem dele (`M2`,
    * BR-MIGRAR-058; CA-3.2).
    *
@@ -226,6 +305,8 @@ export function criarModuloDeMidia(portas: PortasDeMidia): ModuloDeMidia {
     armazenamento: criarArmazenamentoDeMidia(portas.dados),
     enviarArquivo,
     visibilidadeDoAnexo,
+    criarDerivadasDeImagem,
+    regerarDerivadasQueFaltam,
     tamanhosDeFabrica: TAMANHOS_DE_IMAGEM_DE_FABRICA,
   };
 }

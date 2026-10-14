@@ -3,9 +3,10 @@
 Feature `006-biblioteca-de-midia`. Tarefas fechadas com nota de entrega neste
 arquivo: **T001** (esqueleto, as tres portas e os tamanhos de fabrica), **T002**
 (a forma de armazenamento do anexo e das derivadas), **T003** (o envio com
-validacao do tipo real, US-1) e **T005** (a visibilidade herdada do anexo, US-2).
-Este arquivo e a leitura obrigatoria de quem pegar a tarefa seguinte: ele diz o
-que ja esta decidido, o que esta decidido **em outro lugar**, e o que **ninguem**
+validacao do tipo real, US-1), **T005** (a visibilidade herdada do anexo, US-2)
+e **T007** (a geracao das derivadas de cada tamanho registrado, US-3). Este
+arquivo e a leitura obrigatoria de quem pegar a tarefa seguinte: ele diz o que ja
+esta decidido, o que esta decidido **em outro lugar**, e o que **ninguem**
 decidiu.
 
 A pasta e `contextos/midia/` porque e assim que `target_architecture.md` nomeia
@@ -13,11 +14,16 @@ BC-04 no esboco de arvore. BC-04 e a fusao de `midia-e-anexos` com
 `edicao-de-imagem`, e a justificativa do agrupamento esta la: as duas *"operam o
 mesmo artefato em disco e compartilham o modo de falha de `M4`"*.
 
-> 🔴 **Antes de qualquer coisa, se a sua tarefa gera derivada de imagem (T007,
-> T009, T015):** a `spec.md` e a arvore analisada **discordam** sobre de qual
-> arquivo as derivadas saem quando houve reducao na ingestao. T001 topou nisso ao
-> ancorar a porta de processamento de imagem e **nao resolveu**. Esta na secao
-> *O que T001 encontrou aberto*, e e o primeiro item.
+> 🔴 **Antes de qualquer coisa, se a sua tarefa gera derivada de imagem (T009,
+> T015):** a `spec.md` e a arvore analisada **discordam** sobre de qual arquivo as
+> derivadas saem quando houve reducao na ingestao. T001 topou nisso ao ancorar a
+> porta de processamento de imagem e **nao resolveu**; **T007 topou de novo, no
+> ponto exato do fluxo, e tambem nao resolveu** — porque nao precisou: sem o
+> passo da reducao, que e de T009, nao existe copia reduzida e o caminho que
+> segue para o laco e o unico que ha. O ponto esta marcado em
+> `derivadas/criar-derivadas-na-ingestao.ts`, no passo 4, e a discussao esta na
+> secao *O que T001 encontrou aberto*, primeiro item. **Quem fechar T009 escreve
+> esse passo e ai precisa da resposta.**
 
 > 🔴 **E se a sua tarefa encosta na permissao do envio (T019):** a `spec.md` e a
 > arvore analisada **discordam** sobre o que acontece com quem nao pode editar o
@@ -331,6 +337,107 @@ No legado e **uma** funcao: `get_post_status()`
 | o disparo de `get_post_status` | `post.php:1347` | o barramento e `REQ-162`, em `do-not-rewrite.md` — escopo **recusado**. O ponto esta **declarado** no arquivo que o emitiria, com nome, argumentos, posicao (o fim da funcao) e a nota de que ele dispara **uma vez por chamada, inclusive nas recursivas** |
 | o salto de normalizacao de `get_sample_permalink()` | `post.php:1292` | e o campo `filter` do objeto do legado, que nao existe nesta arvore; aqui o registro ja normalizado chega **como registro**, que e a mesma coisa sem o campo de controle |
 | a reescrita do estado na gravacao | `post.php:4705` | e de **BC-01** e ja existe (decisao 1 acima). Uma segunda copia aqui permitiria mudar uma sem a outra |
+
+---
+
+## O que T007 entrega, e so isso
+
+A linha da tarefa: *"o comportamento de US-3 existe e os criterios CA-3.1, CA-3.2,
+CA-3.3 e CA-3.4 passam contra o sistema novo"*. E a **terceira historia**
+implementada deste modulo, depois de US-1 e US-2, em `derivadas/`, e sao **duas**
+operacoes na superficie — porque no legado sao duas funcoes, com duas superficies
+e duas respostas de permissao diferentes.
+
+No legado o caminho e: `wp_generate_attachment_metadata()`
+(`wp-admin/includes/image.php:579`) → `wp_create_image_subsizes()` (`:240`) →
+`_wp_make_subsizes()` (`:430`), mais o par
+`wp_get_missing_image_subsizes()` (`:87`) / `wp_update_image_subsizes()` (`:159`)
+para a acao explicita de CA-3.3.
+
+| arquivo | o que e | criterios |
+|---|---|---|
+| `derivadas/tamanhos-registrados.ts` | a resolucao dos seis tamanhos em execucao, e a regra que salta tamanho sem medida | CA-3.1, CA-3.2 |
+| `derivadas/dimensoes-de-redimensionamento.ts` | `image_resize_dimensions()` e `wp_constrain_dimensions()` | CA-3.1, CA-3.4 |
+| `derivadas/nome-da-derivada.ts` | o sufixo `-{largura}x{altura}` e o formato de saida | CA-3.4 |
+| `derivadas/orientacao-exif.ts` | `maybe_exif_rotate()`, que roda **antes** do laco | CA-3.1 |
+| `derivadas/contexto-de-derivadas.ts` | o contexto, com as duas portas e os cinco colaboradores | — |
+| `derivadas/gerar-derivadas.ts` | o laco, a ordem de prioridade e **dois** dos cinco silencios de `M4` | CA-3.1, CA-3.4 |
+| `derivadas/criar-derivadas-na-ingestao.ts` | a ingestao, com o passo de T009 nomeado no lugar | CA-3.1, CA-3.4 |
+| `derivadas/regerar-derivadas.ts` | o que falta, e a **acao explicita** de regerar | CA-3.3 |
+| `derivadas/us-3-gerar-derivadas.test.ts` | os 31 testes da entrega | os quatro |
+
+### As seis decisoes de T007 que a proxima tarefa precisa conhecer
+
+1. **A permissao destas duas operacoes e da SUPERFICIE, e isso esta declarado,
+   nao esquecido.** A pauta que T001 escreveu no `index.ts` ja dizia *"o pacote
+   nao declara nenhuma ... quem a expor declara a dela (P4)"*, e o legado
+   confirma: nem `wp_create_image_subsizes()` nem `wp_update_image_subsizes()`
+   perguntam capacidade, e as duas superficies que chamam a segunda perguntam
+   **coisas diferentes** — `upload_files` no envio assincrono do editor
+   (`wp-admin/includes/ajax-actions.php:2552`, mais o nonce `media-form`) e
+   `edit_post` **daquele** anexo na rota REST de pos-processamento
+   (`class-wp-rest-attachments-controller.php:1052`). Trazer uma para dentro
+   tornaria a outra mais fechada ou mais aberta que o legado (P1).
+2. **O nome da derivada e regra de dominio, e o calculo das medidas tambem.** A
+   porta de processamento nao gera nome — ela o recebe —, e no legado o nome sai
+   das medidas que `image_resize_dimensions()` calculou
+   (`class-wp-image-editor.php:475`). Logo o calculo mora no dominio, em
+   `dimensoes-de-redimensionamento.ts`, e **o adaptador tem de reusar aquela
+   funcao**: se ele calcular por conta propria, o nome e o metadado podem
+   discordar, o que no legado e impossivel.
+3. **A medida `0` chega a porta como `0`, nao como `null`.** `make_subsize()`
+   converte para `null` so a chave **ausente**, e tamanho registrado nunca tem
+   chave ausente: `medium_large` chega `768x0`. O cabecalho da porta de
+   processamento sugere o contrario ao explicar o `null` de `TamanhoPedido`; a
+   leitura exata esta em `gerarUma()`, em `derivadas/gerar-derivadas.ts`.
+4. **A gravacao final e de quem chama, na ingestao, e e daqui, na regeracao.** Sao
+   duas funcoes com sequencias de escrita diferentes: a ingestao emite a inicial
+   mais uma por derivada e **para ali** — o `wp_update_attachment_metadata()` de
+   `media.php:444` e do chamador —, e a regeracao emite uma por derivada **mais
+   uma no fim** (`image.php:188`). No caso "nada faltando" ela devolve **antes**
+   da gravacao final e nao emite escrita nenhuma (`:177`).
+5. **O EXIF e a orientacao chegam injetados, e a omissao dos dois e um estado
+   real do legado.** O legado so le a etiqueta
+   `if ( is_callable( 'exif_read_data' ) && 'image/jpeg' === $mime )`, logo
+   servidor sem a extensao nao rotaciona e imagem sem EXIF nao ganha
+   `image_meta`. Omitir as duas leituras reproduz exatamente isso — nao e
+   divergencia. A guarda do tipo JPEG ficou **no dominio**, nao na borda.
+6. **A relativizacao do caminho (`_wp_relative_upload_path()`) nasceu aqui**, que
+   e o que T002 tinha deixado para *"quem tem as duas portas na mao"*. Ela esta
+   em `derivadas/criar-derivadas-na-ingestao.ts` e o corte e `str_replace()`, que
+   tira **todas** as ocorrencias da raiz, nao o prefixo.
+
+### Tres achados do legado que a `spec.md` nao diz, e que um porte perde
+
+1. **Mudar a medida de um tamanho na tela de configuracao nao regera nada.** A
+   comparacao do que existe e do que falta e **por nome**, nos dois lugares
+   (`image.php:134` e `:440`), e o legado explica: *"we keep the old sub-sizes
+   with the previous dimensions as the image may have been used in an older
+   post"*. E este o comportamento que CA-3.3 descreve pelo outro lado, e ha teste
+   fixando-o.
+2. **Imagem menor que um tamanho nao ganha a derivada daquele tamanho, e a guarda
+   tem tres formas.** Com as duas medidas declaradas sao precisas **as duas**
+   menores (`&&`, `media.php:597`), logo uma imagem de 2000x500 **ganha** `large`.
+   Com so uma medida — o caso de `medium_large`, `768x0` — basta aquela.
+3. **A derivada de um HEIC sai em JPEG.** O mapa de
+   `wp_get_image_editor_output_format()` **nao e vazio desde a versao 6.7**, e e o
+   mesmo mapa que o laco 3 do nome unico de T003 consulta. Supor mapa vazio
+   produz outra extensao no endereco publico.
+
+### O que T007 NAO portou, com o motivo de cada coisa
+
+| o que | ancora | por que |
+|---|---|---|
+| a reducao na ingestao, a conversao de formato do arquivo principal e a rotacao do original inteiro | `image.php:285`-`:384`, com `_wp_image_meta_replace_original()` em `:206` | e **T009** (US-4), e e no passo 4 de `criar-derivadas-na-ingestao.ts` que o 🔴 conflito aberto mora |
+| os ramos de video, audio e PDF de `wp_generate_attachment_metadata()` | `image.php:589`-`:595` e `:669`-`:729` | nenhum e imagem e nenhum e US-3; o de PDF reusa o mesmo laco com tres tamanhos forcados |
+| o ramo `multi_resize()` de `_wp_make_subsizes()` | `image.php:501` | existe para implementacao de terceiro anterior a 5.3, e a porta de T001 declara `derivar` como obrigatoria. **Grava o metadado uma vez so**, e a diferenca e efeito no banco |
+| os **nove** pontos de extensao do caminho | `image.php:146`, `:410`, `:750`; `media.php:911`, `:581`, `:530`, `:673`; `class-wp-image-editor.php:505`; `class-wp-image-editor-gd.php:589` | o barramento e `REQ-162`, em `do-not-rewrite.md` — escopo **recusado**. Cada um esta nomeado na posicao exata (P2) |
+| `wp_attachment_is_image()` | `post.php:7391` e `:7332` | le `post_mime_type` (BC-01) **e** `get_allowed_mime_types()`, que pergunta `unfiltered_html` — logo depende de identidade, que e escopo de REQUISICAO. Chega por ligacao tardia, em `ConteudoNasDerivadas` |
+
+E o que **nao e de T007 por ser de outra tarefa**: o relato da falha e T011
+(US-5) — e a pergunta em aberto de *informar o ator* continua aberta —, a escolha
+da derivada servida e T013 (US-6), e a regeracao depois de transformar a imagem e
+T015 (US-7).
 
 ---
 
@@ -685,6 +792,33 @@ O que **T005** acrescenta a essa lista:
   resolucao nao emite comando nenhum pela porta de dados deste modulo. E assim que
   o teste afirma que CA-2.4 acontece **sem escrita no anexo**, que e o oposto do
   que um porte faria ao "normalizar" a coluna.
+
+O que **T007** acrescenta a essa lista:
+
+- O cenario dos **quatro tamanhos** fecha do lado do conjunto gerado: *"as duas
+  geram exatamente os mesmos arquivos derivados"*, *"o tamanho de miniatura e
+  recortado quadrado nas duas"* e *"os outros tres sao proporcionais nas duas"*.
+  `derivadas/us-3-gerar-derivadas.test.ts` afirma o conjunto **pelo nome de cada
+  arquivo pedido**, na ordem em que o legado os pede, e afirma por cima dos bytes
+  serializados que *"o metadado de cada derivada e identico campo por campo"*.
+- O cenario **`@divida-herdada`** fecha nos tres pontos que dependiam desta
+  tarefa: *"as duas consideram o envio bem-sucedido"*, *"nenhuma das duas avisa o
+  ator"* e *"o metadado gravado omite o tamanho que falhou"* — ha teste para a
+  derivada que falha e para a imagem que nao abre, e os dois afirmam tambem a
+  **contagem de escritas**, que e onde a omissao aparece no banco.
+- O cenario **`@composicao`** ganha a segunda metade: *"nenhuma operacao a mais e
+  executada"*. O duplo de sistema de arquivos daquele teste **lanca** em qualquer
+  operacao, porque a geracao de derivadas nao toca aquela porta no legado — quem
+  grava arquivo e a biblioteca de imagem —, e a porta de imagem registra `abrir`
+  e `derivar` na ordem.
+- A linha do contexto da spec *"o mesmo conjunto de tamanhos registrados nas duas
+  metades"* passa a ser conferivel **em execucao**, e nao so no dado:
+  `tamanhosRegistrados()` resolve os seis da opcao e do codigo, e ha teste para o
+  tamanho que uma extensao acrescenta e para o que e saltado.
+- O que **continua sem fechar aqui**: o cenario da **reducao na ingestao** (`M1`)
+  e inteiro de T009, e o da **lista de origens responsivas** (`M3`) e de T013.
+  Nenhum dos dois depende de decisao desta tarefa, e o primeiro depende da que
+  ninguem tomou.
 
 ⚠️ `parity_specs.md` registra que a suite de *characterization tests* **nao
 existe** nesta arvore, e que a paridade de tela tem de ser derivada secao por

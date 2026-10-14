@@ -212,13 +212,18 @@ test('a superficie do modulo tem exatamente o que as tarefas fechadas entregaram
   // duas capacidades de CA-1.1 declaradas na interface. **T005** trouxe a
   // segunda, `visibilidadeDoAnexo`, cuja declaracao de permissao e "nenhuma", e
   // isso tambem e declaracao: e ela que alimenta a decisao de capacidade
-  // (`wp-includes/capabilities.php:350`). A pauta do que entra em cada tarefa
-  // esta na tabela do `index.ts`.
+  // (`wp-includes/capabilities.php:350`). **T007** trouxe duas, e as duas
+  // declaram que a permissao e da SUPERFICIE — porque o legado nao pergunta
+  // capacidade nenhuma nelas e porque as duas superficies que as chamam
+  // perguntam coisas diferentes. A pauta do que entra em cada tarefa esta na
+  // tabela do `index.ts`.
   assert.deepEqual(Object.keys(modulo).sort(), [
     'armazenamento',
+    'criarDerivadasDeImagem',
     'enviarArquivo',
     'nome',
     'portas',
+    'regerarDerivadasQueFaltam',
     'tamanhosDeFabrica',
     'visibilidadeDoAnexo',
   ]);
