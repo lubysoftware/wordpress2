@@ -85,6 +85,26 @@ export * from './poder-sobre-dado-de-terceiro/index.js';
 export * from './portas/index.js';
 export * from './registro/index.js';
 
+/**
+ * ⚠️ Desambiguacao de barril, nao decisao de desenho.
+ *
+ * As tres capacidades abaixo estao declaradas **duas vezes** dentro do contexto,
+ * com cadeia identica nas duas: em `abertura/permissao-de-abertura.ts` (T003,
+ * US-1) e em `poder-sobre-dado-de-terceiro/` (T017, US-8) — `delete_users` em
+ * `permissao-nas-telas-de-dado-pessoal.ts`, as outras duas em
+ * `caso-de-poder-de-privacidade.ts`. Os dois `export *` acima as reexportam, e
+ * `tsc` recusa a ambiguidade (TS2308).
+ *
+ * Este reexport explicito elege a declaracao de `abertura/` so para o barril
+ * compilar; **nenhuma** das duas areas foi tocada e nenhum valor mudou. Dedupar
+ * as duas declaracoes e decisao de quem fechar a feature `008`.
+ */
+export {
+  CAPACIDADE_DE_APAGAR_CONTAS,
+  CAPACIDADE_DE_APAGAR_DADO_DE_TERCEIRO,
+  CAPACIDADE_DE_EXPORTAR_DADO_DE_TERCEIRO,
+} from './abertura/index.js';
+
 /** As quatro portas de que este modulo depende, na forma em que ele as recebe. */
 export interface PortasDePrivacidade {
   readonly dados: PortaDeDados;
