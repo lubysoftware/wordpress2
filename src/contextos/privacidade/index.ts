@@ -1,22 +1,26 @@
 /**
  * Modulo de privacidade — BC-06 de `target_architecture.md`.
  *
- * Feature `008-privacidade-e-dados-pessoais`, tarefas fechadas **T001**, **T002**
- * e **T003**. O que existe aqui e o que as tres entregam: T001, *"o modulo carrega
- * com as portas de dados, de relogio, de envio de e-mail e de sistema de arquivos
- * declaradas, e o registro de provedores de dado pessoal vazio e inspecionavel"*;
- * T002, *"a solicitacao existe como tipo de conteudo proprio, com os quatro
- * estados do legado e a chave de confirmacao guardada com resumo criptografico"*;
- * T003, *"o comportamento de US-1 existe e os criterios CA-1.1 a CA-1.5 passam
- * contra o sistema novo"*.
+ * Feature `008-privacidade-e-dados-pessoais`, tarefas fechadas **T001**, **T002**,
+ * **T003** e **T017**. O que existe aqui e o que as quatro entregam: T001, *"o
+ * modulo carrega com as portas de dados, de relogio, de envio de e-mail e de
+ * sistema de arquivos declaradas, e o registro de provedores de dado pessoal
+ * vazio e inspecionavel"*; T002, *"a solicitacao existe como tipo de conteudo
+ * proprio, com os quatro estados do legado e a chave de confirmacao guardada com
+ * resumo criptografico"*; T003, *"o comportamento de US-1 existe e os criterios
+ * CA-1.1 a CA-1.5 passam contra o sistema novo"*; T017, *"tratar exportar e
+ * apagar dado de terceiro como poder do nivel mais alto da instalacao"*.
  *
- * **A unica regra de negocio implementada e a de US-1**: abrir a solicitacao
- * identificada pelo endereco de e-mail, em `abertura/`. A confirmacao com prazo
- * (T005), a falha de envio como estado (T007), a expiracao (T009), a exportacao
- * (T011), o apagamento (T013), o descarte do arquivo (T015) e o poder de rede
- * (T017) entram nas tarefas delas. A leitura obrigatoria de quem pegar a tarefa
- * seguinte esta em `./README.md` — ele abre com as **tres caixas de
- * divergencia** que T001, T002 e T003 registraram e nao resolveram.
+ * **As regras de negocio implementadas sao as de US-1 e US-8.** US-1 e abrir a
+ * solicitacao identificada pelo endereco de e-mail, em `abertura/`; US-8 e o
+ * poder do nivel mais alto sobre dado pessoal de terceiro, em
+ * `poder-sobre-dado-de-terceiro/`, e nao e operacao do modulo: e a resolucao de
+ * capacidade de que as operacoes dependem. A confirmacao com prazo (T005), a
+ * falha de envio como estado (T007), a expiracao (T009), a exportacao (T011), o
+ * apagamento (T013) e o descarte do arquivo (T015) entram nas tarefas delas. A
+ * leitura obrigatoria de quem pegar a tarefa seguinte esta em `./README.md` —
+ * ele abre com as **tres caixas de divergencia** que T001, T002 e T003
+ * registraram e nao resolveram.
  *
  * **Por que este contexto existe separado, sendo 1-para-1 com um tipo de
  * registro.** `target_architecture.md` exige justificativa para contexto que nao
@@ -77,6 +81,7 @@ import {
 
 export * from './abertura/index.js';
 export * from './armazenamento/index.js';
+export * from './poder-sobre-dado-de-terceiro/index.js';
 export * from './portas/index.js';
 export * from './registro/index.js';
 
@@ -94,7 +99,8 @@ export interface PortasDePrivacidade {
  * Cada historia acrescenta aqui a sua operacao, com a declaracao explicita de
  * permissao que o **P4** da constituicao exige, e **nenhuma antes da propria
  * tarefa**. Hoje ha as portas e o registro (T001), o armazenamento (T002) — que
- * nao decide nada — e as **tres** operacoes de US-1 (T003).
+ * nao decide nada — e as **tres** operacoes de US-1 (T003). T017 nao
+ * acrescentou operacao: ver a nota abaixo da tabela.
  *
  * As operacoes que vao entrar sao as da tabela *Contratos* do `plan.md`, e a
  * permissao de cada uma ja esta lida dos casos de uso — fica registrada aqui
@@ -111,6 +117,13 @@ export interface PortasDePrivacidade {
  * | apagar | US-6 | T013 | a de abrir, somada ao estado confirmado; `D4` poe as duas no nivel de rede |
  * | apagar o arquivo de exportacao | US-7 | T015 | **nenhuma.** Varredura horaria registrada no arranque (`R7`), sem usuario |
  * | apagar a pagina de politica de privacidade | US-8 | T017 | **`manage_privacy_options` somada as capacidades normais de apagar conteudo** (`D5`, `wp-includes/capabilities.php:179`) |
+ *
+ * ✅ **A coluna "permissao exigida" desta tabela deixou de ser promessa em T017.**
+ * Os tres nomes que ela cita resolvem, agora, pelo caso de
+ * `poder-sobre-dado-de-terceiro/`, e os portoes que os consomem estao escritos
+ * la com o `msgid` de cada recusa. A linha de US-8 nao acrescentou operacao
+ * nenhuma a {@link ModuloDePrivacidade}, e isso e a propria entrega: US-8 nao e
+ * um verbo, e a resolucao de capacidade de que os outros sete verbos dependem.
  *
  * Tres linhas declaram *"nenhuma capacidade"* e isso **e** a declaracao que o P4
  * pede: as duas rotinas agendadas e a confirmacao do titular decidem acesso sem
