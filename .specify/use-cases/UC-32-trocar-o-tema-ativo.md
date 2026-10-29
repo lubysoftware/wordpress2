@@ -11,7 +11,7 @@
 | **Ator principal** | Administrador (`administrador`, `human`) |
 | **Atores secundários** | — nenhum |
 | **Gatilho** | o administrador ativa outro tema na tela de temas |
-| **Autorização** | `switch_themes`, exclusiva de administrador. Em multisite, negada a quem não é super administrador: o ciclo de vida do software é da rede |
+| **Autorização** | `switch_themes`, exclusiva de administrador. Em multisite, **não** é poder de rede: o administrador do site troca, mas só entre os temas liberados pela rede ou para o site (`wp-admin/themes.php:25`) — decisão humana de 29/10/2026, ao desbloquear T017; a versão anterior desta linha copiava a regra de instalar/atualizar/apagar |
 | **Relações UML** | — nenhuma |
 
 ## Pré-condições
@@ -64,7 +64,7 @@ sequenceDiagram
 ### Apagar um tema
 
 1. Exige `delete_themes`, outra capacidade
-2. O tema ativo não pode ser apagado
+2. O servidor recusa apagar só o tema pai de um tema filho ativo (`wp-admin/themes.php:76`–`:79`); o tema ativo comum é protegido apenas pela tela, que não oferece o botão — decisão humana de 29/10/2026, ao desbloquear T017
 
 ### Tema de recuperação
 
@@ -75,7 +75,7 @@ sequenceDiagram
 
 | O que dá errado | Como o sistema reage |
 |---|---|
-| Em multisite, o ator não é super administrador | `do_not_allow`. Instalar, atualizar, apagar e trocar extensão é poder de rede |
+| Em multisite, o ator não é super administrador | `do_not_allow` para instalar, atualizar e apagar extensão e tema (poder de rede). **Trocar** o tema não entra aqui: vale a lista de temas liberados, e tema fora dela recebe 403 |
 | `DISALLOW_FILE_MODS` definida | todas as capacidades de instalar, atualizar e apagar extensão viram `do_not_allow`, inclusive para administrador e super administrador |
 | O tema é inválido | a ativação é recusada e o tema anterior continua |
 

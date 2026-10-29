@@ -3702,7 +3702,7 @@
           "name": "Apagar um tema",
           "steps": [
             "Exige `delete_themes`, outra capacidade",
-            "O tema ativo não pode ser apagado"
+            "O servidor recusa apagar só o tema pai de um tema filho ativo; o tema ativo comum é protegido apenas pela tela — decisão humana de 29/10/2026, ao desbloquear T017"
           ]
         },
         {
@@ -3716,7 +3716,7 @@
       "exceptions": [
         {
           "name": "Em multisite, o ator não é super administrador",
-          "handling": "`do_not_allow`. Instalar, atualizar, apagar e trocar extensão é poder de rede"
+          "handling": "`do_not_allow` para instalar, atualizar e apagar extensão e tema (poder de rede). Trocar o tema não entra aqui: vale a lista de temas liberados, e tema fora dela recebe 403"
         },
         {
           "name": "`DISALLOW_FILE_MODS` definida",

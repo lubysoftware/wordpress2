@@ -160,8 +160,8 @@ Como administrador, quero mudar a aparência de todo o site de uma vez, para rep
 - [ ] CA-8.1 A ativação exige a capacidade declarada de trocar tema e a confirmação do token da ação
 - [ ] CA-8.2 Tema inválido é recusado e o tema anterior continua ativo
 - [ ] CA-8.3 O tema ativo é configuração do site, e trocá-lo não altera conteúdo nem consulta
-- [ ] CA-8.4 O tema ativo não pode ser apagado
-- [ ] CA-8.5 Em instalação em rede, a troca é poder de rede
+- [ ] CA-8.4 O servidor recusa apagar o tema pai de um tema filho ativo; o tema ativo comum é protegido só pela tela, que não oferece apagá-lo (legado: `wp-admin/themes.php:76`–`:80`, `delete_theme()` não confere se o tema está ativo) — decisão humana de 29/10/2026, ao desbloquear T017
+- [ ] CA-8.5 Em instalação em rede, o administrador do site troca de tema só entre os temas liberados pela rede ou para o site; fora da lista, 403 "The requested theme does not exist." (legado: `wp-admin/themes.php:25`, `class-wp-theme.php:1566`; `switch_themes` não é poder de rede em `map_meta_cap`) — decisão humana de 29/10/2026, ao desbloquear T017
 - [ ] CA-8.6 Com a proibição de modificar arquivos declarada, instalar, atualizar e apagar tema são negados a toda conta
 
 **Regras de negócio que valem aqui**
