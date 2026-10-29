@@ -9,7 +9,7 @@
       *entrega:* o conjunto de alterações existe como tipo de conteúdo próprio e a configuração declarada pelo tema é lida como dado, pela porta de dados, com a mesma forma do legado
       *satisfaz:* — (infraestrutura)
       *depende de:* T001
-- [ ] **T003** Pré-visualizar alterações de aparência antes de elas chegarem ao visitante (US-1)
+- [x] **T003** Pré-visualizar alterações de aparência antes de elas chegarem ao visitante (US-1)
       *entrega:* o comportamento de US-1 existe e os critérios CA-1.1, CA-1.2, CA-1.3, CA-1.4, CA-1.5, CA-1.6 passam contra o sistema novo
       *satisfaz:* CA-1.1, CA-1.2, CA-1.3, CA-1.4, CA-1.5, CA-1.6
       *depende de:* T001, T002

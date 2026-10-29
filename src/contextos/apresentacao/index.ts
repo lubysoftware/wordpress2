@@ -1,16 +1,16 @@
 /**
  * Modulo de apresentacao — BC-07 de `target_architecture.md`.
  *
- * Feature `009-apresentacao-e-personalizacao`, tarefas fechadas **T001** e
- * **T002**. O que existe aqui e exatamente o que as duas entregam: T001,
+ * Feature `009-apresentacao-e-personalizacao`, tarefas fechadas **T001**,
+ * **T002** e **T003**. O que existe aqui e exatamente o que as tres entregam: T001,
  * *"personalizacao, menus e componentes de area carregam no mesmo passo, com as
  * portas de dados e de cliente externo declaradas, porque o ciclo de dependencia
  * entre eles nao permite ordem interna"*; T002, *"o conjunto de alteracoes existe
  * como tipo de conteudo proprio e a configuracao declarada pelo tema e lida como
- * dado, pela porta de dados, com a mesma forma do legado"*. **Nenhuma regra de
- * negocio esta implementada**, e nenhuma operacao esta exposta: cada historia
- * entra na tarefa dela (T003 em diante). A leitura obrigatoria de quem pegar a
- * tarefa seguinte esta em `./README.md`.
+ * dado, pela porta de dados, com a mesma forma do legado"*; T003, US-1 — a
+ * pre-visualizacao, exposta como operacoes da area `personalizacao`, cada uma
+ * com a permissao declarada. As outras historias entram nas tarefas delas. A
+ * leitura obrigatoria de quem pegar a tarefa seguinte esta em `./README.md`.
  *
  * A pasta e `contextos/apresentacao/` porque e assim que `target_architecture.md`
  * nomeia BC-07 no esboco de arvore; a feature se chama
@@ -92,8 +92,10 @@ export interface PortasDeApresentacao {
  *
  * Cada historia acrescenta aqui a sua operacao, com a declaracao explicita de
  * permissao que o **P4** da constituicao exige, e nenhuma antes da propria tarefa.
- * Hoje ha tres coisas, e nenhuma e operacao: as portas e as tres areas do ciclo
- * (T001) e o armazenamento (T002), que nao decide nada.
+ * Hoje ha as portas e as tres areas do ciclo (T001), o armazenamento (T002), que
+ * nao decide nada, e as operacoes de US-1 dentro de `personalizacao` (T003) —
+ * `abrir`, `pedirPrevia`, `validarPedidoDeGravacao`, `gravarSemAplicar` e
+ * `pedidoDoAnexo`, com a permissao de cada uma em `personalizacao.permissoes`.
  *
  * As nove operacoes que a tabela *Contratos* de `plan.md` nomeia, com a permissao
  * que o pacote declara para cada uma — **citadas, nao decididas aqui**, para que a
@@ -101,7 +103,7 @@ export interface PortasDeApresentacao {
  *
  * | operacao | historia | tarefa | permissao, como o pacote a declara |
  * |---|---|---|---|
- * | pre-visualizar | US-1 | T003 | a meta-capacidade `customize`, que resolve para `edit_theme_options` (`wp-includes/capabilities.php:698`-`:699`) |
+ * | pre-visualizar | US-1 | T003 ✅ | a meta-capacidade `customize`, que resolve para `edit_theme_options` (`wp-includes/capabilities.php:698`-`:699`); sem ela, so o UUID de um conjunto existente abre a previa — ver `personalizacao/permissao-da-personalizacao.ts` |
  * | salvar alteracoes | US-2 | T005 | a de **editar** o conjunto, concedida por filtro no legado (UC-29) |
  * | aplicar | US-2 | T005 | a de **publicar** o tipo do conjunto, verificada **em separado** (`class-wp-customize-manager.php:2483`) |
  * | agendar aplicacao | US-4 | T009 | a mesma de aplicar, mais a data futura |

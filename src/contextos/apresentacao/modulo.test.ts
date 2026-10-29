@@ -128,10 +128,18 @@ test('a superficie do modulo tem exatamente o que as tarefas fechadas entregam',
     'portas',
   ]);
 
-  // E nenhuma das tres areas expoe operacao ainda, pela mesma razao.
+  // T003 (US-1) acrescentou as operacoes da pre-visualizacao a personalizacao,
+  // com a permissao de cada uma em `permissoes`; menus e componentes ainda nao
+  // expoem nenhuma, pela mesma razao.
   assert.deepEqual(Object.keys(modulo.personalizacao).sort(), [
+    'abrir',
+    'gravarSemAplicar',
     'noCiclo',
     'nome',
+    'pedidoDoAnexo',
+    'pedirPrevia',
+    'permissoes',
+    'validarPedidoDeGravacao',
   ]);
   assert.deepEqual(Object.keys(modulo.menus).sort(), ['noCiclo', 'nome']);
   assert.deepEqual(Object.keys(modulo.componentesDeArea).sort(), [
