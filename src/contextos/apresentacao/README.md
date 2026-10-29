@@ -1,8 +1,9 @@
 # Modulo de apresentacao — BC-07, feature `009-apresentacao-e-personalizacao`
 
 Tarefas fechadas com nota de entrega neste arquivo: **T001** (esqueleto, as duas
-portas e as tres areas do ciclo) e **T002** (o conjunto de alteracoes como tipo de
-conteudo proprio e a configuracao do tema como dado). Este arquivo e a leitura
+portas e as tres areas do ciclo), **T002** (o conjunto de alteracoes como tipo de
+conteudo proprio e a configuracao do tema como dado) e **T003** (US-1, a
+pre-visualizacao). Este arquivo e a leitura
 obrigatoria de quem pegar a tarefa seguinte: ele diz o que ja esta decidido, o que
 esta decidido **em outro lugar**, e o que **ninguem decidiu**.
 
@@ -134,6 +135,84 @@ aqui antes da tarefa dele e numero sem teste de borda.
 componentes e *"um deposito sem retencao"* (UC-31) e a constituicao poe *"introduzir
 limite de taxa, prazo de retencao ou qualquer numero que o legado nao tem"* na
 tabela *Nao negociavel*. CA-7.4 e **acao manual**, nunca coleta por prazo.
+
+## O que T003 entrega, e so isso
+
+> *o comportamento de US-1 existe e os criterios CA-1.1, CA-1.2, CA-1.3, CA-1.4,
+> CA-1.5, CA-1.6 passam contra o sistema novo*
+> — `.specify/specs/009-apresentacao-e-personalizacao/tasks.md`, T003
+
+Tudo em `personalizacao/`, e a area passou a expor operacoes
+(`OperacoesDaPersonalizacao`), cada uma com a permissao declarada em
+`permissoes` (**P4**):
+
+| arquivo | criterio | o que e |
+|---|---|---|
+| `contexto-da-personalizacao.ts` | — | o pedido (`$_GET`/`$_POST` separados) e as ligacoes tardias: o conjunto por `BC-01`, `get_post_stati()`, UUID, nonce, `sanitize_key`/`sanitize_text_field`, relogio e o registro de configuracoes |
+| `permissao-da-personalizacao.ts` | CA-1.4 | o caso `customize` → `edit_theme_options` (`wp-includes/capabilities.php:698`), e as quatro verificacoes, **todas** lidas da declaracao do tipo |
+| `abrir-a-personalizacao.ts` | CA-1.1, CA-1.3 | o portao, a forma do UUID, o identificador inexistente e o modo linear que **retoma** o conjunto guardado — **sem gravar nada** |
+| `valores-da-previa.ts` | CA-1.2 | o estado personalizado: conjunto, depois `customized` com nonce; o visitante nao instancia nada |
+| `gravar-o-conjunto.ts` | CA-1.3, CA-1.4, CA-1.6 | as guardas de `save()` ate o estado, e `save_changeset_post()` no ramo que **nao aplica** (`null`, `draft`, `pending` — pelo tipo) |
+| `anexo-na-personalizacao.ts` | CA-1.5 | o pedido do anexo do conteudo inicial, `auto-draft`, com os dois metadados |
+| `us-1-pre-visualizar-alteracoes.test.ts` | todos | 19 afirmacoes; os oito casos do catalogo (`UT-096-*`) sao **T004** |
+
+**"Abrir cria um conjunto" e um identificador, nao uma linha.** Abrir nao grava
+em `posts`; a linha nasce na primeira gravacao, como `auto-draft`
+(`class-wp-customize-manager.php:2931`). E por isso que o visitante nao e
+afetado: nada que o site le mudou.
+
+**Nenhum comando sai pela porta de dados deste modulo** em T003: o conjunto e
+lido e gravado por `WP_Query`/`wp_insert_post()` no legado, e aqui pela ligacao
+tardia `ConjuntosNaPersonalizacao`, como T002 deixou escrito.
+
+### Tres achados que a proxima onda precisa ler
+
+1. 🔴 **A "autorizacao pela diferenca" (RF-11 da unidade
+   `customize/changeset-do-customizer`) nao existe no codigo.**
+   `$changed_setting_ids` e calculado (`:2749`-`:2768`) e **nunca usado**: a
+   validacao roda sobre todos os valores enviados mais as chaves de
+   `customize_changeset_data` (`:2785`-`:2796`). O **P1** manda portar o
+   comportamento, e a lista nao e calculada. **T005** le isto antes de confiar
+   em RF-11.
+2. ⚠️ **CA-1.2 e lido como o legado o faz.** *"Apenas para quem esta
+   personalizando"*: o visitante comum nao instancia o Customizer e nao ve nada;
+   mas **quem nao tem `customize` e carrega o UUID de um conjunto existente ve o
+   conjunto** (so ele — `customized` e descartado). O legado diz por que: *"the
+   UUID serves as a secret key"* (`:556`-`:560`). Nenhum documento do pacote
+   descreve a previa (UC-29: *"nao foi possivel determinar o comportamento da
+   previa"*), logo nao ha texto em conflito — ha o codigo, que o **P1** manda
+   reproduzir. Se alguem ler CA-1.2 como "so com sessao e capacidade", e
+   divergencia, e precisa de decisao humana.
+3. ⚠️ **Tres comportamentos de abrir/gravar nao tem tarefa nesta feature**, e
+   nao foram portados: a trava de edicao `_edit_lock`
+   (`establish_loaded_changeset()`, `:656`-`:658`; `set_changeset_lock()`,
+   `:3255`), o descarte dos outros rascunhos automaticos da conta na primeira
+   gravacao (`dismiss_user_auto_draft_changesets()`, `:2571`-`:2574`) e a revisao
+   de salvamento automatico (`customize_changeset_autosave`, `:2710`-`:2718`,
+   `:2963`-`:2973`). Nenhum e criterio de US-1; o descarte esta na resposta de
+   `save()`, que e de **T007**.
+
+### O que T003 deixou de proposito para as tarefas seguintes
+
+| o que | ancora | de quem |
+|---|---|---|
+| aplicar: `publish` com retorno de chamada, data zerada, troca de tema | `:2677`-`:2680`, `:2909`-`:2916`, `:2937`-`:2940` | **T005** / **T007** — `gravarSemAplicar` nao aceita `publish`/`future` pelo tipo |
+| a data pedida e o agendamento; o agendamento vencido ao abrir | `:2488`-`:2512`, `:2682`-`:2708`; `customize.php:39`-`:75` | **T009** — a data viaja crua em `PedidoDeGravacaoValidado.dataPedida` |
+| a resposta de `save()`: estado relatado, UUID seguinte | `:2564`-`:2615` | **T007**, com o conflito de CA-3.3 aberto |
+| pre-visualizar outro tema; `customize_stashed_theme_mods` | `:574`-`:595`, `:1772`-`:1778` | **T017** |
+| a concessao por filtro de `edit_post` | `:3239` | **T005**, em `plataforma/autorizacao/concessao-por-extensao.ts` |
+
+⚠️ **O caso `customize` mora aqui**, em `casoDaPersonalizacao`, e as operacoes o
+acrescentam aos casos da base. Outras superficies que perguntam `customize` (a
+tela de menus, a de componentes, a barra de administracao) precisam dele na base
+de autorizacao da composicao — `traducao-de-capacidade.ts` registra que os dez
+atalhos de `PERM-6` *"chegam com os casos deles"*.
+
+**Duas aproximacoes registradas, nenhuma alcancada pelo dado do nucleo:** a
+identidade `===` do PHP nao distingue `1` de `1.0` depois de `JSON.parse`
+(`identicoNoPhp`); e identificador de configuracao que seja um inteiro em texto
+sai antes dos outros no objeto, a mesma armadilha que T002 registrou para
+`conteudoDoConjunto`.
 
 ## Por que os tres entram juntos — e nao e opcao de desenho
 
@@ -324,7 +403,8 @@ US-11 e US-12 so faz sentido com ele"*.
 ## Como esta entrega se confere
 
 - `npm run typecheck` e `npm test` — as 8 afirmacoes de T001 estao em
-  `modulo.test.ts` e as 50 de T002 em `armazenamento/armazenamento.test.ts`.
+  `modulo.test.ts`, as 50 de T002 em `armazenamento/armazenamento.test.ts` e as
+  19 de T003 em `personalizacao/us-1-pre-visualizar-alteracoes.test.ts`.
 - Pela paridade, e aqui a cobertura e **desigual entre as tres areas**:
 
 | area | cenario de paridade | situacao |

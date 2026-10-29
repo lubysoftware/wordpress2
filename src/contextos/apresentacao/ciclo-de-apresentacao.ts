@@ -59,9 +59,10 @@
  *
  * ## O que NAO esta neste arquivo
  *
- * **Nenhuma operacao, em nenhuma das tres areas.** O **P4** da constituicao exige
- * que *"toda operacao exposta nova nasce com declaracao explicita de permissao"*, e
- * T001 nao expoe nenhuma. A permissao que as tres vao cobrar e a **mesma**, e isso
+ * **Nenhuma operacao.** O **P4** da constituicao exige que *"toda operacao
+ * exposta nova nasce com declaracao explicita de permissao"*, e T001 nao expoe
+ * nenhuma; as de US-1 (T003) moram em `personalizacao/`, com a permissao de cada
+ * uma, e aqui entram so como tipo. A permissao que as tres vao cobrar e a **mesma**, e isso
  * e regra lida e nao decisao desta tarefa: `customize` resolve para
  * `edit_theme_options` (`wp-includes/capabilities.php:698`-`:699`), e
  * `edit_theme_options` *"libera menus, componentes e personalizacao, e e exclusiva
@@ -76,6 +77,8 @@
  * entram nas tarefas delas e tem ordem entre si. Poe-las aqui agora seria
  * declarar ciclo onde o grafo medido nao mostrou nenhum.
  */
+
+import type { OperacoesDaPersonalizacao } from './personalizacao/area-de-personalizacao.js';
 
 /** O nome de cada area do ciclo, como `tasks.md` as nomeia. */
 export type NomeDeAreaDaApresentacao =
@@ -95,9 +98,11 @@ export type LigacaoTardiaNoCiclo = () => AreasDaApresentacao;
 /**
  * A area da personalizacao — o Customizer do legado.
  *
- * Historias: US-1 (T003), US-2 (T005), US-3 (T007), US-4 (T009).
+ * Historias: US-1 (T003), US-2 (T005), US-3 (T007), US-4 (T009). As operacoes
+ * de US-1 entraram em T003; o `import` e so de tipo, e some na compilacao — o
+ * ciclo continua sem aresta de carregamento.
  */
-export interface AreaDePersonalizacao {
+export interface AreaDePersonalizacao extends OperacoesDaPersonalizacao {
   readonly nome: 'personalizacao';
   readonly noCiclo: LigacaoTardiaNoCiclo;
 }

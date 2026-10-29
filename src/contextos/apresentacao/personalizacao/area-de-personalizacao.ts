@@ -1,11 +1,12 @@
 /**
  * A area da personalizacao — o Customizer do legado.
  *
- * Esqueleto de **T001** da feature `009-apresentacao-e-personalizacao`. **Nenhuma
- * regra de negocio esta implementada aqui.** O conjunto de alteracoes como tipo de
- * conteudo entra em **T002**; a pre-visualizacao em **T003** (US-1); a separacao
- * entre salvar e aplicar em **T005** (US-2); o relato do estado gravado em
- * **T007** (US-3); o agendamento em **T009** (US-4).
+ * Esqueleto de **T001** da feature `009-apresentacao-e-personalizacao`; o
+ * conjunto de alteracoes como tipo de conteudo entrou em **T002**, e a
+ * pre-visualizacao em **T003** (US-1) — as operacoes estao em
+ * {@link OperacoesDaPersonalizacao}. A separacao entre salvar e aplicar e de
+ * **T005** (US-2); o relato do estado gravado, de **T007** (US-3); o
+ * agendamento, de **T009** (US-4).
  *
  * | o que esta area vai fazer | ancora no legado |
  * |---|---|
@@ -56,14 +57,102 @@
  *
  * ## O que esta area entrega hoje
  *
- * `nome` e a {@link LigacaoTardiaNoCiclo} para as outras duas areas. Nada mais, e
- * nada antes da tarefa de cada historia: e o que o **P4** cobra.
+ * `nome`, a {@link LigacaoTardiaNoCiclo} para as outras duas areas (T001), e as
+ * operacoes de US-1 (T003), cada uma com a permissao declarada em
+ * `permissoes` — o que o **P4** cobra.
  */
 
 import type {
   AreaDePersonalizacao,
   LigacaoTardiaNoCiclo,
 } from '../ciclo-de-apresentacao.js';
+import {
+  abrirPersonalizacao,
+  type ResultadoDaAbertura,
+  type AberturaDaPersonalizacao,
+} from './abrir-a-personalizacao.js';
+import {
+  pedidoDoAnexoNaPersonalizacao,
+  type AnexoDeConteudoInicial,
+  type PedidoDoAnexoNaPersonalizacao,
+} from './anexo-na-personalizacao.js';
+import type {
+  ContextoDaPersonalizacao,
+  PedidoDaPersonalizacao,
+} from './contexto-da-personalizacao.js';
+import {
+  gravarSemAplicar,
+  validarPedidoDeGravacao,
+  type PedidoDeGravacaoSemAplicar,
+  type ResultadoDaGravacaoSemAplicar,
+  type ResultadoDaValidacaoDaGravacao,
+} from './gravar-o-conjunto.js';
+import { PERMISSOES_DA_PERSONALIZACAO } from './permissao-da-personalizacao.js';
+import { pedirPrevia, type ResultadoDaPrevia } from './valores-da-previa.js';
+
+/**
+ * As operacoes de US-1 (T003). O contexto chega por argumento em todas, porque
+ * identidade, requisicao e as ligacoes com `BC-01` sao escopo de REQUISICAO
+ * (AD-02) e de ligacao tardia (AD-10).
+ */
+export interface OperacoesDaPersonalizacao {
+  /**
+   * A permissao de cada operacao, lida da declaracao do tipo. Todas resolvem em
+   * `edit_theme_options` na instalacao de fabrica — ver
+   * `permissao-da-personalizacao.ts`.
+   */
+  readonly permissoes: typeof PERMISSOES_DA_PERSONALIZACAO;
+
+  /**
+   * Abrir a personalizacao (CA-1.1, retomar de CA-1.3). **Permissao exigida:
+   * `customize`** na tela; fora dela, `customize` **ou** o identificador de um
+   * conjunto existente — *"the UUID serves as a secret key"*. Nao grava nada.
+   */
+  abrir(
+    contexto: ContextoDaPersonalizacao,
+    pedido: PedidoDaPersonalizacao,
+  ): ResultadoDaAbertura;
+
+  /**
+   * O estado personalizado da requisicao de previa (CA-1.2). **Permissao
+   * exigida: a de {@link abrir}**; os valores enviados sem gravar exigem, alem
+   * dela, um dos nonces de previa ou de gravacao. Nao grava nada.
+   */
+  pedirPrevia(
+    contexto: ContextoDaPersonalizacao,
+    pedido: PedidoDaPersonalizacao,
+  ): ResultadoDaPrevia;
+
+  /**
+   * As guardas do pedido de gravacao (CA-1.4, CA-1.6). **Permissao exigida:
+   * sessao, o nonce de gravacao, `create_posts` ou `edit_post` do tipo, e
+   * `publish_posts` do tipo para `publish`/`future`.**
+   */
+  validarPedidoDeGravacao(
+    contexto: ContextoDaPersonalizacao,
+    pedido: PedidoDaPersonalizacao,
+    abertura: AberturaDaPersonalizacao | null,
+  ): ResultadoDaValidacaoDaGravacao;
+
+  /**
+   * Gravar sem aplicar (CA-1.3). **Permissao exigida: a que
+   * {@link validarPedidoDeGravacao} conferiu**, mais a capacidade de cada
+   * configuracao gravada.
+   */
+  gravarSemAplicar(
+    contexto: ContextoDaPersonalizacao,
+    pedido: PedidoDeGravacaoSemAplicar,
+  ): ResultadoDaGravacaoSemAplicar;
+
+  /**
+   * O pedido do anexo que nasce como rascunho automatico (CA-1.5). **Nenhuma
+   * permissao**: e dado; quem o insere e a ingestao de `BC-04`.
+   */
+  pedidoDoAnexo(
+    anexo: AnexoDeConteudoInicial,
+    folhaDeEstilo: string,
+  ): PedidoDoAnexoNaPersonalizacao;
+}
 
 /**
  * Cria a area, sem resolver nada.
@@ -75,5 +164,14 @@ import type {
 export function criarAreaDePersonalizacao(
   noCiclo: LigacaoTardiaNoCiclo,
 ): AreaDePersonalizacao {
-  return { nome: 'personalizacao', noCiclo };
+  return {
+    nome: 'personalizacao',
+    noCiclo,
+    permissoes: PERMISSOES_DA_PERSONALIZACAO,
+    abrir: abrirPersonalizacao,
+    pedirPrevia,
+    validarPedidoDeGravacao,
+    gravarSemAplicar,
+    pedidoDoAnexo: pedidoDoAnexoNaPersonalizacao,
+  };
 }
