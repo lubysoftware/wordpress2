@@ -2,8 +2,9 @@
 
 Feature `010-operacao-do-software`. Tarefas fechadas com nota de entrega neste
 arquivo: **T001** (esqueleto, as quatro portas), **T002** (a configuracao
-nomeada: o estado de atualizacao e o de recuperacao) e **T003** (US-1, instalar
-e atualizar extensao). Este arquivo e a leitura
+nomeada: o estado de atualizacao e o de recuperacao), **T003** (US-1, instalar
+e atualizar extensao) e **T025** (US-12, modo de recuperacao). Este arquivo e a
+leitura
 obrigatoria de quem pegar a tarefa seguinte: ele diz o que ja esta decidido, o
 que esta decidido **em outro lugar**, e o que **ninguem** decidiu.
 
@@ -238,6 +239,118 @@ declarada e **sem** interceptador, as nove sao negadas a toda conta.
   plugins; chega como `sobrescritaOferecida`.
 - **O texto da tela.** Titulo, cabecalho e *skin* sao da borda; a tela entra
   como dado.
+
+---
+
+## O que T025 entrega, e so isso
+
+A linha da tarefa: *"o comportamento de US-12 existe e os criterios CA-12.1,
+CA-12.2, CA-12.3, CA-12.4, CA-12.5, CA-12.6, CA-12.7 passam contra o sistema
+novo"*. O legado e `class-wp-recovery-mode*.php`,
+`class-wp-paused-extensions-storage.php`, `class-wp-fatal-error-handler.php` e
+`error-protection.php`, com UC-36 e `A10`-`A12` (BR-MIGRAR-054 a 056).
+
+| arquivo | o que e | criterio |
+|---|---|---|
+| `recuperacao/contexto-da-recuperacao.ts` | o que as operacoes recebem por chamada, com a tabela das ligacoes tardias e de quem e cada uma | — |
+| `recuperacao/endpoint-protegido.ts` | `is_protected_endpoint()` e as nove acoes de Ajax (`load.php:1180`, `:1218`) | CA-12.4 |
+| `recuperacao/extensao-do-erro.ts` | `should_handle_error()`, `get_extension_for_error()`, `is_network_plugin()`, a descricao e o registro do erro | CA-12.1 |
+| `recuperacao/cookie-de-recuperacao.ts` | o cookie assinado: montar, validar, ler a sessao, apagar (`class-wp-recovery-mode-cookie-service.php`) | CA-12.2, `A10` |
+| `recuperacao/extensoes-pausadas.ts` | `set()`, `get_all()`, `delete_all()` e o trecho de recuperacao de `wp_get_active_and_valid_plugins()`/`_themes()` | CA-12.3, CA-12.5 |
+| `recuperacao/aviso-de-recuperacao.ts` | emitir a chave, montar o endereco, escrever e enviar o e-mail com o marcador gravado antes | CA-12.1, CA-12.6 |
+| `recuperacao/modo-de-recuperacao.ts` | `initialize()` (com o portao de `wp-settings.php:573`), `handle_error()`, `exit_recovery_mode()`, `handle_exit_recovery_mode()` | CA-12.1 a CA-12.5 |
+| `recuperacao/tratador-de-erro-fatal.ts` | `WP_Fatal_Error_Handler::handle()` e a tela de erro como dado | CA-12.1, CA-12.4 |
+| `recuperacao/permissao-da-recuperacao.ts` | `PERMISSOES_DA_RECUPERACAO` (P4) e os `case` `resume_plugin`/`resume_theme` (`capabilities.php:667`-`:672`) | CA-12.7 |
+| `recuperacao/area-de-recuperacao.ts` | a composicao sobre a sessao de T002 e a porta de e-mail | — |
+| `recuperacao/us-12-modo-de-recuperacao.test.ts` | 24 testes, um ou mais por criterio, e a semana de `A10` | — |
+
+A superficie do modulo passou a ter `recuperacao`, e `modulo.test.ts` afirma
+que sao essas seis chaves. `configuracao/sessao-de-recuperacao.ts` (T002)
+ganhou duas leituras **brutas** — `lerRegistroDeChaves()` e
+`lerRegistroDeExtensoesPausadas()`, com o `(array)` do PHP em `arranjoDoPhp()`
+—, porque emitir chave e pausar extensao **regravam o arranjo inteiro**, e
+regravar a partir da visao tipada apagaria entrada que o legado preserva.
+
+### Nenhuma operacao de US-12 pergunta capacidade, e isso esta declarado
+
+Tratar o erro roda no desligamento; abrir o caminho e provado pela chave do
+aviso; sair e provado pelo token `exit_recovery_mode`, **sem** capacidade
+(`class-wp-recovery-mode.php:242`). `PERMISSOES_DA_RECUPERACAO` diz isso por
+operacao, que e a declaracao explicita do P4. CA-12.7 e a capacidade de
+**retomar uma** extensao pela tela de plugins ou de temas: `resume_plugins` e
+`resume_themes` nao estao em papel nenhum, a concessao de prioridade `1` ja
+esta em `plataforma/autorizacao/concessao-por-extensao.ts` (feature `001`,
+T019), e esta tarefa poe os dois `case` de meta-capacidade que levam a ela. O
+teste afirma os dois lados: o administrador de fabrica retoma; tirada a
+concessao, ninguem retoma.
+
+### Tres coisas que um porte perde, e que estao reproduzidas
+
+1. **O marcador e gravado antes de tudo, inclusive da chave**
+   (`class-wp-recovery-mode-email-service.php:58`, antes de `generate_url()`
+   em `:116`). Falhar em grava-lo nao emite chave nem e-mail; o envio que
+   falha deixa o marcador gravado e o aviso do dia perdido. O teste afirma a
+   ordem na linha do tempo do duplo: marcador, chave, envio.
+2. **A sessao e o `sha1()` do aleatorio do cookie** (`cookie-service:142`), e
+   a pausa vive na opcao `{sessao}_paused_extensions`. Fora da sessao o nome da
+   opcao e vazio e **nenhuma leitura** sai: o teste afirma que a requisicao do
+   visitante nao toca o armazenamento e carrega o plugin quebrado.
+3. **Os dois pontos do prazo do link disparam em toda requisicao sem cookie**,
+   mesmo fora de `wp-login.php`, porque `get_link_ttl()` e o argumento de
+   `handle_begin_link()` e e avaliado antes da chamada
+   (`class-wp-recovery-mode.php:116`).
+
+### 🔴 O que T025 encontrou, e NAO resolveu (nenhum bloqueia US-12)
+
+- **A chave e emitida aqui e verificada em T027.** CA-12.2 (*"abrir o caminho
+  cria uma sessao"*) passa por `validate_recovery_mode_key()`, que e o que
+  US-13 disputa: CA-13.1 pede *"verificada antes de ser removida"*, e o ADR
+  0007 com o cenario `@divida-herdada` de PT-013 mandam **consumir antes**.
+  Esse conflito **nao esta** na secao *Perguntas em aberto* da spec nem em
+  `index.md`. Esta tarefa nao escolhe: abrir o caminho chama
+  `ContextoDaRecuperacao.validarChave` no ponto do legado
+  (`class-wp-recovery-mode-link-service.php:86`) e so grava o cookie com
+  `true`. **De quem e: T027**, que comeca por esse conflito.
+- **A metade de `A11` sobre extensao de rede nao e feita por
+  `is_network_plugin()`.** Ele compara `slug/` com os caminhos **absolutos**
+  de `wp_get_active_network_plugins()` (`ms-load.php:52`) e nunca casa; o que
+  deixa a rede fora e o portao de `wp-settings.php:573` e o de
+  `class-wp-fatal-error-handler.php:54` (em rede o modo nunca inicializa).
+  Reproduzido como e, com teste. Os *Achados do QA* de REQ-117 em
+  `backlog/tests.md` ja registram essa metade como sem prova.
+- **"Um por dia por sessao" e, no legado, um por limite por site.** O
+  marcador e uma opcao sem sessao no nome, e o aviso so sai quando **nao** ha
+  sessao (`class-wp-recovery-mode.php:176`). Esta reproduzido o codigo; a
+  frase de CA-12.6 e de `A10` foi lida como *"por ciclo de recuperacao"*,
+  zerado so na saida (`clear_rate_limit()`).
+- **Vencer a semana nao apaga a pausa.** O cookie vencido e recusado com
+  `expired`, apagado, e a requisicao morre com `403`; a opcao
+  `{sessao}_paused_extensions` fica **orfa** para sempre, porque so a saida
+  daquela sessao a apagaria. O P5 manda reproduzir o que fica orfao; o teste o
+  afirma.
+
+### O que T025 deliberadamente NAO entrega
+
+- **Verificar, consumir e limpar a chave** (`validate_recovery_mode_key()`,
+  `clean_expired_keys()`, o evento diario) — **T027**. O agendamento do evento
+  e daqui (`initialize()`, `:99`-`:100`), a rotina que ele roda nao.
+- **Registrar os tres ganchos de `initialize()`** (`wp_logout`,
+  `login_form_exit_recovery_mode`, `recovery_mode_clean_expired_keys`): o
+  barramento nao existe (`REQ-162` esta em `do-not-rewrite.md`). A area expoe
+  `sair()` e `atenderSaida()` para quem compuser o barramento ligar.
+- **`delete()` da pausa** (retomar **uma** extensao): o chamador e
+  `resume_plugin()`/`resume_theme()` (`wp-admin/includes/plugin.php:2567`,
+  `theme.php:1230`), superficie de BC-10.
+- **A formatacao** (`is_email()`, `wp_specialchars_decode()`,
+  `wp_strip_all_tags()`, `human_time_diff()`, `add_query_arg()`), a API de
+  extensoes (`get_plugins()`, `wp_get_theme()`, `plugin_basename()`), o hash
+  (`wp_fast_hash()`), o sorteio (`wp_generate_password()`) e a troca de idioma:
+  chegam por ligacao tardia, como em `privacidade/abertura/`. O texto do
+  e-mail e as mensagens sao os `msgid` do legado.
+- **Capturar o erro.** O runtime do alvo nao tem `error_get_last()`; a borda
+  entrega `ErroFatal` com os quatro campos na ordem do legado. ⚠️ O tratador
+  engole qualquer excecao, e o legado so engole `Exception` — o alvo nao tem a
+  distincao.
 
 ---
 
@@ -642,6 +755,9 @@ O que **T002** acrescenta a essa lista:
 - O cenario do **modo de recuperacao** exige *"o numero de avisos enviados por
   dia e um nas duas"* e *"o estado final gravado e o mesmo nas duas"*. O prazo, o
   marcador e o retorno que **aborta** o aviso estao afirmados; enviar e T025.
+  **T025** fechou o envio: o duplo da porta de e-mail conta os avisos, e a
+  suite afirma um no primeiro erro, zero no ultimo instante do limite e um no
+  instante seguinte.
 - 🔴 O cenario *"Versao menor atualiza por padrao, versao maior so com escolha
   explicita"* **nao e conferivel sem decisao humana**: ver o conflito #7 acima.
   Quem rodar PT-013 contra o oraculo numa instalacao nova de site unico vai ver

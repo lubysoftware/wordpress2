@@ -12,7 +12,8 @@
  * politica de atualizacao e a sessao de recuperacao — e **T002**, fechada, em
  * `./configuracao/` sobre a primitiva de opcao de `./armazenamento/`. Cada
  * historia entra na tarefa dela: **T003** (US-1, instalar e atualizar extensao)
- * esta em `./instalacao/`. A leitura obrigatoria de quem
+ * esta em `./instalacao/`, e **T025** (US-12, modo de recuperacao) em
+ * `./recuperacao/`. A leitura obrigatoria de quem
  * pegar a tarefa seguinte esta em `./README.md`, e ela comeca por **sete**
  * conflitos registrados e nao resolvidos — o setimo e de T002, no valor de
  * fabrica de `auto_update_core_major`.
@@ -59,6 +60,10 @@ import {
   criarAreaDeInstalacao,
   type AreaDeInstalacao,
 } from './instalacao/index.js';
+import {
+  criarAreaDeRecuperacao,
+  type AreaDeRecuperacao,
+} from './recuperacao/index.js';
 import type {
   PortaDeClienteExterno,
   PortaDeDados,
@@ -70,6 +75,7 @@ export * from './armazenamento/index.js';
 export * from './configuracao/index.js';
 export * from './instalacao/index.js';
 export * from './portas/index.js';
+export * from './recuperacao/index.js';
 
 /**
  * As quatro portas de que este modulo depende, na forma em que ele as recebe.
@@ -162,6 +168,15 @@ export interface ModuloDeOperacaoDoSoftware {
    * seu token, e os dois `case` de `map_meta_cap()` em `casoDaInstalacao()`.
    */
   readonly instalacao: AreaDeInstalacao;
+
+  /**
+   * Entrar em modo de recuperacao quando um erro fatal derruba a area
+   * protegida (US-12, **T025**). Nenhuma das tres operacoes pergunta
+   * capacidade, e isso esta declarado: `PERMISSOES_DA_RECUPERACAO` diz o
+   * atestado de cada uma (P4), e `casoDaRecuperacao()` leva `resume_plugin` e
+   * `resume_theme` as primitivas que so a concessao de fabrica entrega.
+   */
+  readonly recuperacao: AreaDeRecuperacao;
 }
 
 /**
@@ -185,14 +200,19 @@ export function criarModuloDeOperacaoDoSoftware(
   // configuracao so amarra os dois repositorios de opcao: nenhuma consulta sai
   // daqui (`EXT-ORDEM`, BR-MIGRAR-106).
   const armazenamento = criarArmazenamentoDeOperacaoDoSoftware(portas.dados);
+  const configuracao = criarConfiguracaoDeOperacaoDoSoftware(
+    armazenamento.opcoesDoSite,
+    armazenamento.opcoesDeRede,
+  );
   return {
     nome: 'operacao-do-software',
     portas,
     armazenamento,
-    configuracao: criarConfiguracaoDeOperacaoDoSoftware(
-      armazenamento.opcoesDoSite,
-      armazenamento.opcoesDeRede,
-    ),
+    configuracao,
     instalacao: criarAreaDeInstalacao(portas.clienteExterno),
+    recuperacao: criarAreaDeRecuperacao(
+      configuracao.sessaoDeRecuperacao,
+      portas.email,
+    ),
   };
 }
