@@ -17,9 +17,11 @@
  * ⚠️ **T002 nao acrescentou operacao ao modulo, e isso e de proposito.** Ele
  * declarou formato e registro, que sao infraestrutura (`satisfaz: —`), e a
  * tabela de `ModuloDeSuperficiesProgramaticas` abaixo cresce **na tarefa de cada
- * historia**, nunca antes — e o que o **P4** cobra. As duas camadas de registro
- * de T002 sao criadas por quem compoe: o registro de rotas pelo despachante, e
- * o de operacoes nomeadas por T013, que e a tarefa que as executa.
+ * historia**, nunca antes — e o que o **P4** cobra. As duas camadas de
+ * registro de T002 sao criadas por quem compoe: o registro de rotas pelo
+ * despachante, e o de operacoes nomeadas por T013, que e a tarefa que as
+ * executa. **T015** acrescentou a primeira operacao, `iniciarMapaDoSite`
+ * (US-7), com a declaracao de permissao dela.
  *
  * **Onde este modulo mora, e por que a pasta leva o nome da feature.** Esta
  * feature nao e um contexto do desenho: ela atravessa dois. As historias US-1 a
@@ -60,11 +62,17 @@
  */
 
 import { criarDespachanteDeRotas, type DespachanteDeRotas } from './despacho/index.js';
+import {
+  iniciarServidorDoMapaDoSite,
+  type ContextoDoMapaDoSite,
+  type ServidorDoMapaDoSite,
+} from './mapa-do-site/index.js';
 import type { PortaDeDados } from './portas/index.js';
 
 export * from './portas/index.js';
 export * from './despacho/index.js';
 export * from './operacao-nomeada/index.js';
+export * from './mapa-do-site/index.js';
 
 /**
  * A porta de que este modulo depende, na forma em que ele a recebe.
@@ -80,8 +88,8 @@ export interface PortasDeSuperficiesProgramaticas {
  *
  * Cada historia acrescenta aqui a sua operacao, com a declaracao explicita de
  * permissao que o P4 da constituicao exige, e **nenhuma antes da propria
- * tarefa**. Hoje ha duas coisas, as duas de T001: a porta e o despachante — e
- * T002, que e infraestrutura, nao acrescentou nenhuma.
+ * tarefa**. Ha tres coisas: a porta e o despachante, de T001 — T002, que e
+ * infraestrutura, nao acrescentou nenhuma —, e o mapa do site, de T015.
  *
  * A tabela abaixo e a secao *Contratos* de `plan.md` cruzada com a permissao que
  * a `spec.md` e os casos de uso declaram para cada historia. Ela esta aqui como
@@ -114,6 +122,24 @@ export interface ModuloDeSuperficiesProgramaticas {
    * etapas do atendimento, que e contrato antes de ser codigo.
    */
   readonly despachante: DespachanteDeRotas;
+
+  /**
+   * Inicia o servidor do mapa do site conforme `blog_public`, que e a entrega
+   * de **T015** (US-7): o indice, as paginas, a ausencia com a opcao desligada e
+   * o `robots.txt`. Ver `./mapa-do-site/servidor-do-mapa-do-site.ts`.
+   *
+   * **Permissao exigida: nenhuma, e a declaracao e o ponto** (P4) — o ator e o
+   * buscador, e `UC-47` declara *"nenhuma, e um unico portao: a opcao que diz se
+   * o site pede para ser indexado"*. Com a opcao desligada a superficie **nao
+   * existe** (`404`), e nao e recusada: acrescentar capacidade aqui trocaria a
+   * ausencia por uma recusa, que e o que UT-145-8 proibe.
+   *
+   * O contexto chega por argumento, e nao pela composicao: conteudo, termos,
+   * contas e opcoes sao de outros contextos (ligacao tardia, AD-10) e de
+   * REQUISICAO (BR-MIGRAR-105). Cada chamada devolve um servidor novo, com o
+   * registro de provedores proprio.
+   */
+  iniciarMapaDoSite(contexto: ContextoDoMapaDoSite): ServidorDoMapaDoSite;
 }
 
 /**
@@ -148,5 +174,6 @@ export function criarModuloDeSuperficiesProgramaticas(
     nome: 'superficies-programaticas',
     portas,
     despachante: criarDespachanteDeRotas(),
+    iniciarMapaDoSite: iniciarServidorDoMapaDoSite,
   };
 }

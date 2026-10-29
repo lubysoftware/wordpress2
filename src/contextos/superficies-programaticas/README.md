@@ -3,8 +3,9 @@
 Epico EP-13 do backlog: *"o que o sistema expoe a programas: API, abilities,
 feeds, sitemaps"*. Tarefas fechadas com nota de entrega neste arquivo: **T001**
 (esqueleto, o despachante com o registro de rotas vazio e inspecionavel, e a
-porta de dados) e **T002** (os dois formatos de declaracao, o ato de registrar, e
-o aviso de uso indevido da rota sem declaracao de permissao).
+porta de dados), **T002** (os dois formatos de declaracao, o ato de registrar, e
+o aviso de uso indevido da rota sem declaracao de permissao) e **T015** (US-7, o
+indice de sitemap conforme a opcao de indexacao).
 
 Este arquivo e a leitura obrigatoria de quem pegar a tarefa seguinte: ele diz o
 que ja esta decidido, o que esta decidido **em outro lugar**, e o que **ninguem**
@@ -342,6 +343,88 @@ nome que casa com o padrao nao ha diferenca; para o nome recusado pelo padrao, h
 
 ---
 
+## O que T015 entregou
+
+A linha da tarefa: *"o comportamento de US-7 existe e os criterios CA-7.1 a
+CA-7.6 passam contra o sistema novo"*. Casos de uso: `UC-47`.
+
+```
+superficies-programaticas/
+└── mapa-do-site/
+    ├── pontos-de-configuracao.ts      blog_public '1', 2000 por pagina, 50000 no indice
+    ├── contexto-do-mapa-do-site.ts    o que chega por ligacao tardia: opcoes, consultas, enderecos
+    ├── provedor-do-mapa-do-site.ts    o provedor, o registro, o indice e o endereco de cada pagina
+    ├── provedores-do-nucleo.ts        posts, taxonomies, users — CA-7.2 e CA-7.6 moram aqui
+    ├── xml-do-mapa-do-site.ts         os bytes, conferidos contra o oraculo
+    ├── instrucoes-para-rastreadores.ts robots.txt e as diretivas de robos (CA-7.4)
+    ├── servidor-do-mapa-do-site.ts    WP_Sitemaps: iniciar conforme a opcao, e atender
+    └── us-7-servir-indice-do-mapa-do-site.test.ts   24 testes
+```
+
+O modulo ganhou a **primeira operacao**, `iniciarMapaDoSite(contexto)`, com a
+declaracao de permissao *"nenhuma"* que a pauta do `index.ts` ja previa. O
+contexto chega por argumento: conteudo, termos, contas, enderecos e a data no
+fuso do site sao de outros contextos, e o cabecalho de
+`portas/porta-de-dados.ts` pedia exatamente isso a T015 — **a porta de dados
+nao e tocada**, e montar a consulta por SQL daqui seria um segundo dono da
+consulta publica. O mapa decide os **criterios** (com as chaves do legado, que
+sao as que o ponto de extensao recebe); quem executa e o dono.
+
+### 🟢 Os bytes sairam do oraculo executavel, e nao da leitura
+
+Foi a primeira tarefa desta feature com o oraculo de `scripts/oraculo/` no ar.
+Indice, as quatro paginas, `robots.txt`, o `404` e a meta de robos foram pedidos
+por `curl`; para os vetores com a opcao desligada, sem links permanentes, com
+fuso `America/Sao_Paulo` e com conteudo protegido, opcao e conteudo foram
+trocados no banco do oraculo, capturados, e o estado da instalacao foi
+devolvido. O serializador XML foi conferido no PHP do conteiner
+(`SimpleXMLElement::asXML()`): elemento vazio fecha nele mesmo (`<url/>`,
+`<loc/>`), `>` vira `&gt;`, o retorno de carro vira `&#13;`, aspas saem cruas, e
+a declaracao perde o espaco antes de `?>` enquanto a da folha de estilo o mantem.
+
+### 🔴 Duas frases do pacote que o legado desmente — seguido o legado, sem parar
+
+Nenhuma das duas esta no texto do criterio de aceite de um jeito que o legado
+contradiga; as duas estao na **explicacao** em volta, e por isso T015 seguiu o
+legado e registra aqui, como manda o P1.
+
+1. **`UC-47`, fluxo *robots.txt virtual*: *"com a indexacao desligada, o
+   robots.txt passa a pedir que ninguem indexe"*.** O 7.1.2 nao faz isso:
+   `do_robots()` (`wp-includes/functions.php:1713`) escreve as mesmas tres linhas
+   com a opcao em `'0'` ou `'1'`, e so a linha `Sitemap:` some. Quem pede que
+   ninguem indexe e a meta de robos de toda pagina (`noindex, nofollow`,
+   `wp-includes/robots-template.php:70` e `:140`), conferida no oraculo. CA-7.4
+   fala em *"instrucoes para rastreadores"*, sem nomear o arquivo, e e satisfeito
+   pelas diretivas. **O `robots.txt` nao ganhou `Disallow: /`** — tem teste que
+   afirma a ausencia, com os 67 bytes do oraculo.
+2. **CA-7.3, `UC-47` e o card: *"as rotas nao sao registradas"*.** No legado o
+   que nao e registrado sao os provedores e a linha do `robots.txt`; as regras de
+   reescrita sao registradas **sempre**, *"in order to properly send 404s"*
+   (`wp-includes/sitemaps/class-wp-sitemaps.php:60`-`:61`). A metade observavel
+   do criterio — *"o pedido cai na resposta de endereco inexistente"* — e a que o
+   legado entrega, e so a entrega **por causa** das regras: sem a etiqueta
+   `%sitemap%`, `sitemap` nem seria variavel de consulta. `regrasDeReescrita`
+   existe com a opcao desligada, e tem teste.
+
+### O que T015 nao portou, e onde cada coisa fica
+
+| o que | por que | onde fica a pendencia |
+|---|---|---|
+| 🔴 o corpo da folha de estilo XSL (`class-wp-sitemaps-stylesheet.php`, 318 linhas) | nenhum criterio de US-7 o cobre. O atendimento **decide** a folha (`{ tipo: 'folha-de-estilo', qual }`, e `404` para tipo desconhecido); o corpo nao existe | aqui. E superficie publicada (P8): quem a portar escreve o corpo atras da decisao que ja existe |
+| `sanitize_text_field()` nas variaveis do pedido, `esc_url()` em `loc` e no `Sitemap:`, `esc_xml()` | sao de `plataforma/formatacao/`, feature `015` — o mesmo tratamento que T002 deu ao `esc_html()` | cabecalhos de `servidor-do-mapa-do-site.ts` e `xml-do-mapa-do-site.ts`, com o caso em que a diferenca aparece |
+| os pontos de extensao do mapa e do robots (`wp_sitemaps_enabled`, `wp_sitemaps_max_urls`, `wp_sitemaps_index_entry`, `robots_txt`, `wp_robots`...) | REQ-162 esta em `do-not-rewrite.md` | **declarados** no arquivo e na posicao em que seriam emitidos |
+| a traducao de `/wp-sitemap.xml` em `sitemap=index` | e da tabela de regras de `004-leitura-publica` | o mapa **declara** as cinco regras e as tres etiquetas (`REGRAS_DE_REESCRITA_DO_MAPA_DO_SITE`); quem compoe as entrega a tabela |
+| o corpo do `404` | e a apresentacao de erro do tema (`template-loader`), da borda | o atendimento devolve `status` e os cabecalhos de nao guardar; a consulta fica marcada como `404` por quem compoe |
+| a etiqueta `<meta name='robots' ...>` | a arvore nao monta HTML | `conteudoDaMetaDeRobos()` devolve o texto do atributo |
+
+E um achado de passagem, que nao e desta feature: no oraculo **sem** links
+permanentes, `/wp-sitemap.xml` continua servindo o indice (`200`), e
+`/?sitemap=index` **com** links permanentes recebe `301` para `/wp-sitemap.xml`
+(redirecionamento canonico). As duas coisas sao da traducao de endereco e do
+redirecionamento canonico, nao do mapa.
+
+---
+
 ## O que esta decidido em outro lugar
 
 | assunto | onde mora | por que nao aqui |
@@ -350,7 +433,7 @@ nome que casa com o padrao nao ha diferenca; para o nome recusado pelo padrao, h
 | a consulta publica que alimenta feeds e mapa do site | feature `004-leitura-publica` | CA-8.2 exige *"a mesma consulta publica que a pagina, sem regra de visibilidade propria"*. Dois donos para a mesma consulta e duas regras de visibilidade |
 | ler o conteudo para a representacao embutivel | `BC-01`, por ligacao tardia | `get_oembed_response_data()` (`wp-includes/embed.php:561`) chama `get_post()`; conteudo e de `BC-01` |
 | a identidade da chamada | feature `001-identidade-e-acesso` | e US-5 que a **exige**, nao que a resolve. E REQ-012, que nao entrou no pacote |
-| `blog_public` e os pontos de configuracao | T015 (US-7) | o P6 cobra que cada numero viva num ponto de configuracao nomeado com teste de borda proprio. Semear aqui seria antecipar a tarefa que o le |
+| `blog_public` e os pontos de configuracao | ✅ T015: `mapa-do-site/pontos-de-configuracao.ts` | o P6 cobra que cada numero viva num ponto de configuracao nomeado com teste de borda proprio. **Gravar** a opcao na instalacao continua sendo da instalacao; aqui mora o valor de fabrica (`'1'`, `schema.php:474`) e a leitura |
 | as 2 operacoes nomeadas do Akismet | `discard_log.md` | descartadas por escopo: *"extensao empacotada, nao nucleo"*. As **3 do nucleo** (`core/get-site-info`, `core/get-user-info`, `core/get-environment-info`) migram, e sao de T013 |
 | a ordem de arranque | D1, contrato publico | AD-10: nenhum contexto importa outro no topo do modulo |
 | o barramento de ganchos | nao tem tarefa neste pacote | REQ-162 esta em `do-not-rewrite.md`. Os pontos de extensao desta area ficam **declarados** no arquivo que os emitiria |
@@ -591,10 +674,11 @@ chamador de terceiro e sem tipo — tem de decidir sobre eles.
 ## Como conferir esta entrega
 
 ```sh
-npm test            # a suite inteira; 8 testes sao de T001 e 42 de T002
+npm test            # a suite inteira; 8 testes sao de T001, 42 de T002 e 24 de T015
 node --test dist/contextos/superficies-programaticas/modulo.test.js
 node --test dist/contextos/superficies-programaticas/despacho/esquema-de-rota.test.js
 node --test dist/contextos/superficies-programaticas/operacao-nomeada/esquema-de-operacao-nomeada.test.js
+node --test dist/contextos/superficies-programaticas/mapa-do-site/us-7-servir-indice-do-mapa-do-site.test.js
 ```
 
 ⚠️ **T002 mexeu num teste de T001**, e so nele: o molde do mapa de rotas em
