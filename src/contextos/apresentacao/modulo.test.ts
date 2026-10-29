@@ -129,8 +129,8 @@ test('a superficie do modulo tem exatamente o que as tarefas fechadas entregam',
   ]);
 
   // T003 (US-1) acrescentou as operacoes da pre-visualizacao a personalizacao,
-  // com a permissao de cada uma em `permissoes`; menus e componentes ainda nao
-  // expoem nenhuma, pela mesma razao.
+  // e T011 (US-5) as de montar o menu, com a permissao de cada uma em
+  // `permissoes`; componentes ainda nao expoem nenhuma, pela mesma razao.
   assert.deepEqual(Object.keys(modulo.personalizacao).sort(), [
     'abrir',
     'gravarSemAplicar',
@@ -141,7 +141,16 @@ test('a superficie do modulo tem exatamente o que as tarefas fechadas entregam',
     'permissoes',
     'validarPedidoDeGravacao',
   ]);
-  assert.deepEqual(Object.keys(modulo.menus).sort(), ['noCiclo', 'nome']);
+  assert.deepEqual(Object.keys(modulo.menus).sort(), [
+    'abrirTela',
+    'gravarMenu',
+    'gravarPosicoes',
+    'menuParaExibir',
+    'noCiclo',
+    'nome',
+    'permissoes',
+    'temMenuNaPosicao',
+  ]);
   assert.deepEqual(Object.keys(modulo.componentesDeArea).sort(), [
     'noCiclo',
     'nome',
