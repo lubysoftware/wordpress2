@@ -3,7 +3,8 @@
 Tarefas fechadas com nota de entrega neste arquivo: **T001** (esqueleto, as duas
 portas e as tres areas do ciclo), **T002** (o conjunto de alteracoes como tipo de
 conteudo proprio e a configuracao do tema como dado), **T003** (US-1, a
-pre-visualizacao) e **T011** (US-5, montar o menu). Este arquivo e a leitura
+pre-visualizacao), **T011** (US-5, montar o menu) e **T015** (US-7, organizar os
+componentes). Este arquivo e a leitura
 obrigatoria de quem pegar a tarefa seguinte: ele diz o que ja esta decidido, o que
 esta decidido **em outro lugar**, e o que **ninguem decidiu**.
 
@@ -17,11 +18,16 @@ esta decidido **em outro lugar**, e o que **ninguem decidiu**.
 > comportamento agendado desta historia fica indefinido"*. Secao *O que ninguem
 > decidiu*, item 2.
 
-> ⚠️ **E se a sua tarefa e T013, T015 ou T019:** UC-30 e UC-31 **nao tem
+> ⚠️ **E se a sua tarefa e T013 ou T019:** UC-30 e UC-31 **nao tem
 > cenario de paridade de fluxo** — `parity_specs.md` conta 43 de 47, e os dois sao
 > de fora da conta. O oraculo da sua tarefa e o contrato de tela mais o catalogo
 > `backlog/tests.md`. Secao *Como esta entrega se confere*. **T013** comeca pela
 > secao *O que T011 deixou de proposito para T013*.
+
+> 🔴 **E se a sua tarefa e T019 (US-9):** `retrieve_widgets()` ficou de fora de
+> T015 de proposito, e **a funcao que o legado usa para remapear devolve sozinha
+> os componentes ao tema que volta** — o que UC-31 e CA-9.3 negam. Secao *O que
+> T015 deixou de proposito para T019*, item 1, antes da primeira linha.
 
 ## O que T001 entrega, e so isso
 
@@ -286,6 +292,99 @@ literal — *"nao ha capacidade propria de menu"*. O atalho para o Customizer qu
 a tela oferece *"quando o ator tem `customize`"* (UC-30, fluxo alternativo) e
 montagem de tela.
 
+## O que T015 entrega, e so isso
+
+> *o comportamento de US-7 existe e os criterios CA-7.1, CA-7.2, CA-7.3, CA-7.4
+> passam contra o sistema novo*
+> — `.specify/specs/009-apresentacao-e-personalizacao/tasks.md`, T015
+
+Tudo em `componentes-de-area/`, e a area passou a expor operacoes
+(`OperacoesDosComponentes`), cada uma com a permissao declarada em
+`permissoes` (**P4**):
+
+| arquivo | criterio | o que e |
+|---|---|---|
+| `contexto-dos-componentes.ts` | — | as opcoes de T002 e o que no legado e global do arranque: as areas registradas, os componentes registrados com o numero, o tipo de cada componente, nonce, `wp_hash()` |
+| `permissao-dos-componentes.ts` | CA-7.1 | o portao da tela (capacidade **antes** do tema), os quatro tokens, o 403/200 do Ajax e o 401/403 da superficie programatica |
+| `arranjo-do-php.ts` | — | as regras de chave do arranjo do PHP que vao para o byte: proxima chave livre, `array_diff()`, `array_splice()` |
+| `mapa-de-areas.ts` | CA-7.2 | `sidebars_widgets`: `wp_get_sidebars_widgets()`, `wp_set_sidebars_widgets()`, `wp_find_widgets_sidebar()`, `wp_assign_widget_to_sidebar()` |
+| `configuracao-do-componente.ts` | CA-7.2 | `widget_{id_base}`: `get_settings()`, `save_settings()` e `update_callback()` inteiro |
+| `organizar-pela-tela.ts` | CA-7.1 a CA-7.4 | o formulario sem JavaScript (gravar, retirar, limpar inativos) e os Ajax `widgets-order` e `delete-inactive-widgets` |
+| `organizar-pela-api.ts` | CA-7.1, CA-7.3 | `update_item()` do controlador de areas; `create_item()`, `update_item()`, `delete_item()` e `save_widget()` do de componentes |
+| `organizar-pela-personalizacao.ts` | CA-7.1, CA-7.3 | as duas configuracoes de componente do Customizer, as sanitizacoes delas e `WP_Customize_Setting::save()` multidimensional |
+| `us-7-organizar-componentes.test.ts` | todos | 22 afirmacoes; os seis casos do catalogo (`UT-102-*`) sao **T016** |
+
+**Nenhum comando sai por outra tabela que nao `options`**, e e o que CA-7.2 e a
+regra *"componente e area vivem em configuracao do site"* pedem: o mapa e uma
+linha, a configuracao e uma linha por tipo, e o teste afirma o byte de cada uma
+sobre o armazenamento de T002.
+
+### Quatro achados que a proxima onda precisa ler
+
+1. ⚠️ **CA-7.3 diz "com o mesmo resultado", e o legado da a mesma ESTRUTURA, nao
+   o mesmo byte.** Mover um componente de area grava o mesmo mapa pelas tres
+   superficies, byte a byte (afirmado). Mas a instancia **nova** gravada pela
+   personalizacao entra **depois** de `_multiwidget`, porque
+   `WP_Customize_Setting` troca a chave no lugar
+   (`class-wp-customize-setting.php:916`), enquanto a tela e a superficie
+   programatica passam por `update_callback()`, que tira a marca e a poe de
+   volta no fim (`class-wp-widget.php:600`, `:637`). T015 seguiu o legado e
+   afirmou as duas formas; nao ha texto do pacote pedindo identidade de byte, e
+   o **P1** manda reproduzir.
+2. ⚠️ **A tabela *Contratos* de `plan.md` nao tem linha para organizar
+   componentes.** A permissao veio de UC-31 (*Autorizacao*: `edit_theme_options`)
+   e de CA-7.1, e e a mesma nas quatro portas — tela, Ajax, superficie
+   programatica e personalizacao. Registrado, nao decidido: quem mantem o
+   pacote deveria acrescentar a linha.
+3. ⚠️ **As tres superficies respondem diferente a mesma falta de capacidade**, e
+   e o legado: a tela, 403 com titulo e mensagem; o Ajax, corpo `-1` com **200**
+   (e o token vem **antes** da capacidade, com 403); a superficie programatica,
+   `rest_cannot_manage_widgets` com **401** sem sessao e 403 com ela; a
+   personalizacao, gravacao recusada em silencio. E as configuracoes de
+   componente da personalizacao existem **para toda conta** — o filtro que as
+   cria entra antes da guarda de capacidade
+   (`class-wp-customize-widgets.php:104`, `:109`-`:111`).
+4. ⚠️ **Tres comportamentos de forma que um porte "arruma"**, todos afirmados:
+   tirar um componente deixa **buraco** na chave da lista (`array_diff()`), e
+   so a area de destino e renumerada (`array_splice()`); a chave anexada aos
+   inativos pela superficie programatica segue a **proxima livre**, que tirar
+   uma entrada nao devolve; e atribuir um componente a area em que ele ja esta
+   o **duplica** (`wp-includes/widgets.php:1987`-`:1989`). E o Ajax de ordenar
+   grava **so** as areas que o cliente mandou: a que nao veio some do valor.
+
+### O que T015 deixou de proposito para T019
+
+| o que | ancora | por que |
+|---|---|---|
+| `retrieve_widgets()` — chamada pela tela ao abrir e pela superficie programatica ao atualizar e apagar componente | `wp-includes/widgets.php:1327`; `wp-admin/widgets-form.php:121`; `class-wp-rest-widgets-controller.php:310`, `:385` | e o remapeamento da troca de tema, o coracao de US-9. O ponto de entrada esta marcado em `mapaPreparadoPelaTela` |
+| `wp_map_sidebars_widgets()` e `_wp_remove_unregistered_widgets()` | `wp-includes/widgets.php:1395`, `:1579` | idem |
+| o mapa do tema que sai como theme mod `{ time, data }` | `wp-includes/theme.php:775`-`:782` | e a troca de tema (T017) mais a preservacao (T019) |
+
+1. 🔴 **Antes de escrever T019: o legado devolve os componentes sozinho.**
+   `wp_map_sidebars_widgets()` termina restaurando o mapa guardado do tema que
+   volta — *"Restore widget settings from when theme was previously active"* —
+   e grava (`wp-includes/widgets.php:1499`, `:1561`-`:1562`, gravado por
+   `retrieve_widgets()` em `:1378`). UC-31, *Excecoes*, diz *"nada volta sozinho
+   se o tema anterior voltar"*, e CA-9.3 pede que voltar ao tema anterior
+   *"permite recolocar os componentes nas areas, **por acao explicita**"*. Os
+   dois textos do pacote negam o que o codigo faz. **T015 nao decidiu nada**:
+   nao portou a funcao. E conflito entre a spec e o legado, e a constituicao
+   manda parar e escrever, nao escolher.
+2. ⚠️ **Fora da tela a area de inativos nao esta registrada** — so
+   `widgets-form.php:108` a registra —, e por isso a superficie programatica
+   sempre toma o ramo que remapeia (`wp-includes/widgets.php:1351`-`:1381`),
+   que **grava** quando o mapa nao esta na forma dele: inativos primeiro, as
+   areas na ordem do registro, e toda instancia registrada com numero 2 ou mais
+   que esteja fora do mapa puxada para os inativos (`:1362`-`:1374`). T015 se
+   confere no mapa que ja esta nessa forma.
+
+**Tres caminhos nao foram portados, com o motivo no cabecalho de cada
+arquivo:** o Ajax `save-widget` da tela com JavaScript
+(`ajax-actions.php:2395`, que termina desenhando o formulario), a conversao do
+formato de antes da versao 2.8 (`wp_convert_widget_settings()`,
+`wp-includes/widgets.php:1141`, inalcancavel em instalacao nova) e o componente
+registrado por funcao, sem objeto de tipo (vem de extensao, nao do nucleo).
+
 ## Por que os tres entram juntos — e nao e opcao de desenho
 
 `target_architecture.md` justifica a fusao dos 12 modulos de BC-07 em parte por
@@ -476,8 +575,9 @@ US-11 e US-12 so faz sentido com ele"*.
 
 - `npm run typecheck` e `npm test` — as 8 afirmacoes de T001 estao em
   `modulo.test.ts`, as 50 de T002 em `armazenamento/armazenamento.test.ts`, as
-  19 de T003 em `personalizacao/us-1-pre-visualizar-alteracoes.test.ts` e as 20
-  de T011 em `menus/us-5-montar-menu.test.ts`.
+  19 de T003 em `personalizacao/us-1-pre-visualizar-alteracoes.test.ts`, as 20
+  de T011 em `menus/us-5-montar-menu.test.ts` e as 22 de T015 em
+  `componentes-de-area/us-7-organizar-componentes.test.ts`.
 - Pela paridade, e aqui a cobertura e **desigual entre as tres areas**:
 
 | area | cenario de paridade | situacao |

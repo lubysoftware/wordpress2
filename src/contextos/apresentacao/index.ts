@@ -2,15 +2,18 @@
  * Modulo de apresentacao — BC-07 de `target_architecture.md`.
  *
  * Feature `009-apresentacao-e-personalizacao`, tarefas fechadas **T001**,
- * **T002**, **T003** e **T011**. O que existe aqui e exatamente o que as quatro
- * entregam: T001, *"personalizacao, menus e componentes de area carregam no
+ * **T002**, **T003**, **T011** e **T015**. O que existe aqui e exatamente o que
+ * as cinco entregam: T001, *"personalizacao, menus e componentes de area carregam no
  * mesmo passo, com as portas de dados e de cliente externo declaradas, porque o
  * ciclo de dependencia entre eles nao permite ordem interna"*; T002, *"o conjunto de alteracoes existe
  * como tipo de conteudo proprio e a configuracao declarada pelo tema e lida como
  * dado, pela porta de dados, com a mesma forma do legado"*; T003, US-1 — a
  * pre-visualizacao, exposta como operacoes da area `personalizacao`, cada uma
  * com a permissao declarada; T011, US-5 — montar o menu, exposta como operacoes
- * da area `menus`, do mesmo jeito. As outras historias entram nas tarefas delas.
+ * da area `menus`, do mesmo jeito; T015, US-7 — organizar os componentes pela
+ * tela, pela superficie programatica e pela personalizacao, exposta como
+ * operacoes da area `componentes-de-area`. As outras historias entram nas
+ * tarefas delas.
  * A leitura obrigatoria de quem pegar a tarefa seguinte esta em `./README.md`.
  *
  * A pasta e `contextos/apresentacao/` porque e assim que `target_architecture.md`
@@ -99,7 +102,13 @@ export interface PortasDeApresentacao {
  * `pedidoDoAnexo`, com a permissao de cada uma em `personalizacao.permissoes` —
  * e as de US-5 dentro de `menus` (T011) — `abrirTela`, `gravarMenu`,
  * `gravarPosicoes`, `menuParaExibir` e `temMenuNaPosicao`, com a permissao de
- * cada uma em `menus.permissoes`.
+ * cada uma em `menus.permissoes` — e as de US-7 dentro de `componentesDeArea`
+ * (T015) — `abrirTela`, `gravarPelaTela`, `limparInativosPelaTela`,
+ * `ordenarPeloAjax`, `limparInativosPeloAjax`, `atualizarAreaPelaApi`,
+ * `criarPelaApi`, `atualizarPelaApi`, `apagarPelaApi` e
+ * `gravarPelaPersonalizacao`, todas com `edit_theme_options` em
+ * `componentesDeArea.permissoes`. A tabela abaixo nao tem linha para elas
+ * porque `plan.md` nao tem: ver `./README.md`, *O que T015 entrega*.
  *
  * As nove operacoes que a tabela *Contratos* de `plan.md` nomeia, com a permissao
  * que o pacote declara para cada uma — **citadas, nao decididas aqui**, para que a
