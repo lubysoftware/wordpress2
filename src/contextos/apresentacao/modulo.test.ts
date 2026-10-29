@@ -129,8 +129,8 @@ test('a superficie do modulo tem exatamente o que as tarefas fechadas entregam',
   ]);
 
   // T003 (US-1) acrescentou as operacoes da pre-visualizacao a personalizacao,
-  // e T011 (US-5) as de montar o menu, com a permissao de cada uma em
-  // `permissoes`; componentes ainda nao expoem nenhuma, pela mesma razao.
+  // T011 (US-5) as de montar o menu e T015 (US-7) as de organizar os
+  // componentes, com a permissao de cada uma em `permissoes`.
   assert.deepEqual(Object.keys(modulo.personalizacao).sort(), [
     'abrir',
     'gravarSemAplicar',
@@ -152,8 +152,19 @@ test('a superficie do modulo tem exatamente o que as tarefas fechadas entregam',
     'temMenuNaPosicao',
   ]);
   assert.deepEqual(Object.keys(modulo.componentesDeArea).sort(), [
+    'abrirTela',
+    'apagarPelaApi',
+    'atualizarAreaPelaApi',
+    'atualizarPelaApi',
+    'criarPelaApi',
+    'gravarPelaPersonalizacao',
+    'gravarPelaTela',
+    'limparInativosPelaTela',
+    'limparInativosPeloAjax',
     'noCiclo',
     'nome',
+    'ordenarPeloAjax',
+    'permissoes',
   ]);
 });
 

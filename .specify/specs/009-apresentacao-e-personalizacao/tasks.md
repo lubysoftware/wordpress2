@@ -57,7 +57,7 @@
       *entrega:* 5 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-101-1, UT-101-2, UT-101-3, UT-101-4, UT-101-5), com o mesmo dado de entrada, ação e resultado esperado. O teste de regra de negócio (UT-101-5) entra na mesma suíte.
       *satisfaz:* CA-6.1, CA-6.2, CA-6.3, CA-6.4
       *depende de:* T013
-- [ ] **T015** Organizar componentes nas áreas que o tema oferece (US-7)
+- [x] **T015** Organizar componentes nas áreas que o tema oferece (US-7)
       *entrega:* o comportamento de US-7 existe e os critérios CA-7.1, CA-7.2, CA-7.3, CA-7.4 passam contra o sistema novo
       *satisfaz:* CA-7.1, CA-7.2, CA-7.3, CA-7.4
       *depende de:* T001, T002

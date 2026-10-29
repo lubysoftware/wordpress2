@@ -61,8 +61,9 @@
  *
  * **Nenhuma operacao.** O **P4** da constituicao exige que *"toda operacao
  * exposta nova nasce com declaracao explicita de permissao"*, e T001 nao expoe
- * nenhuma; as de US-1 (T003) moram em `personalizacao/` e as de US-5 (T011) em
- * `menus/`, com a permissao de cada uma, e aqui entram so como tipo. A
+ * nenhuma; as de US-1 (T003) moram em `personalizacao/`, as de US-5 (T011) em
+ * `menus/` e as de US-7 (T015) em `componentes-de-area/`, com a permissao de
+ * cada uma, e aqui entram so como tipo. A
  * permissao que as tres vao cobrar e a **mesma**, e isso
  * e regra lida e nao decisao desta tarefa: `customize` resolve para
  * `edit_theme_options` (`wp-includes/capabilities.php:698`-`:699`), e
@@ -79,6 +80,7 @@
  * declarar ciclo onde o grafo medido nao mostrou nenhum.
  */
 
+import type { OperacoesDosComponentes } from './componentes-de-area/area-de-componentes-de-area.js';
 import type { OperacoesDosMenus } from './menus/area-de-menus.js';
 import type { OperacoesDaPersonalizacao } from './personalizacao/area-de-personalizacao.js';
 
@@ -123,9 +125,10 @@ export interface AreaDeMenus extends OperacoesDosMenus {
 /**
  * A area dos componentes de area — os widgets em sidebars do legado.
  *
- * Historias: US-7 (T015), US-9 (T019).
+ * Historias: US-7 (T015), US-9 (T019). As operacoes de US-7 entraram em
+ * T015; o `import` e so de tipo, como os das outras duas.
  */
-export interface AreaDeComponentesDeArea {
+export interface AreaDeComponentesDeArea extends OperacoesDosComponentes {
   readonly nome: 'componentes-de-area';
   readonly noCiclo: LigacaoTardiaNoCiclo;
 }
