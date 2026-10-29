@@ -87,9 +87,11 @@ test('a superficie do modulo tem exatamente o que T001 entregou', () => {
   // explicita de permissao". T001: nenhuma operacao, so a porta e o
   // despachante. A pauta do que entra em cada tarefa esta na tabela do
   // `index.ts`. T015 acrescentou `iniciarMapaDoSite` (US-7), declarada sem
-  // permissao porque a superficie e do buscador.
+  // permissao porque a superficie e do buscador, e T017 `iniciarFeed` (US-8),
+  // sem permissao porque o feed nao tem regra de visibilidade propria.
   assert.deepEqual(Object.keys(modulo).sort(), [
     'despachante',
+    'iniciarFeed',
     'iniciarMapaDoSite',
     'nome',
     'portas',

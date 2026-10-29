@@ -4,8 +4,19 @@ Epico EP-13 do backlog: *"o que o sistema expoe a programas: API, abilities,
 feeds, sitemaps"*. Tarefas fechadas com nota de entrega neste arquivo: **T001**
 (esqueleto, o despachante com o registro de rotas vazio e inspecionavel, e a
 porta de dados), **T002** (os dois formatos de declaracao, o ato de registrar, e
-o aviso de uso indevido da rota sem declaracao de permissao) e **T015** (US-7, o
-indice de sitemap conforme a opcao de indexacao).
+o aviso de uso indevido da rota sem declaracao de permissao), **T015** (US-7, o
+indice de sitemap conforme a opcao de indexacao) e **T017** (US-8, os feeds de
+conteudo e de comentarios a partir da mesma consulta publica).
+
+> 🔴 **O oraculo executavel nao e mais 7.1.2.** Durante T017 a instalacao de
+> `scripts/oraculo/` estava em **7.1.4** — ela se autoatualizou (atualizacao
+> menor automatica), contra RISK-021 (*"o oraculo e a instalacao de 7.1.2 e nao
+> muda durante o projeto"*). Sao 29 arquivos de `wp-includes/` diferentes, entre
+> eles `class-wp-query.php`, `post.php`, `kses.php` e controladores REST. Quem
+> conferir bytes contra ele precisa antes conferir por `diff` que os arquivos da
+> sua area sao identicos aos da arvore 7.1.2 — T017 fez isso, ver abaixo. Nao
+> foi corrigido aqui: levantar o oraculo de novo e travar a atualizacao e da
+> receita de `015`, e e decisao de quem cuida dela.
 
 Este arquivo e a leitura obrigatoria de quem pegar a tarefa seguinte: ele diz o
 que ja esta decidido, o que esta decidido **em outro lugar**, e o que **ninguem**
@@ -425,12 +436,109 @@ redirecionamento canonico, nao do mapa.
 
 ---
 
+## O que T017 entregou
+
+A linha da tarefa: *"o comportamento de US-8 existe e os criterios CA-8.1 a
+CA-8.4 passam contra o sistema novo"*. Casos de uso: `UC-47` (fluxo principal,
+passo 7, e o alternativo *Feed de comentarios*) e `UC-01` (alternativo *Feed em
+vez de HTML*).
+
+```
+superficies-programaticas/
+└── feed/
+    ├── pontos-de-configuracao.ts   'rss2', os tipos de conteudo, 'hourly', '1', a base do RDF, as opcoes de fabrica
+    ├── contexto-do-feed.ts         o que chega por ligacao tardia: o RESULTADO da consulta, os textos, os escapes
+    ├── datas-do-feed.ts            mysql2date sem traduzir, e a data de construcao
+    ├── modelos-do-feed.ts          os seis modelos, byte a byte, e as funcoes de feed.php que sao forma
+    ├── cabecalhos-do-feed.ts       o ramo de feed de send_headers(): tipo, Last-Modified, ETag, 304
+    ├── servidor-do-feed.ts         get_default_feed, feed_content_type, add_feed, do_feed, wp_die em XML
+    └── us-8-servir-feeds.test.ts   21 testes
+```
+
+O modulo ganhou a **segunda operacao**, `iniciarFeed(contexto)`, com a
+declaracao de permissao *"nenhuma"* que a pauta do `index.ts` ja previa. A
+porta de dados **nao** e tocada, e ha teste que afirma isso com a porta
+registrando comando.
+
+| criterio | onde | como se afirma |
+|---|---|---|
+| CA-8.1 o mesmo endereco serve o feed | `servidor-do-feed.ts`, `atender` | `/feed/` byte a byte com os cabecalhos do oraculo; `?feed=_rss2`; formato sem tratador e `404` em XML; os tres casos do GET condicional |
+| CA-8.2 mesma consulta, sem regra propria | `contexto-do-feed.ts` | o feed lista o que chegou, na ordem; o contexto nao tem funcao de consulta; a porta de dados nao recebe comando |
+| CA-8.3 conteudo e comentarios, global e por conteudo | `modelos-do-feed.ts` | nove documentos do oraculo byte a byte: RSS2, Atom, RDF e RSS 0.92 de conteudo; RSS2 e Atom de comentarios global e de um conteudo; a pagina sem comentario |
+| CA-8.4 formato padrao declarado e usado | `pontos-de-configuracao.ts`, `formatoDeFeedPadrao` | `''`, `'feed'` e `'__feed'` viram `'rss2'` no despacho e no cabecalho; o padrao filtrado vale nas duas etapas; `'rss'` filtrado vira `'rss2'` |
+
+### 🟢 Os bytes sairam do oraculo — que estava em 7.1.4
+
+Os nove documentos, o `404` e os cabecalhos foram pedidos por `curl` ao oraculo
+em 2026-10-29. Ele estava em **7.1.4** (ver o aviso no topo). Antes de usar um
+byte, os arquivos que produzem estes documentos foram comparados por `diff`
+com a arvore 7.1.2: os seis modelos, `feed.php`, `functions.php`,
+`general-template.php`, `formatting.php`, `default-filters.php`, `class-wp.php`,
+`template-loader.php`, `comment-template.php`, `post-template.php`,
+`link-template.php`, `author-template.php`, `category-template.php`,
+`rewrite.php` e `class-wp-rewrite.php` sao **identicos**. A unica troca nos
+literais do teste e o numero no gerador, `7.1.4` → `7.1.2`.
+
+O espaco em branco e o ponto em que um porte de feed erra quase toda linha: o
+legado escreve por modelo literal de PHP, e **o `?>` come a quebra de linha que
+vem logo depois dele**. Cada modelo foi escrito lendo as linhas cruas do
+arquivo, e o comentario de cada trecho diz de que linha ele veio.
+
+### 🔴 O 7.1.2 lista comentario de conteudo nao publico, e o feed nao corrige
+
+No 7.1.2 a consulta de comentarios do feed **singular** roda antes da
+conferencia de estado do conteudo (`class-wp-query.php:3487` contra `:3525`): o
+anonimo que pede `/?p=<rascunho>&feed=rss2&withcomments=1` recebe o conteudo
+esvaziado e os comentarios aprovados dele no feed. **O 7.1.4 corrigiu isso**
+movendo o bloco para depois da conferencia — e e por isso que o oraculo no ar
+**nao** reproduz o caso.
+
+O feed segue o 7.1.2 (P1) e nao tem como fazer diferente sem violar CA-8.2:
+conteudos e comentarios chegam separados, o modelo percorre os comentarios que
+vieram, e ha teste que afirma isso. Quem mora a consulta e `004`, que ainda nao
+portou a consulta de comentarios do feed; **quem portar precisa portar a ordem
+do 7.1.2**, e esse e o lugar onde a pergunta *"corrigir o vazamento?"* tem de
+ir para uma pessoa — nao e desta tarefa, e nao foi decidida aqui.
+
+### Tres coisas do legado que estao reproduzidas e surpreendem
+
+1. **`/comments/feed/rdf/` serve o feed de conteudo.** `do_feed_rdf` e
+   `do_feed_rss` sao registrados com zero argumentos
+   (`wp-includes/default-filters.php:420`-`:421`) e ignoram o
+   `is_comment_feed`. Conferido no oraculo.
+2. **O cabecalho le o formato cru, o despacho le o tratado.** `send_headers()`
+   le `WP::$query_vars['feed']` — `comments-atom`, `_rss2` —, cujo tipo e
+   `application/octet-stream`; o `header( ..., true )` da primeira linha do
+   modelo e que poe o tipo certo. `?feed=0` e feed para `WP_Query` e **nao** e
+   para `send_headers()` (`empty( '0' )`).
+3. **O `404` de formato desconhecido e XML**, e nao a pagina de erro do tema:
+   `wp_die()` escolhe o tratador XML porque `is_feed()` e verdadeiro
+   (`wp-includes/functions.php:3866`-`:3870`), com charset `UTF-8` fixo e **nao**
+   `blog_charset`, e o `nocache_headers()` dele tira o `Last-Modified` mas deixa
+   o `ETag` que o ramo de feed ja tinha posto. `?feed=rss-http` cai aqui: o tipo
+   de conteudo existe, o tratador nao.
+
+### O que T017 nao portou, e onde cada coisa fica
+
+| o que | por que | onde fica a pendencia |
+|---|---|---|
+| 🔴 a consulta de comentarios do feed (`class-wp-query.php:2827`-`:2928` e `:3487`-`:3522`) | e de `WP_Query`, isto e, de `004` — CA-8.2 proibe o feed de ter consulta propria | `contexto-do-feed.ts` recebe `comentarios` prontos; a ordem do 7.1.2 esta descrita acima |
+| a cadeia de filtros de cada texto (`the_title_rss`, `the_content` e `the_content_feed`, `the_excerpt_rss`, `comment_text_rss`...) | e de `BC-01`, de `plataforma/formatacao/` (feature `015`) e do tema | `ConteudoNoFeed` e `ComentarioNoFeed` recebem o texto como a funcao de modelo o escreve |
+| `esc_url()`, `esc_attr()`, `sanitize_url()`, `convert_chars()`, `ent2ncr()`, `html_entity_decode()` | `plataforma/formatacao/`, feature `015`, o mesmo tratamento que T002 e T015 deram aos escapes | `FormatacaoNoFeed`, por argumento — o feed nao tem segunda implementacao deles |
+| `strtotime()` do `If-Modified-Since` | o alvo le com `Date.parse()`, que cobre as tres formas de data HTTP | ⚠️ cabecalho de `cabecalhos-do-feed.ts`: forma exotica que o `strtotime()` aceita pode divergir |
+| os pontos de extensao dos modelos e de `feed.php` (`rss2_head`, `rss2_item`, `atom_entry`, `the_category_rss`, `rss_enclosure`, `default_feed`, `feed_content_type`, `get_feed_build_date`, `the_generator`...) | REQ-162 esta em `do-not-rewrite.md` | **declarados** na posicao em que seriam emitidos. O que o **nucleo** pendura neles por fabrica sai: o gerador nos seis cabecalhos e o icone do site no RSS2 e no Atom |
+| acrescentar o nome de `add_feed()` a `$wp_rewrite->feeds` | e da tabela de regras de `004` | `registro.registrar` troca o tratador; a regra de reescrita do nome novo fica com quem monta a tabela |
+| o resto de `send_headers()` (sessao, `404` por `error`, tipo HTML, `X-Pingback`, `Link`, filtro `wp_headers`) | e da borda de `004` (`requisicao/atender-leitura-publica.ts`, etapa 6) | o atendimento do feed devolve so os cabecalhos do ramo de feed e os do `wp_die()` |
+| a leitura de feed externo (`fetch_feed()`, SimplePie, `wp-includes/feed.php:804`) | nao e servir feed; nenhum criterio de US-8 a cobre | fica fora, sem porte |
+
+---
+
 ## O que esta decidido em outro lugar
 
 | assunto | onde mora | por que nao aqui |
 |---|---|---|
 | perguntar permissao | `plataforma/autorizacao/` | e chamada 1.279 vezes em 224 arquivos; fica abaixo de todo contexto. As duas camadas desta feature **consomem** a decisao, nao a tomam |
-| a consulta publica que alimenta feeds e mapa do site | feature `004-leitura-publica` | CA-8.2 exige *"a mesma consulta publica que a pagina, sem regra de visibilidade propria"*. Dois donos para a mesma consulta e duas regras de visibilidade |
+| a consulta publica que alimenta feeds e mapa do site | feature `004-leitura-publica` | CA-8.2 exige *"a mesma consulta publica que a pagina, sem regra de visibilidade propria"*. Dois donos para a mesma consulta e duas regras de visibilidade. T017 a recebe como **resultado** (`feed/contexto-do-feed.ts`): o tamanho da pagina do feed (`posts_per_rss`) ja mora em `leitura-publica/consulta/paginacao-da-listagem.ts`, e a consulta de comentarios do feed (`class-wp-query.php:2827` e `:3487`) **ainda nao existe** em `004` |
 | ler o conteudo para a representacao embutivel | `BC-01`, por ligacao tardia | `get_oembed_response_data()` (`wp-includes/embed.php:561`) chama `get_post()`; conteudo e de `BC-01` |
 | a identidade da chamada | feature `001-identidade-e-acesso` | e US-5 que a **exige**, nao que a resolve. E REQ-012, que nao entrou no pacote |
 | `blog_public` e os pontos de configuracao | ✅ T015: `mapa-do-site/pontos-de-configuracao.ts` | o P6 cobra que cada numero viva num ponto de configuracao nomeado com teste de borda proprio. **Gravar** a opcao na instalacao continua sendo da instalacao; aqui mora o valor de fabrica (`'1'`, `schema.php:474`) e a leitura |
@@ -674,12 +782,17 @@ chamador de terceiro e sem tipo — tem de decidir sobre eles.
 ## Como conferir esta entrega
 
 ```sh
-npm test            # a suite inteira; 8 testes sao de T001, 42 de T002 e 24 de T015
+npm test            # a suite inteira; 8 testes sao de T001, 42 de T002, 24 de T015 e 21 de T017
 node --test dist/contextos/superficies-programaticas/modulo.test.js
 node --test dist/contextos/superficies-programaticas/despacho/esquema-de-rota.test.js
 node --test dist/contextos/superficies-programaticas/operacao-nomeada/esquema-de-operacao-nomeada.test.js
 node --test dist/contextos/superficies-programaticas/mapa-do-site/us-7-servir-indice-do-mapa-do-site.test.js
+node --test dist/contextos/superficies-programaticas/feed/us-8-servir-feeds.test.js
 ```
+
+⚠️ **T017 mexeu num teste de T001**, e so na lista da superficie do modulo em
+`modulo.test.ts`: `iniciarFeed` entrou nela, como `iniciarMapaDoSite` entrou em
+T015. E a lista que *"cresce na tarefa de cada historia"*.
 
 ⚠️ **T002 mexeu num teste de T001**, e so nele: o molde do mapa de rotas em
 `modulo.test.ts` era `never`, e passou a ser `TratadorDeRota`. Era a troca que o
