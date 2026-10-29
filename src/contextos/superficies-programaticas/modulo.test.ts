@@ -86,9 +86,11 @@ test('a superficie do modulo tem exatamente o que T001 entregou', () => {
   // constituicao cobra, "toda operacao exposta nova nasce com declaracao
   // explicita de permissao". T001: nenhuma operacao, so a porta e o
   // despachante. A pauta do que entra em cada tarefa esta na tabela do
-  // `index.ts`.
+  // `index.ts`. T015 acrescentou `iniciarMapaDoSite` (US-7), declarada sem
+  // permissao porque a superficie e do buscador.
   assert.deepEqual(Object.keys(modulo).sort(), [
     'despachante',
+    'iniciarMapaDoSite',
     'nome',
     'portas',
   ]);
