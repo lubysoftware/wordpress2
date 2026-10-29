@@ -3,8 +3,9 @@
 Tarefas fechadas com nota de entrega neste arquivo: **T001** (esqueleto, as duas
 portas e as tres areas do ciclo), **T002** (o conjunto de alteracoes como tipo de
 conteudo proprio e a configuracao do tema como dado), **T003** (US-1, a
-pre-visualizacao), **T011** (US-5, montar o menu) e **T015** (US-7, organizar os
-componentes). Este arquivo e a leitura
+pre-visualizacao), **T011** (US-5, montar o menu), **T015** (US-7, organizar os
+componentes) e **T023** (US-11, declarar e enfileirar os recursos de interface).
+Este arquivo e a leitura
 obrigatoria de quem pegar a tarefa seguinte: ele diz o que ja esta decidido, o que
 esta decidido **em outro lugar**, e o que **ninguem decidiu**.
 
@@ -385,6 +386,79 @@ formato de antes da versao 2.8 (`wp_convert_widget_settings()`,
 `wp-includes/widgets.php:1141`, inalcancavel em instalacao nova) e o componente
 registrado por funcao, sem objeto de tipo (vem de extensao, nao do nucleo).
 
+## O que T023 entrega, e so isso
+
+> *o comportamento de US-11 existe e os criterios CA-11.1, CA-11.2, CA-11.3,
+> CA-11.4, CA-11.5 passam contra o sistema novo*
+> — `.specify/specs/009-apresentacao-e-personalizacao/tasks.md`, T023
+
+Tudo em `recursos-de-interface/`, uma area **fora do ciclo** das tres de T001
+(o carregador nao le personalizacao, menu nem componente), exposta no modulo
+como `recursosDeInterface`:
+
+| arquivo | criterio | o que e |
+|---|---|---|
+| `registro-de-dependencias.ts` | CA-11.1, CA-11.2, CA-11.4, CA-11.5 | `WP_Dependencies` e `_WP_Dependency` (`wp-includes/class-wp-dependencies.php:19`, `class-wp-dependency.php:20`): `add`, `remove`, `enqueue`, `dequeue`, `query`, `all_deps`, `do_items`, com o aviso de dependencia ausente de cada especie |
+| `endereco-servido.ts` | CA-11.3 | a parte de `do_item()` de script e de estilo que decide se o recurso sai e com que endereco: base, `ver=` por `rawurlencode()`, argumento de fila, fragmento, e o saneamento de cada especie |
+| `funcoes-publicadas.ts` | CA-11.1 | `wp_register_script()`, `wp_enqueue_script()`, `wp_register_style()`, `wp_enqueue_style()` e as irmas, com `_wp_scripts_maybe_doing_it_wrong()` |
+| `area-de-recursos-de-interface.ts` | — | a area: as duas fabricas de registro e a permissao declarada |
+| `us-11-declarar-e-enfileirar-recursos.test.ts` | todos | 22 afirmacoes; os cinco casos do catalogo (`UT-172-*`) sao **T024** |
+
+**O registro e da requisicao, nao do modulo.** No legado e o global
+`$wp_scripts`/`$wp_styles`; aqui a area devolve **fabricas**, e cada requisicao
+cria os registros dela (`EXT-CONTEXTO`). E o registro nasce **vazio**: os
+recursos de fabrica do nucleo chegam por `wp_default_scripts` e
+`wp_default_styles` (`default-filters.php:610`, `:658`), que sao ponto de
+extensao — barramento de `do-not-rewrite.md` —, e quem os registra e o arranque.
+
+**Nenhuma permissao, declarada por escrito (P4).** Os cinco arquivos do
+carregador tem zero `current_user_can()`; `PERMISSOES_DOS_RECURSOS` diz isso
+operacao por operacao, e a tabela de `index.ts` ja dizia *"registro de codigo,
+nao operacao de ator"*.
+
+**A marcacao nao e montada aqui.** O que sai e a lista do que `do_item()`
+imprimiria — identificador e endereco saneado, na ordem —, que e o contrato
+servidor→cliente de BR-MIGRAR-117. A etiqueta `<script>`/`<link>` e da borda.
+
+### Tres achados que a proxima onda precisa ler
+
+1. 🔴 **A tabela *Contratos* de `plan.md` lista *"ciclo de dependencia"* como
+   erro de enfileirar, e o legado nao o detecta.** O docblock de `all_deps()` e
+   literal: *"Does NOT catch infinite loops"* (`class-wp-dependencies.php:180`).
+   Um ciclo recursa ate estourar a pilha — erro fatal no PHP 8.3, `RangeError`
+   aqui —, e o teste afirma isso. **T023 seguiu o legado**, pelo mesmo motivo
+   que T011 seguiu no *"destino inexistente"*: nenhum dos cinco criterios de
+   US-11 pede a recusa, e `plan.md` diz que *"o que nao estiver na spec nao e
+   requisito"*. Registrado, nao decidido: quem mantem o pacote deveria alinhar
+   a linha. A outra metade da linha — *"dependencia nao registrada"* — e
+   CA-11.2, e e o `_doing_it_wrong()` de 6.9.1, **a quem desenvolve**; o
+   recurso e quem depende dele somem da pagina sem nada ao visitante.
+2. ⚠️ **A pergunta em aberto de `spec.md` sobre oraculo vale para o lado
+   cliente, nao para este.** *"US-11 a US-14 nao tem oraculo de paridade"*
+   fala do codigo de navegador que nao esta na arvore; o registro com
+   dependencias e versao e PHP legivel, e BR-MIGRAR-117 o poe no contrato do
+   servidor, **byte a byte**. Tudo que esta tarefa afirma tem ancora.
+3. ⚠️ **O mesmo endereco sai com byte diferente nas duas especies**, e e o
+   legado: o script passa por `esc_url_raw()` (`class-wp-scripts.php:448`) e o
+   estilo por `esc_url()` (`class-wp-styles.php:446`), que troca `&` por
+   `&#038;`. E **`'0'` como versao vira a versao do produto** (`empty()`, `:421`),
+   enquanto `null` nao poe versao nenhuma.
+
+### O que T023 deixou de fora, de proposito
+
+| o que | ancora | por que |
+|---|---|---|
+| dado extra (`add_data`/`get_data`) e o que depende dele: cabecalho e rodape (`WP_Scripts::set_group()`), estrategia `async`/`defer`, prioridade, comentario condicional, `rtl`, `alt`, `title` | `class-wp-dependencies.php:313`, `:339`; `class-wp-scripts.php:693`, `:1044`; `class-wp-styles.php:201`, `:227` | nenhum e criterio de US-11; sem dado extra todo recurso cai no grupo `0`, que e o que o legado calcula para recurso sem `group` |
+| o quinto parametro de script (`in_footer`, `strategy`, `fetchpriority`, `module_dependencies`) | `functions.wp-scripts.php:92` | grava dado extra |
+| script e estilo em linha, traducao, `wp_localize_script()` | `class-wp-scripts.php:519`, `:625`, `:744`; `class-wp-styles.php:276` | idem |
+| concatenacao do painel e etiqueta de cache | `class-wp-scripts.php:368`-`:399`; `class-wp-dependencies.php:533` | ligada por `script_concat_settings()` (`script-loader.php:2471`) no painel, e o endereco concatenado aponta para `load-scripts.php`/`load-styles.php`; nenhum criterio de US-11 |
+| `wp_deregister_script()` com os 25 identificadores protegidos | `functions.wp-scripts.php:367` | decide por `current_filter()`, que e o barramento |
+| os recursos de fabrica do nucleo | `wp-includes/script-loader.php:739`, `:1556` | chegam pelo ponto de extensao; registro de arranque |
+
+**T025** (US-12) e **T029** (US-14) dependem desta tarefa: o estilo resolvido
+do tema e o conjunto de icones entram no registro pelas fabricas de
+`recursosDeInterface`, pela composicao da requisicao.
+
 ## Por que os tres entram juntos — e nao e opcao de desenho
 
 `target_architecture.md` justifica a fusao dos 12 modulos de BC-07 em parte por
@@ -533,6 +607,8 @@ teste de paridade desta historia?"*.
 cliente do editor, dos recursos de interface, da biblioteca de fontes e do conjunto
 de icones (lacuna L4 de `soul.md`)"*, e a resposta 15 manda construir a partir do
 repositorio de origem. **Ate esse fonte estar em maos, as quatro nao tem oraculo.**
+⚠️ **T023 fechou US-11 pelo lado servidor**, que tem oraculo legivel — ver *O
+que T023 entrega*, achado 2. O que continua sem oraculo e o lado cliente.
 E REQ-177 — *"tornar interativo o conteudo renderizado sem recarregar a pagina"* —
 ficou `bloqueado` pela mesma ausencia e esta em `do-not-rewrite.md`: nao e trabalho
 pendente, e escopo recusado. `spec.md` registra que *"parte do comportamento de
@@ -576,8 +652,9 @@ US-11 e US-12 so faz sentido com ele"*.
 - `npm run typecheck` e `npm test` — as 8 afirmacoes de T001 estao em
   `modulo.test.ts`, as 50 de T002 em `armazenamento/armazenamento.test.ts`, as
   19 de T003 em `personalizacao/us-1-pre-visualizar-alteracoes.test.ts`, as 20
-  de T011 em `menus/us-5-montar-menu.test.ts` e as 22 de T015 em
-  `componentes-de-area/us-7-organizar-componentes.test.ts`.
+  de T011 em `menus/us-5-montar-menu.test.ts`, as 22 de T015 em
+  `componentes-de-area/us-7-organizar-componentes.test.ts` e as 22 de T023 em
+  `recursos-de-interface/us-11-declarar-e-enfileirar-recursos.test.ts`.
 - Pela paridade, e aqui a cobertura e **desigual entre as tres areas**:
 
 | area | cenario de paridade | situacao |

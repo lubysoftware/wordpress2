@@ -89,7 +89,7 @@
       *entrega:* 5 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-105-1, UT-105-2, UT-105-3, UT-105-4, UT-105-5), com o mesmo dado de entrada, ação e resultado esperado. O teste de regra de negócio (UT-105-5) entra na mesma suíte.
       *satisfaz:* CA-10.1, CA-10.2, CA-10.3, CA-10.4
       *depende de:* T021
-- [ ] **T023** Declarar e enfileirar os recursos de interface com dependência e versão (US-11)
+- [x] **T023** Declarar e enfileirar os recursos de interface com dependência e versão (US-11)
       *entrega:* o comportamento de US-11 existe e os critérios CA-11.1, CA-11.2, CA-11.3, CA-11.4, CA-11.5 passam contra o sistema novo
       *satisfaz:* CA-11.1, CA-11.2, CA-11.3, CA-11.4, CA-11.5
       *depende de:* T001, T002
