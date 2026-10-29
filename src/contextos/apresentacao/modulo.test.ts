@@ -126,6 +126,7 @@ test('a superficie do modulo tem exatamente o que as tarefas fechadas entregam',
     'nome',
     'personalizacao',
     'portas',
+    'recursosDeInterface',
   ]);
 
   // T003 (US-1) acrescentou as operacoes da pre-visualizacao a personalizacao,
@@ -164,6 +165,15 @@ test('a superficie do modulo tem exatamente o que as tarefas fechadas entregam',
     'noCiclo',
     'nome',
     'ordenarPeloAjax',
+    'permissoes',
+  ]);
+
+  // T023 (US-11) acrescentou a area de recursos de interface, fora do ciclo:
+  // as duas fabricas de registro, e a permissao declarada como nenhuma.
+  assert.deepEqual(Object.keys(modulo.recursosDeInterface).sort(), [
+    'criarRegistroDeEstilos',
+    'criarRegistroDeScripts',
+    'nome',
     'permissoes',
   ]);
 });

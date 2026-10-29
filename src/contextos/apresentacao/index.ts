@@ -2,8 +2,8 @@
  * Modulo de apresentacao — BC-07 de `target_architecture.md`.
  *
  * Feature `009-apresentacao-e-personalizacao`, tarefas fechadas **T001**,
- * **T002**, **T003**, **T011** e **T015**. O que existe aqui e exatamente o que
- * as cinco entregam: T001, *"personalizacao, menus e componentes de area carregam no
+ * **T002**, **T003**, **T011**, **T015** e **T023**. O que existe aqui e
+ * exatamente o que as seis entregam: T001, *"personalizacao, menus e componentes de area carregam no
  * mesmo passo, com as portas de dados e de cliente externo declaradas, porque o
  * ciclo de dependencia entre eles nao permite ordem interna"*; T002, *"o conjunto de alteracoes existe
  * como tipo de conteudo proprio e a configuracao declarada pelo tema e lida como
@@ -12,8 +12,9 @@
  * com a permissao declarada; T011, US-5 — montar o menu, exposta como operacoes
  * da area `menus`, do mesmo jeito; T015, US-7 — organizar os componentes pela
  * tela, pela superficie programatica e pela personalizacao, exposta como
- * operacoes da area `componentes-de-area`. As outras historias entram nas
- * tarefas delas.
+ * operacoes da area `componentes-de-area`; T023, US-11 — declarar e enfileirar
+ * os recursos de interface, na area `recursos-de-interface`, que fica **fora**
+ * do ciclo. As outras historias entram nas tarefas delas.
  * A leitura obrigatoria de quem pegar a tarefa seguinte esta em `./README.md`.
  *
  * A pasta e `contextos/apresentacao/` porque e assim que `target_architecture.md`
@@ -77,6 +78,10 @@ import type {
 import { criarAreaDeMenus } from './menus/index.js';
 import { criarAreaDePersonalizacao } from './personalizacao/index.js';
 import type { PortaDeClienteExterno, PortaDeDados } from './portas/index.js';
+import {
+  criarAreaDeRecursosDeInterface,
+  type AreaDeRecursosDeInterface,
+} from './recursos-de-interface/index.js';
 
 export * from './armazenamento/index.js';
 export * from './portas/index.js';
@@ -84,6 +89,7 @@ export * from './ciclo-de-apresentacao.js';
 export * from './personalizacao/index.js';
 export * from './menus/index.js';
 export * from './componentes-de-area/index.js';
+export * from './recursos-de-interface/index.js';
 
 /** As duas portas de que este modulo depende, na forma em que ele as recebe. */
 export interface PortasDeApresentacao {
@@ -123,7 +129,7 @@ export interface PortasDeApresentacao {
  * | montar menu | US-5 | T011 ✅ | `edit_theme_options` (`wp-admin/nav-menus.php:23`), mais o token da acao; ler para exibir nao pede nenhuma — ver `menus/permissao-dos-menus.ts` |
  * | sinalizar item orfao | US-6 | T013 | a da tela de menus, que e a mesma |
  * | trocar tema | US-8 | T017 | a de trocar tema, mais o token da acao; em rede, **poder de rede** (CA-8.5) |
- * | enfileirar recurso de interface | US-11 | T023 | — nenhuma: e registro de codigo, nao operacao de ator |
+ * | enfileirar recurso de interface | US-11 | T023 ✅ | — nenhuma: e registro de codigo, nao operacao de ator; zero `current_user_can()` nos cinco arquivos do carregador — ver `recursos-de-interface/funcoes-publicadas.ts` |
  * | resolver estilos declarados | US-12 | T025 | — idem |
  *
  * A linha que o P4 mais cobra que esteja escrita e a terceira: **a permissao de
@@ -143,6 +149,12 @@ export interface ModuloDeApresentacao extends AreasDaApresentacao {
    * `satisfaz: — (infraestrutura)`.
    */
   readonly armazenamento: ArmazenamentoDaApresentacao;
+
+  /**
+   * O registro de *script* e de estilo (T023, US-11), **fora do ciclo** das
+   * tres areas. Devolve as fabricas; o registro e de cada requisicao.
+   */
+  readonly recursosDeInterface: AreaDeRecursosDeInterface;
 }
 
 /**
@@ -200,5 +212,6 @@ export function criarModuloDeApresentacao(
     personalizacao,
     menus,
     componentesDeArea,
+    recursosDeInterface: criarAreaDeRecursosDeInterface(),
   };
 }
