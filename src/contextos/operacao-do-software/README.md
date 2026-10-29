@@ -1,8 +1,9 @@
 # Modulo de operacao do software — BC-11
 
 Feature `010-operacao-do-software`. Tarefas fechadas com nota de entrega neste
-arquivo: **T001** (esqueleto, as quatro portas) e **T002** (a configuracao
-nomeada: o estado de atualizacao e o de recuperacao). Este arquivo e a leitura
+arquivo: **T001** (esqueleto, as quatro portas), **T002** (a configuracao
+nomeada: o estado de atualizacao e o de recuperacao) e **T003** (US-1, instalar
+e atualizar extensao). Este arquivo e a leitura
 obrigatoria de quem pegar a tarefa seguinte: ele diz o que ja esta decidido, o
 que esta decidido **em outro lugar**, e o que **ninguem** decidiu.
 
@@ -129,6 +130,114 @@ do `index.ts` continua sendo pauta das tarefas das historias.
   consome. Os oito pontos de extensao por opcao, `sanitize_option()` e
   `wp_protect_special_option()` sao dele, nao daqui: declara-los aqui criaria
   ponto de extensao com dois donos.
+
+---
+
+## O que T003 entrega, e so isso
+
+A linha da tarefa: *"o comportamento de US-1 existe e os criterios CA-1.1,
+CA-1.2, CA-1.3, CA-1.4, CA-1.5, CA-1.6, CA-1.7 passam contra o sistema novo"*.
+E a **primeira operacao exposta** do modulo, e nasce com a declaracao de
+permissao que o P4 cobra: `PERMISSOES_DA_INSTALACAO`, uma capacidade por acao,
+cada uma com o seu token.
+
+| arquivo | o que e | criterio |
+|---|---|---|
+| `instalacao/permissao-da-instalacao.ts` | os dois `case` de `map_meta_cap()` (`capabilities.php:619`-`:642` e `:654`-`:666`), a permissao e o token de cada acao | CA-1.1, CA-1.3, CA-1.4, CA-1.6, CA-1.7, a regra |
+| `instalacao/contexto-da-instalacao.ts` | o que as operacoes recebem por chamada, inclusive o `run()` do legado como ligacao tardia | — |
+| `instalacao/texto-como-no-php.ts` | `trim()`, `urldecode()`, conversao para texto, verdade do PHP, `add_query_arg()` | — |
+| `instalacao/consulta-ao-catalogo.ts` | `plugins_api()` e `themes_api()` de informacao, com a repeticao em claro da resposta 12 | CA-1.2 |
+| `instalacao/instalador-de-extensao.ts` | `install()`, `upgrade()` e `bulk_upgrade()` de `Plugin_Upgrader` e `Theme_Upgrader` | CA-1.5 |
+| `instalacao/acoes-depois-de-instalar.ts` | `Plugin_Installer_Skin::after()`: se a tela oferece ativar | CA-1.4 |
+| `instalacao/tela-de-atualizacao.ts` | `wp-admin/update.php`, as oito acoes de US-1 | todos |
+| `instalacao/us-1-instalar-e-atualizar-extensao.test.ts` | 27 testes, um ou mais por criterio | — |
+
+A superficie do modulo passou a ter `instalacao`, e `modulo.test.ts` afirma
+que sao essas cinco chaves.
+
+### O que esta tarefa porta e o que ela deixa atras de uma interface
+
+O que US-1 decide e a **camada de cima** do caminho: a tela, a pergunta de
+capacidade, o token, a consulta ao catalogo, qual pacote vai para qual destino
+com qual `hook_extra`, e o que fazer com o resultado de cada item do lote.
+Aplicar o pacote — o `WP_Upgrader::run()` do legado — e criterio de **outras
+tres historias** desta feature, e chega por `ExecucaoDoPacote`:
+
+| passo de `run()` | historia | tarefa |
+|---|---|---|
+| `download_package()` e a verificacao de assinatura | US-2 | **T005** (🔴 conflito #1) |
+| `maintenance_mode()` | US-4 | **T009** (🔴 conflito #4) |
+| `fs_connect()`, `install_package()`, `clear_destination()`, a copia de seguranca e a limpeza | US-5 | **T011** |
+
+Quem pegar uma dessas constroi o `run()` atras de `ExecucaoDoPacote` e **nao
+muda a tela**. O que a tela ja manda para la: `package`, `destination`,
+`clear_destination` (que na instalacao e o texto de sobrescrita, nao booleano),
+`clear_working`, `is_multi`, o `hook_extra` com o `temp_backup` que CA-5.3
+restaura, e os nomes dos metodos que o legado pendura em filtro em volta de
+cada chamada (`check_package`, `deactivate_plugin_before_upgrade`,
+`current_before`, ...). O que vem **depois** de `run()` — limpeza de cache,
+`upgrader_overwrote_package`, `upgrader_process_complete` e a retirada do item
+de `auto_plugin_theme_update_emails` (estado de US-10) — chega em
+`ExecucaoDoPacote.concluir`, e so quando o legado chega la.
+
+O mesmo vale para `File_Upload_Upgrader` (anexo e de BC-03, a limpeza agendada
+e da feature `011`): chega por `RecepcaoDoPacoteEnviado`. E as duas comparacoes
+de versao do lote (`is_wp_version_compatible()`, `is_php_version_compatible()`)
+chegam prontas do ambiente: comparar versao e US-3, **T007**.
+
+### Tres coisas que um porte perde, e que estao reproduzidas
+
+1. **No lote, so `false` interrompe.** CA-1.5 diz *"um que falha nao
+   interrompe os demais"*, e e verdade para `WP_Error`. O legado tem um caso que
+   interrompe: `false`, que e o `run()` que nao abriu o sistema de arquivos e
+   desenhou a tela de credencial (`class-plugin-upgrader.php:400`, *"Prevent
+   credentials auth screen from displaying multiple times"*). Isso nao e falha
+   do item, e da conexao, e os itens seguintes nao aparecem no resultado. Nao
+   foi tratado como conflito com o criterio porque o criterio fala de item, e o
+   legado so interrompe por conexao.
+2. **Atualizar um so sem oferta devolve `false`; no lote, o mesmo caso devolve
+   `true`** (`class-plugin-upgrader.php:200`-`:206` contra `:334`-`:340`). E so
+   o lote confere `requires`/`requires_php`.
+3. **Ativar nao passa por `is_super_admin()`.** O comentario do proprio legado
+   (`capabilities.php:660`): em rede, o administrador de site **ativa** plugin
+   se a rede liberou o menu (`menu_items`), e **nunca instala**. E
+   `network_activate` so some quando a instalacao falhou: quem administra os
+   plugins da rede ve *"Network Activate"* mesmo com o plugin ja ativo.
+
+### 🔴 Uma divergencia encontrada na plataforma, NAO corrigida aqui
+
+**`file_mod_allowed` nao consegue reabrir o que `DISALLOW_FILE_MODS` fechou.**
+No legado a constante e so o **valor padrao** do filtro
+(`wp_is_file_mod_allowed()`, `wp-includes/load.php:1838`): um interceptador que
+devolva `true` com a constante ligada reabre as nove capacidades de modificar
+arquivo. Neste porte, `plataforma/autorizacao/revogacao-por-constante.ts`
+(T015 da feature 001) trata a constante como revogacao incondicional e roda
+**antes** de qualquer caso de traducao, logo o filtro de
+`casoDaInstalacao()` so e consultado quando a constante esta desligada. O
+caminho inverso — sem a constante, um filtro que devolve `false` fecha as
+nove — funciona e esta testado.
+
+Por que nao foi corrigido aqui: a correcao muda a ordem declarada da decisao,
+que alcanca tambem `edit_files`/`edit_plugins`/`edit_themes` (com outro
+contexto de `wp_is_file_mod_allowed()`, `capability_edit_themes`) e as de idioma
+(`can_install_language_pack`), nenhuma de US-1. E de quem for mexer em
+`plataforma/autorizacao/`, e CA-1.6 continua satisfeito: com a proibicao
+declarada e **sem** interceptador, as nove sao negadas a toda conta.
+
+### O que T003 deliberadamente NAO entrega
+
+- **As tres acoes de `update.php` que nao sao criterio de US-1**:
+  `activate-plugin` (a reativacao depois de atualizar),
+  `upload-plugin-cancel-overwrite` e `upload-theme-cancel-overwrite`. A tela as
+  devolve como `nao-portada`, e **nao** dispara `update-custom_{acao}` para
+  elas, porque o legado nao dispara.
+- **As acoes depois de instalar tema** (`Theme_Installer_Skin::after()`):
+  ativar tema e `switch_themes`, que nao e criterio de US-1.
+- **A comparacao de sobrescrita do envio** (`do_overwrite()`): ela le
+  `get_plugins()` e compara com `version_compare()`, que sao da tela de
+  plugins; chega como `sobrescritaOferecida`.
+- **O texto da tela.** Titulo, cabecalho e *skin* sao da borda; a tela entra
+  como dado.
 
 ---
 

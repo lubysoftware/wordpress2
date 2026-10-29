@@ -9,7 +9,7 @@
       *entrega:* os pontos de configuração que guardam falha de atualização automática, política de atualização e sessão de recuperação existem com os valores de fábrica do legado e são lidos e gravados pela porta de dados
       *satisfaz:* — (infraestrutura)
       *depende de:* T001
-- [ ] **T003** Instalar e atualizar extensão a partir do catálogo ou de arquivo enviado (US-1)
+- [x] **T003** Instalar e atualizar extensão a partir do catálogo ou de arquivo enviado (US-1)
       *entrega:* o comportamento de US-1 existe e os critérios CA-1.1, CA-1.2, CA-1.3, CA-1.4, CA-1.5, CA-1.6, CA-1.7 passam contra o sistema novo
       *satisfaz:* CA-1.1, CA-1.2, CA-1.3, CA-1.4, CA-1.5, CA-1.6, CA-1.7
       *depende de:* T001, T002

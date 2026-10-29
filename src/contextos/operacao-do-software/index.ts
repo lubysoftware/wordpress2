@@ -11,7 +11,8 @@
  * A configuracao nomeada — o estado de falha da atualizacao automatica, a
  * politica de atualizacao e a sessao de recuperacao — e **T002**, fechada, em
  * `./configuracao/` sobre a primitiva de opcao de `./armazenamento/`. Cada
- * historia entra na tarefa dela (T003 em diante). A leitura obrigatoria de quem
+ * historia entra na tarefa dela: **T003** (US-1, instalar e atualizar extensao)
+ * esta em `./instalacao/`. A leitura obrigatoria de quem
  * pegar a tarefa seguinte esta em `./README.md`, e ela comeca por **sete**
  * conflitos registrados e nao resolvidos — o setimo e de T002, no valor de
  * fabrica de `auto_update_core_major`.
@@ -54,6 +55,10 @@ import {
   criarConfiguracaoDeOperacaoDoSoftware,
   type ConfiguracaoDeOperacaoDoSoftware,
 } from './configuracao/index.js';
+import {
+  criarAreaDeInstalacao,
+  type AreaDeInstalacao,
+} from './instalacao/index.js';
 import type {
   PortaDeClienteExterno,
   PortaDeDados,
@@ -63,6 +68,7 @@ import type {
 
 export * from './armazenamento/index.js';
 export * from './configuracao/index.js';
+export * from './instalacao/index.js';
 export * from './portas/index.js';
 
 /**
@@ -101,7 +107,7 @@ export interface PortasDeOperacaoDoSoftware {
  *
  * | operacao | historia | tarefa | permissao, como o pacote a declara |
  * |---|---|---|---|
- * | instalar ou atualizar extensao | US-1 | T003 | `install_plugins`, `update_plugins`, `install_themes` ou `update_themes` conforme a acao, **cada uma com o seu nonce**; `upload_plugins` e `upload_themes` resolvem para as de instalar (UC-33, CA-1.1, CA-1.3). Ativar depois exige `activate_plugins`, que e outra (CA-1.4) |
+ * | instalar ou atualizar extensao | US-1 | **T003, fechada** | `instalacao` — a declaracao e `PERMISSOES_DA_INSTALACAO`, com o token de cada acao em `acaoDoToken()` e a traducao em `casoDaInstalacao()` |
  * | verificar autenticidade do pacote | US-2 | T005 | 🔴 nenhuma: o veredito nao e autorizado por capacidade. E o **conflito registrado** da `spec.md`, nao resolvido |
  * | recusar atualizacao incompativel | US-3 | T007 | nenhuma para recusar; a tela oferece atualizar o ambiente *"a quem tem a capacidade declarada para isso"* (CA-3.5), que o pacote nao nomeia |
  * | por em manutencao | US-4 | T009 | nenhuma: e passo interno de UC-33 (passo 5), sem ator |
@@ -147,6 +153,15 @@ export interface ModuloDeOperacaoDoSoftware {
    * T015 a T029.
    */
   readonly configuracao: ConfiguracaoDeOperacaoDoSoftware;
+
+  /**
+   * Instalar e atualizar extensao a partir do catalogo ou de arquivo enviado
+   * (US-1, **T003**). E a primeira operacao exposta do modulo, e nasce com a
+   * declaracao explicita de permissao que o P4 cobra:
+   * `PERMISSOES_DA_INSTALACAO`, uma capacidade por acao da tela, cada uma com o
+   * seu token, e os dois `case` de `map_meta_cap()` em `casoDaInstalacao()`.
+   */
+  readonly instalacao: AreaDeInstalacao;
 }
 
 /**
@@ -178,5 +193,6 @@ export function criarModuloDeOperacaoDoSoftware(
       armazenamento.opcoesDoSite,
       armazenamento.opcoesDeRede,
     ),
+    instalacao: criarAreaDeInstalacao(portas.clienteExterno),
   };
 }
