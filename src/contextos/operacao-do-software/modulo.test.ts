@@ -256,7 +256,7 @@ test('o modulo carrega com as quatro portas declaradas', () => {
   ]);
 });
 
-test('a superficie do modulo tem exatamente o que T001 e T002 entregam', () => {
+test('a superficie do modulo tem exatamente o que T001, T002 e T003 entregam', () => {
   const { portas } = portasDeTeste();
 
   const modulo = criarModuloDeOperacaoDoSoftware(portas);
@@ -267,10 +267,12 @@ test('a superficie do modulo tem exatamente o que T001 e T002 entregam', () => {
   // `armazenamento` e `configuracao`, e NENHUMA DAS DUAS E OPERACAO — as duas
   // linhas de `tasks.md` dizem `satisfaz: — (infraestrutura)`. A tabela de quem
   // entra, com a permissao de cada uma ja lida dos casos de uso, esta no
-  // comentario de `ModuloDeOperacaoDoSoftware`.
+  // comentario de `ModuloDeOperacaoDoSoftware`. T003 acrescentou `instalacao`,
+  // a primeira operacao, com `PERMISSOES_DA_INSTALACAO` como declaracao.
   assert.deepEqual(Object.keys(modulo).sort(), [
     'armazenamento',
     'configuracao',
+    'instalacao',
     'nome',
     'portas',
   ]);
