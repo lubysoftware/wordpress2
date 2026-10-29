@@ -1,9 +1,9 @@
 /**
  * A area dos menus de navegacao.
  *
- * Esqueleto de **T001** da feature `009-apresentacao-e-personalizacao`. **Nenhuma
- * regra de negocio esta implementada aqui.** Montar o menu entra em **T011**
- * (US-5) e o item orfao em **T013** (US-6).
+ * Esqueleto de **T001** da feature `009-apresentacao-e-personalizacao`; montar
+ * o menu entrou em **T011** (US-5) — as operacoes estao em
+ * {@link OperacoesDosMenus}. O item orfao e de **T013** (US-6).
  *
  * | o que esta area vai fazer | ancora no legado |
  * |---|---|
@@ -55,15 +55,84 @@
  *
  * ## O que esta area entrega hoje
  *
- * `nome` e a {@link LigacaoTardiaNoCiclo} para as outras duas areas. Nada mais: o
- * **P4** exige que toda operacao exposta nasca com declaracao explicita de
- * permissao, e T001 nao expoe nenhuma.
+ * `nome`, a {@link LigacaoTardiaNoCiclo} para as outras duas areas (T001), e as
+ * operacoes de US-5 (T011), cada uma com a permissao declarada em
+ * `permissoes` — o que o **P4** cobra. As funcoes do legado que elas usam
+ * (`wp_update_nav_menu_object()`, `wp_update_nav_menu_item()` e as de posicao)
+ * saem pelo barril, e **nao** sao operacoes desta area: no legado elas nao
+ * conferem capacidade nenhuma, e quem confere e a tela.
  */
 
 import type {
   AreaDeMenus,
   LigacaoTardiaNoCiclo,
 } from '../ciclo-de-apresentacao.js';
+import type { ContextoDosMenus, TermoNosMenus } from './contexto-dos-menus.js';
+import {
+  gravarMenuPelaTela,
+  gravarPosicoesPelaTela,
+  type DesfechoDaTelaDeMenus,
+  type PedidoDeGravacaoDasPosicoes,
+  type PedidoDeGravacaoDoMenu,
+} from './gravar-menu-pela-tela.js';
+import {
+  PERMISSOES_DOS_MENUS,
+  portaoDaTelaDeMenus,
+  type RecusaDosMenus,
+} from './permissao-dos-menus.js';
+import {
+  menuParaExibir,
+  temMenuNaPosicao,
+  type PedidoDeExibicao,
+} from './posicoes-de-menu.js';
+
+/**
+ * As operacoes de US-5 (T011). O contexto chega por argumento em todas: a
+ * identidade e a requisicao sao escopo de REQUISICAO (AD-02), e o termo e o
+ * item chegam por ligacao tardia (AD-10).
+ */
+export interface OperacoesDosMenus {
+  /** A permissao de cada operacao — ver `permissao-dos-menus.ts`. */
+  readonly permissoes: typeof PERMISSOES_DOS_MENUS;
+
+  /**
+   * O portao da tela (CA-5.1, CA-5.5). **Permissao exigida:
+   * `edit_theme_options`**, depois de o tema suportar `menus` ou `widgets`.
+   * `null` e passagem livre. Nao grava nada.
+   */
+  abrirTela(contexto: ContextoDosMenus): RecusaDosMenus | null;
+
+  /**
+   * Criar ou editar o menu, os itens e as posicoes dele — a acao `update`
+   * (CA-5.1 a CA-5.5). **Permissao exigida: `edit_theme_options` e o token
+   * `update-nav_menu`.**
+   */
+  gravarMenu(
+    contexto: ContextoDosMenus,
+    pedido: PedidoDeGravacaoDoMenu,
+  ): DesfechoDaTelaDeMenus;
+
+  /**
+   * Associar menus as posicoes — a acao `locations` (CA-5.4). **Permissao
+   * exigida: `edit_theme_options` e o token `save-menu-locations`.**
+   */
+  gravarPosicoes(
+    contexto: ContextoDosMenus,
+    pedido: PedidoDeGravacaoDasPosicoes,
+  ): DesfechoDaTelaDeMenus;
+
+  /**
+   * O menu que o tema exibe, pelo menu pedido e so depois pela posicao
+   * (CA-5.5). **Nenhuma permissao**: e leitura para o visitante.
+   */
+  menuParaExibir(
+    contexto: ContextoDosMenus,
+    pedido: PedidoDeExibicao,
+  ): TermoNosMenus | false;
+
+  /** `has_nav_menu()` (CA-5.4). **Nenhuma permissao**: idem. */
+  temMenuNaPosicao(contexto: ContextoDosMenus, posicao: string): boolean;
+}
 
 /**
  * Cria a area, sem resolver nada.
@@ -72,5 +141,14 @@ import type {
  * `../ciclo-de-apresentacao.ts`.
  */
 export function criarAreaDeMenus(noCiclo: LigacaoTardiaNoCiclo): AreaDeMenus {
-  return { nome: 'menus', noCiclo };
+  return {
+    nome: 'menus',
+    noCiclo,
+    permissoes: PERMISSOES_DOS_MENUS,
+    abrirTela: portaoDaTelaDeMenus,
+    gravarMenu: gravarMenuPelaTela,
+    gravarPosicoes: gravarPosicoesPelaTela,
+    menuParaExibir,
+    temMenuNaPosicao,
+  };
 }

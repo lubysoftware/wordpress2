@@ -61,8 +61,9 @@
  *
  * **Nenhuma operacao.** O **P4** da constituicao exige que *"toda operacao
  * exposta nova nasce com declaracao explicita de permissao"*, e T001 nao expoe
- * nenhuma; as de US-1 (T003) moram em `personalizacao/`, com a permissao de cada
- * uma, e aqui entram so como tipo. A permissao que as tres vao cobrar e a **mesma**, e isso
+ * nenhuma; as de US-1 (T003) moram em `personalizacao/` e as de US-5 (T011) em
+ * `menus/`, com a permissao de cada uma, e aqui entram so como tipo. A
+ * permissao que as tres vao cobrar e a **mesma**, e isso
  * e regra lida e nao decisao desta tarefa: `customize` resolve para
  * `edit_theme_options` (`wp-includes/capabilities.php:698`-`:699`), e
  * `edit_theme_options` *"libera menus, componentes e personalizacao, e e exclusiva
@@ -78,6 +79,7 @@
  * declarar ciclo onde o grafo medido nao mostrou nenhum.
  */
 
+import type { OperacoesDosMenus } from './menus/area-de-menus.js';
 import type { OperacoesDaPersonalizacao } from './personalizacao/area-de-personalizacao.js';
 
 /** O nome de cada area do ciclo, como `tasks.md` as nomeia. */
@@ -110,9 +112,10 @@ export interface AreaDePersonalizacao extends OperacoesDaPersonalizacao {
 /**
  * A area dos menus de navegacao.
  *
- * Historias: US-5 (T011), US-6 (T013).
+ * Historias: US-5 (T011), US-6 (T013). As operacoes de US-5 entraram em T011;
+ * o `import` e so de tipo, como o da personalizacao.
  */
-export interface AreaDeMenus {
+export interface AreaDeMenus extends OperacoesDosMenus {
   readonly nome: 'menus';
   readonly noCiclo: LigacaoTardiaNoCiclo;
 }

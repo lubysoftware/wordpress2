@@ -2,15 +2,16 @@
  * Modulo de apresentacao — BC-07 de `target_architecture.md`.
  *
  * Feature `009-apresentacao-e-personalizacao`, tarefas fechadas **T001**,
- * **T002** e **T003**. O que existe aqui e exatamente o que as tres entregam: T001,
- * *"personalizacao, menus e componentes de area carregam no mesmo passo, com as
- * portas de dados e de cliente externo declaradas, porque o ciclo de dependencia
- * entre eles nao permite ordem interna"*; T002, *"o conjunto de alteracoes existe
+ * **T002**, **T003** e **T011**. O que existe aqui e exatamente o que as quatro
+ * entregam: T001, *"personalizacao, menus e componentes de area carregam no
+ * mesmo passo, com as portas de dados e de cliente externo declaradas, porque o
+ * ciclo de dependencia entre eles nao permite ordem interna"*; T002, *"o conjunto de alteracoes existe
  * como tipo de conteudo proprio e a configuracao declarada pelo tema e lida como
  * dado, pela porta de dados, com a mesma forma do legado"*; T003, US-1 — a
  * pre-visualizacao, exposta como operacoes da area `personalizacao`, cada uma
- * com a permissao declarada. As outras historias entram nas tarefas delas. A
- * leitura obrigatoria de quem pegar a tarefa seguinte esta em `./README.md`.
+ * com a permissao declarada; T011, US-5 — montar o menu, exposta como operacoes
+ * da area `menus`, do mesmo jeito. As outras historias entram nas tarefas delas.
+ * A leitura obrigatoria de quem pegar a tarefa seguinte esta em `./README.md`.
  *
  * A pasta e `contextos/apresentacao/` porque e assim que `target_architecture.md`
  * nomeia BC-07 no esboco de arvore; a feature se chama
@@ -95,7 +96,10 @@ export interface PortasDeApresentacao {
  * Hoje ha as portas e as tres areas do ciclo (T001), o armazenamento (T002), que
  * nao decide nada, e as operacoes de US-1 dentro de `personalizacao` (T003) —
  * `abrir`, `pedirPrevia`, `validarPedidoDeGravacao`, `gravarSemAplicar` e
- * `pedidoDoAnexo`, com a permissao de cada uma em `personalizacao.permissoes`.
+ * `pedidoDoAnexo`, com a permissao de cada uma em `personalizacao.permissoes` —
+ * e as de US-5 dentro de `menus` (T011) — `abrirTela`, `gravarMenu`,
+ * `gravarPosicoes`, `menuParaExibir` e `temMenuNaPosicao`, com a permissao de
+ * cada uma em `menus.permissoes`.
  *
  * As nove operacoes que a tabela *Contratos* de `plan.md` nomeia, com a permissao
  * que o pacote declara para cada uma — **citadas, nao decididas aqui**, para que a
@@ -107,7 +111,7 @@ export interface PortasDeApresentacao {
  * | salvar alteracoes | US-2 | T005 | a de **editar** o conjunto, concedida por filtro no legado (UC-29) |
  * | aplicar | US-2 | T005 | a de **publicar** o tipo do conjunto, verificada **em separado** (`class-wp-customize-manager.php:2483`) |
  * | agendar aplicacao | US-4 | T009 | a mesma de aplicar, mais a data futura |
- * | montar menu | US-5 | T011 | `edit_theme_options` (`wp-admin/nav-menus.php:23`) |
+ * | montar menu | US-5 | T011 ✅ | `edit_theme_options` (`wp-admin/nav-menus.php:23`), mais o token da acao; ler para exibir nao pede nenhuma — ver `menus/permissao-dos-menus.ts` |
  * | sinalizar item orfao | US-6 | T013 | a da tela de menus, que e a mesma |
  * | trocar tema | US-8 | T017 | a de trocar tema, mais o token da acao; em rede, **poder de rede** (CA-8.5) |
  * | enfileirar recurso de interface | US-11 | T023 | — nenhuma: e registro de codigo, nao operacao de ator |

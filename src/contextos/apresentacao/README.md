@@ -2,8 +2,8 @@
 
 Tarefas fechadas com nota de entrega neste arquivo: **T001** (esqueleto, as duas
 portas e as tres areas do ciclo), **T002** (o conjunto de alteracoes como tipo de
-conteudo proprio e a configuracao do tema como dado) e **T003** (US-1, a
-pre-visualizacao). Este arquivo e a leitura
+conteudo proprio e a configuracao do tema como dado), **T003** (US-1, a
+pre-visualizacao) e **T011** (US-5, montar o menu). Este arquivo e a leitura
 obrigatoria de quem pegar a tarefa seguinte: ele diz o que ja esta decidido, o que
 esta decidido **em outro lugar**, e o que **ninguem decidiu**.
 
@@ -17,10 +17,11 @@ esta decidido **em outro lugar**, e o que **ninguem decidiu**.
 > comportamento agendado desta historia fica indefinido"*. Secao *O que ninguem
 > decidiu*, item 2.
 
-> ⚠️ **E se a sua tarefa e T011, T013, T015 ou T019:** UC-30 e UC-31 **nao tem
+> ⚠️ **E se a sua tarefa e T013, T015 ou T019:** UC-30 e UC-31 **nao tem
 > cenario de paridade de fluxo** — `parity_specs.md` conta 43 de 47, e os dois sao
 > de fora da conta. O oraculo da sua tarefa e o contrato de tela mais o catalogo
-> `backlog/tests.md`. Secao *Como esta entrega se confere*.
+> `backlog/tests.md`. Secao *Como esta entrega se confere*. **T013** comeca pela
+> secao *O que T011 deixou de proposito para T013*.
 
 ## O que T001 entrega, e so isso
 
@@ -214,6 +215,77 @@ identidade `===` do PHP nao distingue `1` de `1.0` depois de `JSON.parse`
 sai antes dos outros no objeto, a mesma armadilha que T002 registrou para
 `conteudoDoConjunto`.
 
+## O que T011 entrega, e so isso
+
+> *o comportamento de US-5 existe e os criterios CA-5.1, CA-5.2, CA-5.3, CA-5.4,
+> CA-5.5 passam contra o sistema novo*
+> — `.specify/specs/009-apresentacao-e-personalizacao/tasks.md`, T011
+
+Tudo em `menus/`, e a area passou a expor operacoes (`OperacoesDosMenus`), cada
+uma com a permissao declarada em `permissoes` (**P4**):
+
+| arquivo | criterio | o que e |
+|---|---|---|
+| `contexto-dos-menus.ts` | — | o pedido e as ligacoes tardias: o menu por `BC-02` (`ClassificacaoNosMenus`), o item por `BC-01` (`ConteudoNosMenus`), as posicoes declaradas pelo tema, nonce, sanitizadores e relogio |
+| `permissao-dos-menus.ts` | CA-5.1 | o portao de `nav-menus.php:18`-`:29` (tema **antes** da capacidade), os dois tokens e a permissao de cada operacao |
+| `menu-de-navegacao.ts` | CA-5.2 | `wp_get_nav_menu_object()`, `is_nav_menu()`, `wp_update_nav_menu_object()`: o menu e um termo de `nav_menu` |
+| `item-de-menu.ts` | CA-5.2, CA-5.3 | `wp_update_nav_menu_item()` inteiro: destino, posicao, hierarquia em metadado, rascunho orfao |
+| `posicoes-de-menu.ts` | CA-5.4, CA-5.5 | as posicoes declaradas, `nav_menu_locations` dentro de `theme_mods_{folha}`, `has_nav_menu()` e os dois primeiros passos de `wp_nav_menu()` |
+| `gravar-menu-pela-tela.ts` | todos | as acoes `update` e `locations` da tela e `wp_nav_menu_update_menu_items()` |
+| `us-5-montar-menu.test.ts` | todos | 20 afirmacoes; os sete casos do catalogo (`UT-100-*`) sao **T012** |
+
+**Nenhum comando sai pela porta de dados por conta dos menus, salvo um:** o
+termo e o item sao `BC-02` e `BC-01`, e chegam por ligacao tardia, como a
+tabela de `contexto-dos-menus.ts` lista funcao por funcao. O que este contexto
+grava e o que e dele — `nav_menu_locations` (pela modificacao de tema de T002)
+e `nav_menu_options` (opcao propria, regravada a cada gravacao de menu).
+
+### Quatro achados que a proxima onda precisa ler
+
+1. 🔴 **`posts.post_parent` do item nao e o item pai.** E o pai **do destino**
+   (`wp-includes/nav-menu.php:496`, `:503`); o item pai mora em
+   `_menu_item_menu_item_parent`, em texto (`:589`). O risco 3 de `plan.md` ja
+   avisava da coluna; o que ele nao dizia e que a coluna **e usada**, para
+   outra coisa.
+2. ⚠️ **A posicao calculada tem um buraco de proposito.** O primeiro item de
+   um menu vazio vai para `0`, o segundo para `2` (`:467`-`:473` com a
+   renumeracao de `:753`-`:765`); e a contagem do termo so conta item
+   **publicado** (`_update_post_term_count()`, `wp-includes/taxonomy.php:4214`),
+   logo menu so de rascunhos calcula `0` para todo item novo. Afirmado nos
+   testes; nao "corrigir".
+3. ⚠️ **Gravar o menu pela tela e regravar a lista inteira:** item que nao veio
+   no formulario e apagado, e item de titulo vazio e pulado e, por isso,
+   apagado tambem (`wp-admin/includes/nav-menu.php:1443`-`:1446`,
+   `:1473`-`:1480`). E `nav_menu_options` nasce `a:2:{i:0;b:0;s:8:"auto_add";a:0:{}}`
+   numa instalacao nova, porque o instalador nao a semeia e `(array) false` e
+   `array( false )` (`:1484`).
+4. ⚠️ **A tabela *Contratos* de `plan.md` lista *"destino inexistente"* como erro
+   de montar menu, e o legado nao recusa.** `wp_update_nav_menu_item()` grava o
+   item com titulo e pai vazios quando o destino nao existe; os unicos erros
+   dele sao menu inexistente (`invalid_menu_id`, `:429`-`:431`) e identificador
+   que nao e item (`:423`-`:425`). **T011 seguiu o legado**, e nao por escolha:
+   `plan.md` diz no proprio cabecalho que *"o que nao estiver na spec nao e
+   requisito, e invencao"*, nenhum dos cinco criterios de US-5 pede a recusa, e
+   UC-30 (*Excecoes*) e a regra de US-6 descrevem o item que aponta para o nada
+   como estado normal. Recusar aqui tornaria CA-6.1 e CA-6.2 inverificaveis.
+   Registrado, nao decidido: quem mantem o pacote deveria alinhar a linha.
+
+### O que T011 deixou de proposito para T013
+
+| o que | ancora | por que |
+|---|---|---|
+| o terceiro passo de `wp_nav_menu()` (o primeiro menu **com itens**) e o recurso `fallback_cb` | `wp-includes/nav-menu-template.php:138`-`:147`, `:167`-`:170` | "ter itens" fora do painel e a lista **depois** do filtro de item invalido (`nav-menu.php:749`-`:751`), que monta cada item por `wp_setup_nav_menu_item()` — e CA-6.4. `menuParaExibir` faz so os dois primeiros passos |
+| `wp_setup_nav_menu_item()` e `_is_valid_nav_menu_item()` | `nav-menu.php:842`-`:1040`, `:676`-`:678` | e onde o item orfao ganha `_invalid` |
+| apagar menu e item (`delete`, `delete_menus`, `delete-menu-item`) | `wp-admin/nav-menus.php:278`-`:367` | nao e criterio de US-5 |
+| reordenar sem JavaScript (`move-up-menu-item`, `move-down-menu-item`) | `wp-admin/nav-menus.php:75`-`:276` | CA-5.3 chega pelos campos do item na acao `update`; nenhuma tarefa desta feature nomeia o caminho sem JavaScript |
+| acrescentar pelo painel lateral (`add-menu-item`, o Ajax de item orfao) | `wp-admin/nav-menus.php:64`-`:73` | o estado que ele produz — item com menu `0` — ja e `gravarItemDeMenu` |
+
+⚠️ **O caso `customize` nao entrou aqui:** a tela de menus pergunta pela
+capacidade **primitiva** `edit_theme_options` (`nav-menus.php:23`), e UC-30 e
+literal — *"nao ha capacidade propria de menu"*. O atalho para o Customizer que
+a tela oferece *"quando o ator tem `customize`"* (UC-30, fluxo alternativo) e
+montagem de tela.
+
 ## Por que os tres entram juntos — e nao e opcao de desenho
 
 `target_architecture.md` justifica a fusao dos 12 modulos de BC-07 em parte por
@@ -403,8 +475,9 @@ US-11 e US-12 so faz sentido com ele"*.
 ## Como esta entrega se confere
 
 - `npm run typecheck` e `npm test` — as 8 afirmacoes de T001 estao em
-  `modulo.test.ts`, as 50 de T002 em `armazenamento/armazenamento.test.ts` e as
-  19 de T003 em `personalizacao/us-1-pre-visualizar-alteracoes.test.ts`.
+  `modulo.test.ts`, as 50 de T002 em `armazenamento/armazenamento.test.ts`, as
+  19 de T003 em `personalizacao/us-1-pre-visualizar-alteracoes.test.ts` e as 20
+  de T011 em `menus/us-5-montar-menu.test.ts`.
 - Pela paridade, e aqui a cobertura e **desigual entre as tres areas**:
 
 | area | cenario de paridade | situacao |
