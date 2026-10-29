@@ -92,6 +92,7 @@ import {
   OPCAO_DO_SAL_DE_ASSINATURA_DE_RECUPERACAO,
   OPCAO_DO_ULTIMO_AVISO_DE_RECUPERACAO,
   type EscopoDeRede,
+  type LeituraDeOpcao,
   type RepositorioDeOpcoesDeRede,
   type RepositorioDeOpcoesDoSite,
 } from '../armazenamento/index.js';
@@ -379,6 +380,16 @@ export interface SessaoDeRecuperacao {
    */
   lerChaves(): readonly ChaveDeRecuperacaoGravada[];
   /**
+   * `(array) get_option( 'recovery_keys', array() )`
+   * (`class-wp-recovery-mode-key-service.php:168`), **sem** descartar nada.
+   *
+   * Acrescentada por **T025**: emitir chave nova le o arranjo, poe o token
+   * novo e regrava **tudo** (`:48` a `:55`), inclusive entrada malformada que
+   * {@link lerChaves} ignora. Regravar a partir da visao tipada apagaria essa
+   * entrada, e o legado nao apaga. Ver {@link arranjoDoPhp}.
+   */
+  lerRegistroDeChaves(): ValorPhp;
+  /**
    * `update_option( 'recovery_keys', ..., false )`
    * (`class-wp-recovery-mode-key-service.php:191`): autocarregamento
    * **desligado**, sempre.
@@ -427,6 +438,13 @@ export interface SessaoDeRecuperacao {
    */
   lerExtensoesPausadas(sessaoId: string): ExtensoesPausadas;
   /**
+   * `(array) get_option( "{$session_id}_paused_extensions", array() )`
+   * (`class-wp-paused-extensions-storage.php:66` e `:185`), com o mesmo cast de
+   * {@link lerRegistroDeChaves} — acrescentada por **T025**, que regrava o
+   * arranjo inteiro ao pausar e ao retomar.
+   */
+  lerRegistroDeExtensoesPausadas(sessaoId: string): ValorPhp;
+  /**
    * `update_option( "{$session_id}_paused_extensions", ..., false )`
    * (`class-wp-paused-extensions-storage.php:75`): autocarregamento
    * **desligado**, sempre.
@@ -469,6 +487,10 @@ export function criarSessaoDeRecuperacao(
         }
       }
       return chaves;
+    },
+
+    lerRegistroDeChaves() {
+      return arranjoDoPhp(opcoesDoSite.ler(OPCAO_DE_CHAVES_DE_RECUPERACAO));
     },
 
     gravarChaves(registro) {
@@ -538,6 +560,12 @@ export function criarSessaoDeRecuperacao(
       };
     },
 
+    lerRegistroDeExtensoesPausadas(sessaoId) {
+      return arranjoDoPhp(
+        opcoesDoSite.ler(nomeDaOpcaoDeExtensoesPausadas(sessaoId)),
+      );
+    },
+
     gravarExtensoesPausadas(sessaoId, registro) {
       return opcoesDoSite.gravar(
         nomeDaOpcaoDeExtensoesPausadas(sessaoId),
@@ -550,6 +578,23 @@ export function criarSessaoDeRecuperacao(
       return opcoesDoSite.apagar(nomeDaOpcaoDeExtensoesPausadas(sessaoId));
     },
   };
+}
+
+/**
+ * O `(array)` do PHP sobre o retorno de `get_option( $nome, array() )`.
+ *
+ * Opcao ausente devolve o default, `array()`; `null` vira arranjo vazio;
+ * arranjo fica como esta; e qualquer outro escalar vira `array( 0 => $valor )`
+ * — e e assim que ele e regravado, com a chave `0` na frente.
+ */
+export function arranjoDoPhp(leitura: LeituraDeOpcao): ValorPhp {
+  if (!leitura.existe || leitura.valor.tipo === 'nulo') {
+    return arranjo([]);
+  }
+  if (leitura.valor.tipo === 'arranjo') {
+    return leitura.valor;
+  }
+  return arranjo([{ chave: { tipo: 'inteiro', valor: 0 }, valor: leitura.valor }]);
 }
 
 /** Uma entrada de `recovery_keys`, ou `null` quando ela nao tem as duas chaves. */

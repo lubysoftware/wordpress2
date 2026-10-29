@@ -97,7 +97,7 @@
       *entrega:* 7 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-116-1, UT-116-2, UT-116-3, UT-116-4, UT-116-5, UT-116-6, UT-116-7), com o mesmo dado de entrada, ação e resultado esperado. Os 3 testes de regra de negócio (UT-116-5, UT-116-6, UT-116-7) entram na mesma suíte.
       *satisfaz:* CA-11.1, CA-11.2, CA-11.3, CA-11.4
       *depende de:* T023
-- [ ] **T025** Entrar em modo de recuperação quando um erro fatal derruba a área protegida (US-12)
+- [x] **T025** Entrar em modo de recuperação quando um erro fatal derruba a área protegida (US-12)
       *entrega:* o comportamento de US-12 existe e os critérios CA-12.1, CA-12.2, CA-12.3, CA-12.4, CA-12.5, CA-12.6, CA-12.7 passam contra o sistema novo
       *satisfaz:* CA-12.1, CA-12.2, CA-12.3, CA-12.4, CA-12.5, CA-12.6, CA-12.7
       *depende de:* T001, T002
