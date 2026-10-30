@@ -107,10 +107,18 @@ test('as quatro formas de pedido do legado estao declaradas', () => {
   );
 });
 
-test('o modulo nao declara operacao nenhuma em T002', () => {
+test('a superficie do modulo: a porta e o tradutor por requisicao (T009)', () => {
   const catalogo = criarCatalogoQueRegistra();
   const modulo = criarModuloDeTraducao({ catalogo: catalogo.porta }) as
     unknown as Record<string, unknown>;
 
-  assert.deepEqual(Object.keys(modulo).sort(), ['nome', 'portas']);
+  assert.deepEqual(Object.keys(modulo).sort(), ['criarTradutor', 'nome', 'portas']);
+});
+
+test('criar o tradutor nao le catalogo nenhum', () => {
+  const catalogo = criarCatalogoQueRegistra();
+  const modulo = criarModuloDeTraducao({ catalogo: catalogo.porta });
+  modulo.criarTradutor({ idioma: 'pt_BR' });
+
+  assert.deepEqual(catalogo.leituras, []);
 });

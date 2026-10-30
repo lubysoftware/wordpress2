@@ -33,7 +33,7 @@
       *entrega:* 7 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-164-1, UT-164-2, UT-164-3, UT-164-4, UT-164-5, UT-164-6, UT-164-7), com o mesmo dado de entrada, ação e resultado esperado. Os 2 testes de regra de negócio (UT-164-6, UT-164-7) entram na mesma suíte.
       *satisfaz:* CA-3.1, CA-3.2, CA-3.3, CA-3.4, CA-3.5
       *depende de:* T007
-- [ ] **T009** Traduzir a interface a partir de catálogo declarado e atualizável (US-4)
+- [x] **T009** Traduzir a interface a partir de catálogo declarado e atualizável (US-4)
       *entrega:* o comportamento de US-4 existe e os critérios CA-4.1, CA-4.2, CA-4.3, CA-4.4, CA-4.5 passam contra o sistema novo
       *satisfaz:* CA-4.1, CA-4.2, CA-4.3, CA-4.4, CA-4.5
       *depende de:* T001, T002
