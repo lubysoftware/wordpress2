@@ -21,7 +21,8 @@
  * registro de T002 sao criadas por quem compoe: o registro de rotas pelo
  * despachante, e o de operacoes nomeadas por T013, que e a tarefa que as
  * executa. **T015** acrescentou a primeira operacao, `iniciarMapaDoSite`
- * (US-7), com a declaracao de permissao dela.
+ * (US-7), com a declaracao de permissao dela, e **T017** a segunda,
+ * `iniciarFeed` (US-8).
  *
  * **Onde este modulo mora, e por que a pasta leva o nome da feature.** Esta
  * feature nao e um contexto do desenho: ela atravessa dois. As historias US-1 a
@@ -62,6 +63,7 @@
  */
 
 import { criarDespachanteDeRotas, type DespachanteDeRotas } from './despacho/index.js';
+import { iniciarServidorDeFeed, type ContextoDoFeed, type ServidorDeFeed } from './feed/index.js';
 import {
   iniciarServidorDoMapaDoSite,
   type ContextoDoMapaDoSite,
@@ -73,6 +75,7 @@ export * from './portas/index.js';
 export * from './despacho/index.js';
 export * from './operacao-nomeada/index.js';
 export * from './mapa-do-site/index.js';
+export * from './feed/index.js';
 
 /**
  * A porta de que este modulo depende, na forma em que ele a recebe.
@@ -88,8 +91,9 @@ export interface PortasDeSuperficiesProgramaticas {
  *
  * Cada historia acrescenta aqui a sua operacao, com a declaracao explicita de
  * permissao que o P4 da constituicao exige, e **nenhuma antes da propria
- * tarefa**. Ha tres coisas: a porta e o despachante, de T001 — T002, que e
- * infraestrutura, nao acrescentou nenhuma —, e o mapa do site, de T015.
+ * tarefa**. Ha quatro coisas: a porta e o despachante, de T001 — T002, que e
+ * infraestrutura, nao acrescentou nenhuma —, o mapa do site, de T015, e o
+ * feed, de T017.
  *
  * A tabela abaixo e a secao *Contratos* de `plan.md` cruzada com a permissao que
  * a `spec.md` e os casos de uso declaram para cada historia. Ela esta aqui como
@@ -140,6 +144,25 @@ export interface ModuloDeSuperficiesProgramaticas {
    * registro de provedores proprio.
    */
   iniciarMapaDoSite(contexto: ContextoDoMapaDoSite): ServidorDoMapaDoSite;
+
+  /**
+   * Inicia o servidor de feed sobre o resultado da consulta principal, que e a
+   * entrega de **T017** (US-8): o formato padrao, o ramo de feed de
+   * `send_headers()`, o despacho de `do_feed()` com os quatro tratadores do
+   * nucleo e os seis modelos. Ver `./feed/servidor-do-feed.ts`.
+   *
+   * **Permissao exigida: nenhuma, e a declaracao e o ponto** (P4) — o ator e o
+   * leitor do agregador, e CA-8.2 diz *"sem regra de visibilidade propria"*: o
+   * que o feed lista e o que a consulta publica de `004` devolveu para a mesma
+   * identidade, e mais nada. Acrescentar verificacao aqui seria a regra propria
+   * que o criterio nega, e fecharia o sistema mais que o original.
+   *
+   * O contexto chega por argumento pelo mesmo motivo do mapa do site: a
+   * consulta, os textos de cada item e as opcoes sao de outros contextos e de
+   * REQUISICAO. Cada chamada devolve um servidor novo, com o registro de
+   * tratadores proprio.
+   */
+  iniciarFeed(contexto: ContextoDoFeed): ServidorDeFeed;
 }
 
 /**
@@ -175,5 +198,6 @@ export function criarModuloDeSuperficiesProgramaticas(
     portas,
     despachante: criarDespachanteDeRotas(),
     iniciarMapaDoSite: iniciarServidorDoMapaDoSite,
+    iniciarFeed: iniciarServidorDeFeed,
   };
 }
