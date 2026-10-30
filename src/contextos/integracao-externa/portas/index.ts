@@ -1,5 +1,5 @@
 /**
- * As duas portas que o modulo de integracao externa declara, e so elas.
+ * As tres portas que o modulo de integracao externa declara, e so elas.
  *
  * Elas pertencem ao modulo que as consome, nao ao adaptador que as implementa, e
  * nao ao contexto vizinho que declara portas parecidas: AD-08 de
@@ -10,15 +10,16 @@
  * diferencas registradas no cabecalho de cada arquivo: a ligacao horizontal
  * entre contextos e justamente o que a regra de dependencia 3 recusa.
  *
- * **Duas, e nao mais**, porque T001 nomeia duas. As que vao aparecer, e em que
- * tarefa:
+ T001 nomeou duas — cliente externo e e-mail. A terceira, a de **dados**, entrou
+ * em **T007** (US-3), para o ultimo degrau da precedencia de credencial (I1) e
+ * o valor guardado no banco; ver `./porta-de-dados.ts`. A que ainda vai
+ * aparecer:
  *
  * | porta | quando | para que |
  * |---|---|---|
- * | dados | **T007** (US-3) | o ultimo degrau da precedencia de credencial (I1) e o valor guardado no banco |
  * | relogio | quando alguma tarefa precisar de instante | CA-6.2 pede o instante no registro da falha de envio |
  *
- * Nenhuma das duas entra antes da tarefa dela: declarar porta sem uso e declarar
+ * Nenhuma entra antes da tarefa dela: declarar porta sem uso e declarar
  * superficie que o modulo nao exercita, e o precedente desta arvore e o inverso
  * — BC-04 registrou a ausencia da porta de relogio com o motivo, e BC-05
  * declarou o prefixo base quando T002 precisou dele.
@@ -36,3 +37,11 @@ export type {
   PortaDeEmail,
   ResultadoDeEnvio,
 } from './porta-de-email.js';
+
+export type {
+  Consulta,
+  LinhaDeResultado,
+  PortaDeDados,
+  ValorDeColuna,
+  ValorDeParametro,
+} from './porta-de-dados.js';

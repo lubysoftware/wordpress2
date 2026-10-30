@@ -25,7 +25,7 @@
       *entrega:* 7 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-151-1, UT-151-2, UT-151-3, UT-151-4, UT-151-5, UT-151-6, UT-151-7), com o mesmo dado de entrada, ação e resultado esperado. Os 2 testes de regra de negócio (UT-151-6, UT-151-7) entram na mesma suíte.
       *satisfaz:* CA-2.1, CA-2.2, CA-2.3, CA-2.4, CA-2.5
       *depende de:* T005
-- [ ] **T007** Resolver a credencial de integração por precedência declarada (US-3)
+- [x] **T007** Resolver a credencial de integração por precedência declarada (US-3)
       *entrega:* o comportamento de US-3 existe e os critérios CA-3.1, CA-3.2, CA-3.3, CA-3.4, CA-3.5 passam contra o sistema novo
       *satisfaz:* CA-3.1, CA-3.2, CA-3.3, CA-3.4, CA-3.5
       *depende de:* T001, T002
