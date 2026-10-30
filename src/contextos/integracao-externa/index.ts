@@ -1,16 +1,16 @@
 /**
  * Modulo de integracao externa — BC-13 de `target_architecture.md`.
  *
- * Feature `014-integracao-externa`, tarefas **T001** e **T002**. O que existe
- * aqui e o que as duas entregam: *"a porta de cliente externo e a de envio de
+ * Feature `014-integracao-externa`, tarefas **T001**, **T002** e **T007**. O
+ * que existe aqui e o que as tres entregam: *"a porta de cliente externo e a de envio de
  * e-mail existem com uma implementacao cada, e toda chamada de saida do sistema
  * passa por elas, sem nenhuma politica de prazo ou de repeticao definida"*
  * (T001) e *"os enderecos dos servicos externos estao num registro unico e
- * inspecionavel, com o esquema de cada um explicito"* (T002, em `./catalogo/`).
- * **Nenhuma regra de negocio esta implementada**, e as duas tarefas sao
- * `satisfaz: — (infraestrutura)`: o canal cifrado entra em T003, a validacao de
- * destino em T005, a
- * precedencia de credencial em T007, a proibicao de guardar credencial em texto
+ * inspecionavel, com o esquema de cada um explicito"* (T002, em `./catalogo/`),
+ * e a precedencia de credencial de US-3 (T007, em `./credencial/`, com a porta
+ * de dados e `./armazenamento/`). As duas primeiras sao
+ * `satisfaz: — (infraestrutura)`; as que faltam sao o canal cifrado em T003, a
+ * validacao de destino em T005, a proibicao de guardar credencial em texto
  * recuperavel em T009, o prazo e o tratamento de erro em T011, o canal de
  * e-mail em T013, a consulta de versoes em T015 e a notificacao de agregadores
  * em T017 — e a leitura obrigatoria de quem pegar qualquer uma delas esta em
@@ -58,16 +58,25 @@
 
 import { CATALOGO_DE_ENDERECOS_EXTERNOS } from './catalogo/index.js';
 import type { EnderecoExterno } from './catalogo/index.js';
-import type { PortaDeClienteExterno, PortaDeEmail } from './portas/index.js';
+import { criarAreaDeCredencial, type AreaDeCredencial } from './credencial/index.js';
+import type {
+  PortaDeClienteExterno,
+  PortaDeDados,
+  PortaDeEmail,
+} from './portas/index.js';
 
 export * from './portas/index.js';
 export * from './borda-de-saida/index.js';
 export * from './catalogo/index.js';
+export * from './armazenamento/index.js';
+export * from './credencial/index.js';
 
-/** As duas portas de que este modulo depende, na forma em que ele as recebe. */
+/** As tres portas de que este modulo depende, na forma em que ele as recebe. */
 export interface PortasDeIntegracaoExterna {
   readonly clienteExterno: PortaDeClienteExterno;
   readonly email: PortaDeEmail;
+  /** T007: so leitura, para o degrau do banco da precedencia de credencial. */
+  readonly dados: PortaDeDados;
 }
 
 /**
@@ -75,8 +84,9 @@ export interface PortasDeIntegracaoExterna {
  *
  * Cada historia acrescenta aqui a sua operacao, com a declaracao explicita de
  * permissao que o P4 da constituicao exige, e **nenhuma antes da propria
- * tarefa**. Hoje ha duas coisas, e nenhuma delas e operacao: as portas, de
- * T001, e o catalogo de enderecos, de T002.
+ * tarefa**. Hoje ha tres: as portas, de T001, o catalogo de enderecos, de
+ * T002, e a area de credencial, de T007 — a primeira com operacao, e com a
+ * permissao declarada em `PERMISSOES_DA_CREDENCIAL`.
  *
  * A tabela abaixo e a secao *Contratos* de `plan.md` com a permissao que o
  * pacote declara em cada operacao. Ela esta aqui como **pauta**, nao como
@@ -87,7 +97,7 @@ export interface PortasDeIntegracaoExterna {
  * |---|---|---|---|
  * | chamar servico externo | US-1 | T003 | nenhuma: e o sistema falando com terceiro, sem ator humano. 🔴 e e aqui que mora o conflito REQ-149 x resposta 12 |
  * | validar destino | US-2 | T005 | nenhuma, e o default do legado e **nao validar** (`wp-includes/http.php:53` forca o contrario nas quatro funcoes seguras) |
- * | resolver credencial | US-3 | T007 | nenhuma para resolver; CA-3.5 poe a tela de integracoes, e quem a expuser declara a dela |
+ * | resolver credencial | US-3 | T007 | **feita.** Resolver: nenhuma (o `init` resolve sem ator). Ver a origem na tela: `manage_options` (`wp-admin/options-connectors.php:13`). Em `PERMISSOES_DA_CREDENCIAL` |
  * | guardar credencial | US-4 | T009 | a mesma da tela acima. 🔴 conflito com REQ-157 registrado na `spec.md` |
  * | declarar prazo e tratar erro | US-5 | T011 | nenhuma. 🔴 e por esta historia que passa a **unica divergencia autorizada** desta feature (resposta 18), que tem de ser citada no codigo |
  * | enviar e-mail do sistema | US-6 | T013 | nenhuma: o envio e do sistema. CA-6.4 lista as seis operacoes que dependem dele |
@@ -114,6 +124,16 @@ export interface ModuloDeIntegracaoExterna {
    * daquele arquivo.
    */
   readonly catalogo: readonly EnderecoExterno[];
+
+  /**
+   * Resolver a credencial de integracao por precedencia declarada (US-3,
+   * **T007**): ambiente, constante, banco — a mesma ordem para toda
+   * integracao (`ORDEM_DE_PRECEDENCIA`) — e dizer na tela de onde ela veio sem
+   * mostrar o valor. Nasce com a declaracao de permissao do P4:
+   * `PERMISSOES_DA_CREDENCIAL`. So le, pela porta de dados; as fontes de fora
+   * do banco chegam a cada chamada, do contexto da operacao.
+   */
+  readonly credencial: AreaDeCredencial;
 }
 
 /**
@@ -149,5 +169,8 @@ export function criarModuloDeIntegracaoExterna(
     // e com prazo, e que nao esta aqui nem vai estar: nenhum campo deste
     // catalogo diz o que aconteceu numa chamada.
     catalogo: CATALOGO_DE_ENDERECOS_EXTERNOS,
+    // T007. Compor so fecha a porta de dados: nenhuma consulta sai daqui
+    // (`EXT-ORDEM`), e nenhuma fonte de fora do banco e lida na composicao.
+    credencial: criarAreaDeCredencial(portas.dados),
   };
 }

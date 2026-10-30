@@ -2,8 +2,9 @@
 
 Feature `014-integracao-externa`. Tarefas fechadas com nota de entrega neste
 arquivo: **T001** (esqueleto da borda de saida: as duas portas e uma
-implementacao de cada) e **T002** (o catalogo de enderecos externos como dado
-declarado). Este arquivo e a leitura obrigatoria de quem pegar a tarefa
+implementacao de cada), **T002** (o catalogo de enderecos externos como dado
+declarado) e **T007** (US-3: resolver a credencial de integracao por
+precedencia declarada). Este arquivo e a leitura obrigatoria de quem pegar a tarefa
 seguinte: ele diz o que ja esta decidido, o que esta decidido **em outro
 lugar**, e o que **ninguem** decidiu.
 
@@ -169,6 +170,73 @@ claro, **11** com a extensao empacotada.
 
 ---
 
+## O que T007 entrega, e so isso
+
+A linha da tarefa: *"o comportamento de US-3 existe e os criterios CA-3.1,
+CA-3.2, CA-3.3, CA-3.4, CA-3.5 passam contra o sistema novo"*. E o porte das
+tres funcoes de `wp-includes/connectors.php` que resolvem credencial de
+conector, mais o `$auth_out` que a tela de integracoes recebe.
+
+| arquivo | o que e |
+|---|---|
+| `portas/porta-de-dados.ts` | a terceira porta, **so leitura**: `prefixoDeTabela` e `selecionar` |
+| `armazenamento/opcao.ts` | `get_option()` no recorte que `connectors.php` usa: nome aparado, nome vazio devolve `false` sem consulta, uma ida ao banco, `maybe_unserialize()` |
+| `armazenamento/porta-falsa.ts` | a porta de dados que registra cada selecao — e assim que se afirma que o banco **nem e lido** (CA-3.2) |
+| `credencial/autenticacao-do-conector.ts` | a forma de `authentication` com as chaves do legado, `FontesForaDoBanco`, `ORDEM_DE_PRECEDENCIA` e o conector de filtragem de spam (I3) |
+| `credencial/precedencia.ts` | `_wp_connectors_get_api_key_source()` (`:444`), `wp_connectors_parse_application_password_credentials()` (`:483`) e `wp_connectors_get_application_password_credentials()` (`:522`) |
+| `credencial/tela-de-integracoes.ts` | o `$auth_out` de `_wp_connectors_get_connector_script_module_data()` (`:912`) e `PERMISSOES_DA_CREDENCIAL` |
+| `credencial/us-3-resolver-credencial-por-precedencia.test.ts` | os criterios CA-3.1 a CA-3.5. Os oito casos UT-152 sao de T008 |
+
+**A composicao ganhou a porta `dados` e a chave `credencial`**, a primeira
+operacao do modulo. A permissao esta declarada (P4): resolver nao pergunta
+capacidade (o `init` resolve sem ator, `connectors.php:891`); ver a origem na
+tela exige `manage_options` (`wp-admin/options-connectors.php:13`). As fontes
+de fora do banco (ambiente e constantes) chegam **a cada chamada**, do contexto
+da operacao — a composicao so fecha a porta de dados, e nada e lido no
+carregamento.
+
+### O que o legado faz, e T007 reproduz de proposito
+
+- **Degrau sem nome nao e consultado** (`:446`, `:454`). O conector de
+  filtragem de spam nao declara variavel de ambiente, logo `WPCOM_API_KEY` no
+  ambiente **nao** conta para ele — so como constante.
+- **Valor vazio nao para a cadeia**, e constante que nao e cadeia nao conta
+  (`is_string`, `:456`).
+- **O degrau do banco compara com `''` estrito** (`:463`): `false` serializado
+  e arranjo respondem `'database'`; nome de opcao que apara para vazio tambem,
+  porque `get_option()` devolve `false` sem consulta (`option.php:81` a `:87`).
+- **No par, fonte malformada avisa e cai para a seguinte** (`:534`, `:557`). O
+  `_doing_it_wrong()` sai como `AvisoDeUsoIndevido` para relator opcional,
+  com o `esc_html()` injetado; nenhuma decisao depende dele (P7).
+- ⚠️ **CA-3.4 no degrau do banco.** No ambiente e na constante, metade vazia
+  zera as duas (`:490`). No banco, o legado devolve a metade que tiver com
+  origem `'none'` (`:571` a `:577`): as duas sao *tratadas como ausentes*
+  (origem `'none'`, `isConnected` falso), mas o valor nao e zerado. Nao e
+  conflito com o CA — e o que *"tratadas como ausentes"* quer dizer no legado —,
+  e fica escrito porque quem ler so o CA esperaria `''` nas duas.
+
+### O que T007 NAO fez, de proposito
+
+- **O registro de conectores** (`WP_Connector_Registry`, `wp_get_connectors()`,
+  a acao `wp_connectors_init`, a derivacao de nome de opcao e os nomes
+  `{ID}_API_KEY` dos provedores de IA). Nenhuma tarefa o nomeia; a area recebe
+  a autenticacao ja normalizada.
+- **A tela inteira.** So o `authentication` de cada conector, que e o que diz a
+  origem. `name`, `logoUrl`, `plugin`, `ksort()` e o filtro
+  `script_module_data_options-connectors-wp-admin` (`:965`) sao da montagem.
+- **O cliente de IA.** `isConnected` do provedor de IA pergunta ao registro do
+  cliente de IA (`:922`), que entra por ligacao tardia
+  (`RegistroDeProvedoresDeIa`) — o conflito REQ-158 x resposta 18 continua
+  aberto, e T007 nao o toca.
+- **Mascarar, gravar, sanitizar e rotacionar** (`_wp_connectors_mask_api_key()`,
+  `_wp_connectors_rest_settings_dispatch()`,
+  `wp_connectors_sanitize_application_password_credentials()`). Sao US-4, T009 —
+  com o conflito REQ-153 x caixa postal registrado abaixo.
+- **Passar a chave ao cliente de IA** (`_wp_connectors_pass_default_keys_to_ai_client()`,
+  `:854`). Usa `origemDaChaveDeApi`, mas pertence ao cliente de IA.
+
+---
+
 ## Por que a implementacao de T001 registra requisicao, e nao abre conexao
 
 A entrega pede *"uma implementacao cada"*. A implementacao que pode existir
@@ -220,9 +288,9 @@ As duas sao bordas de AD-08 (*"cinco portas: dados, HTTP, sistema de arquivos,
 cache de objeto e e-mail"*) e sao as duas que a linha de T001 nomeia. As que vao
 aparecer, e em que tarefa, estao na tabela de `portas/index.ts`:
 
-- **Porta de dados: T007.** O ultimo degrau da precedencia `I1` e o valor
-  guardado no banco, e e T007 (US-3) que precisa dele. Declarar antes seria
-  declarar superficie que o modulo nao exercita.
+- **Porta de dados: entrou em T007**, so com `selecionar`. O ultimo degrau da
+  precedencia `I1` e o valor guardado no banco; ver a secao *O que T007
+  entrega*. Quem precisar gravar (T009) acrescenta o metodo.
 - **Porta de relogio: quando alguma tarefa precisar de instante.** CA-6.2 pede
   *"destinatario, assunto, instante e motivo"* no registro da falha de envio, e
   o rebaixamento do canal do servico de reputacao e por **tempo** (24 h), nao

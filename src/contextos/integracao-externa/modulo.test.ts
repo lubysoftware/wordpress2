@@ -19,6 +19,7 @@ import test from 'node:test';
 import {
   criarClienteExternoQueRegistra,
   criarEmailQueRegistra,
+  criarPortaDeDadosFalsa,
   criarModuloDeIntegracaoExterna,
   ENVIO_ACEITO_PELO_TRANSPORTE,
   FALHA_SEM_RESPOSTA_PROGRAMADA,
@@ -97,16 +98,19 @@ interface Duplos {
   portas: PortasDeIntegracaoExterna;
   cliente: ReturnType<typeof criarClienteExternoQueRegistra>;
   email: ReturnType<typeof criarEmailQueRegistra>;
+  dados: ReturnType<typeof criarPortaDeDadosFalsa>;
 }
 
 function duplos(): Duplos {
   const cliente = criarClienteExternoQueRegistra();
   const email = criarEmailQueRegistra();
+  const dados = criarPortaDeDadosFalsa();
 
   return {
-    portas: { clienteExterno: cliente.porta, email: email.porta },
+    portas: { clienteExterno: cliente.porta, email: email.porta, dados: dados.porta },
     cliente,
     email,
+    dados,
   };
 }
 
@@ -120,7 +124,7 @@ test('o modulo carrega com as duas portas declaradas', () => {
   assert.equal(modulo.portas.email, portas.email);
 });
 
-test('a superficie do modulo tem exatamente o que T001 e T002 entregaram', () => {
+test('a superficie do modulo tem exatamente o que T001, T002 e T007 entregaram', () => {
   const { portas } = duplos();
 
   const modulo = criarModuloDeIntegracaoExterna(portas);
@@ -131,16 +135,18 @@ test('a superficie do modulo tem exatamente o que T001 e T002 entregaram', () =>
   // T002 acrescentou `catalogo`, que e o dado que aquela tarefa anunciava — e
   // continua nao havendo OPERACAO nenhuma aqui, logo nenhuma permissao a
   // declarar. As consultas ao catalogo recebem a fonte por argumento e vivem em
-  // `catalogo/consultas.ts`, fora desta interface.
+  // `catalogo/consultas.ts`, fora desta interface. T007 acrescentou
+  // `credencial`, a primeira operacao, com `PERMISSOES_DA_CREDENCIAL`.
   assert.deepEqual(Object.keys(modulo).sort(), [
     'catalogo',
+    'credencial',
     'nome',
     'portas',
   ]);
 });
 
 test('criar o modulo nao toca em porta nenhuma (EXT-ORDEM: nada se resolve no carregamento)', () => {
-  const { portas, cliente, email } = duplos();
+  const { portas, cliente, email, dados } = duplos();
 
   criarModuloDeIntegracaoExterna(portas);
 
@@ -150,6 +156,8 @@ test('criar o modulo nao toca em porta nenhuma (EXT-ORDEM: nada se resolve no ca
   // paridade medida, nao detalhe.
   assert.deepEqual(cliente.requisicoes, []);
   assert.deepEqual(email.mensagens, []);
+  // T007: a precedencia de credencial le o banco so quando resolve.
+  assert.deepEqual(dados.selecoes, []);
 });
 
 test('duas composicoes nao compartilham estado (EXT-CONTEXTO, e o @concorrencia de PT-017)', () => {
@@ -415,11 +423,13 @@ test('nenhum prazo, nenhuma repeticao e nenhum limite nascem em T001', () => {
   // afirmado na suite propria de T002, campo por campo.
   assert.deepEqual(Object.keys(modulo).sort(), [
     'catalogo',
+    'credencial',
     'nome',
     'portas',
   ]);
   assert.deepEqual(Object.keys(modulo.portas).sort(), [
     'clienteExterno',
+    'dados',
     'email',
   ]);
   assert.equal(
