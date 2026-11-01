@@ -6,14 +6,14 @@
  * `./armazenamento/`), **T003** (o descarte para a lixeira, US-1, em
  * `./descarte/`), **T005** (a suspensao dos comentarios em cascata, US-2, em
  * `./cascata-de-comentarios/`), **T011** (a coleta do que venceu, US-5, em
- * `./coleta/` — com **CA-5.1 e CA-5.5 declarados abertos**, ver `./README.md`) e
+ * `./coleta/` — com **CA-5.1 e CA-5.5 declarados abertos**, ver `./README.md`),
+ * **T015** (a tolerancia a estado inconsistente, US-7, na mesma pasta) e
  * **T017** (a exclusao definitiva com reposicionamento de filhos e anexos, US-8,
  * em `./exclusao/`) e **T007** (a restauracao como rascunho, US-3, em
  * `./restauracao/`). **T009** (US-4) entregou os quatro criterios na pasta do
  * descarte, com CA-4.2 realinhado ao legado por decisao humana de 2026-10-29 —
- * ver `./descarte/aviso-de-exclusao-definitiva.ts`. Expirar rascunho automatico e
- * tolerar estado inconsistente entram nas tarefas delas (T013 e T015), e a
- * leitura obrigatoria de cada uma esta em `./README.md`.
+ * ver `./descarte/aviso-de-exclusao-definitiva.ts`. Expirar rascunho automatico
+ * entra na tarefa dele (T013), e a leitura obrigatoria esta em `./README.md`.
  *
  * ## A qual bounded context este modulo pertence — e sao dois
  *
@@ -383,7 +383,9 @@ export interface ModuloDeRetencaoEDescarte {
    * `wp_scheduled_delete()` (`wp-includes/functions.php:6974`): varre o marcador
    * `_wp_trash_meta_time` de `{site}postmeta` e de `{site}commentmeta` por
    * `meta_value < %d`, apaga em definitivo o que ainda esta na lixeira e, do que
-   * nao esta mais, apaga **so o marcador** (`R6`).
+   * nao esta mais, apaga **so o marcador** (`R6`) e segue (US-7, T015), com o
+   * evento de CA-7.3 quando {@link ContextoDeColeta.registroDeInconsistencia}
+   * vier preenchido.
    *
    * **Permissao exigida: NENHUMA**, e e a declaracao que o **P4** cobra. UC-11,
    * campo *Autorizacao*: *"nenhuma. A coleta roda sem usuario autenticado e sem
