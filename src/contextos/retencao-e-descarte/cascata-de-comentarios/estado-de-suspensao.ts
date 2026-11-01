@@ -33,6 +33,9 @@
  *
  * ── ⚠️ A CONTAGEM DA REGRA DE NEGOCIO NAO FECHA, E T005 NAO A RESOLVEU ──────
  *
+ * Decidido em 01/11/2026: a regra passou a dizer "um estado" (`post-trashed`).
+ * O historico abaixo fica como registro.
+ *
  * US-2 carrega a regra *"Dois estados de comentario nao sao alcancaveis pela API
  * de status"*, e a fonte dela nomeia **um**. O pacote a cita assim:
  *

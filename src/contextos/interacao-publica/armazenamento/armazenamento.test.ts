@@ -115,7 +115,7 @@ test('o vocabulario de estado tem os cinco valores do legado, e so eles', () => 
   ]);
 });
 
-test('dois estados nao sao alcancaveis pela interface de estado (CA-10.2)', () => {
+test('um estado nao e alcancavel pela interface de estado: post-trashed (CA-10.2)', () => {
   // `wp_set_comment_status()` aceita quatro e devolve `false` para qualquer
   // outra coisa (`comment.php:2814`). `post-trashed` so e gravado pela cascata
   // de lixeira do conteudo, e `''` nao existe no vocabulario.

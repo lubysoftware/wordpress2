@@ -18,10 +18,9 @@ decidido, o que esta decidido **em outro lugar**, e o que **ninguem decidiu**.
 > T007 entrega*. A forma de `contexto-de-restauracao.ts` e a montagem de
 > `us-3-restaurar-conteudo.test.ts` servem aos oito casos de UT-049.
 
-> 🔴 **Se a sua tarefa e T006 (os testes de US-2):** **UT-048-5 pede *"cada um
-> dos dois estados inalcancaveis"* e a analise nomeia um so.** Nao invente o
-> segundo. A secao *A contagem que T005 encontrou e nao decidiu* tem o censo; os
-> outros cinco casos de T006 nao esbarram em nada.
+> ✅ **T006 (os testes de US-2): decidido em 01/11/2026.** A regra e o UT-048-5
+> passaram a falar de **um** estado inalcancavel, `post-trashed` — a saida "a regra
+> se corrige" da secao *A contagem que T005 encontrou*. Nao invente um segundo.
 
 > ⚠️ **Se a sua tarefa e T018 (os testes de US-8), ou qualquer uma que toque a
 > cascata de exclusao:** **CA-8.4 nao e uma invariante universal, e T017 nao a
@@ -479,6 +478,11 @@ foi feita**.
   `restauracao/permissao-de-restauracao.ts`.
 
 ## A contagem que T005 encontrou e nao decidiu: os "dois estados"
+
+> **Decidido em 01/11/2026 (delegado pelo dono do produto):** a regra se corrige
+> para *"um estado"*. Specs 005 e 007, UC-16 e o catalogo (UT-048-5, BR3) foram
+> ajustados; o `_discovery/discovery.md` ficou como estava (arquivo do Discover,
+> travado por hash). O texto abaixo e o historico de por que.
 
 US-2 carrega a regra de negocio *"Dois estados de comentario nao sao alcancaveis
 pela API de status"*, e **a fonte dela nomeia um**:

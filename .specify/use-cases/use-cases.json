@@ -1932,7 +1932,7 @@
       ],
       "business_rules": [
         "Moderação é transição de estado, não edição: \"aprovar\" move o estado (domain.md §1.4)",
-        "Dois estados não são alcançáveis pela API de status (state-machines.md §2)",
+        "Um estado não é alcançável pela API de status: `post-trashed` (state-machines.md §2; corrigido de \"dois\" em 01/11/2026 — a seção lista quatro aceitos de cinco)",
         "Nota editorial usa capacidade de conteúdo, não de moderação (permissions.md §10, pegadinha 6)",
         "Editar um comentário cujo conteúdo não existe mais cai em `edit_posts` (permissions.md §5.2)"
       ],

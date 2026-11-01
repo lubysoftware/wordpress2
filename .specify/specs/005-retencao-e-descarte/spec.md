@@ -54,7 +54,7 @@ Como dono do site, quero que a conversa de um conteúdo descartado saia do ar co
 
 **Regras de negócio que valem aqui**
 
-- Dois estados de comentário não são alcançáveis pela API de status
+- Um estado de comentário não é alcançável pela API de status: `post-trashed`, gravado só pela cascata da lixeira do conteúdo *(corrigido de "dois" em 01/11/2026: a fonte nomeia um só — state-machines.md §2: `wp_set_comment_status()` aceita `hold`/`0`, `approve`/`1`, `spam` e `trash` — `wp-includes/comment.php:2814-2815`)*
 - Se o estado anterior não estiver gravado, o comentário restaurado volta para a fila de moderação
 
 **Depende de:** US-1 (REQ-047)
@@ -95,13 +95,13 @@ Como autor, quero saber que neste site apagar não tem volta, para não descobri
 
 **Depende de:** US-1 (REQ-047)
 
-### US-5 — Apagar conteúdo vencido da lixeira por rotina que não depende de visita ao painel
+### US-5 — Apagar conteúdo vencido da lixeira por rotina agendada na visita autenticada ao painel
 
-Como dono do site, quero que o que passou do prazo de retenção seja apagado sozinho, mesmo num site que ninguém administra, para que a lixeira não cresça para sempre.
+Como dono do site, quero que o que passou do prazo de retenção seja apagado por uma rotina, agendada como no legado — na primeira visita autenticada ao painel —, para que a lixeira não cresça para sempre. *(Ajustado à paridade em 01/11/2026: um site que ninguém administra nunca agenda a própria limpeza, e isso é comportamento do WordPress — resposta 10 de `questions.md`, BR-MIGRAR-034, ADR-0006.)*
 
 **Critérios de aceite**
 
-- [ ] CA-5.1 O agendamento da coleta existe numa instalação nova, sem depender de ninguém ter entrado no painel
+- [ ] CA-5.1 Sem visita autenticada ao painel, a tarefa de coleta não é registrada na fila e o conteúdo vencido não é apagado; a primeira visita autenticada ao painel registra a tarefa, e visita ao painel sem sessão válida não a registra *(ajuste por paridade: PT-004, cenários `@critico` de abertura; BR-MIGRAR-034; ADR-0006)*
 - [ ] CA-5.2 A coleta apaga em definitivo todo conteúdo descartado há mais tempo que o prazo declarado
 - [ ] CA-5.3 A coleta apaga, pelo mesmo critério, os comentários descartados
 - [ ] CA-5.4 Uma execução interrompida no meio pode ser retomada sem apagar duas vezes nem saltar registro
@@ -123,7 +123,7 @@ Como dono do site, quero que os registros criados só por abrir o editor e nunca
 - [ ] CA-6.1 Rascunho automático com mais de sete dias é apagado pela rotina de coleta
 - [ ] CA-6.2 O prazo é contado da data do registro
 - [ ] CA-6.3 A rotina não toca em rascunho comum, nem em conteúdo de qualquer outro estado
-- [ ] CA-6.4 O agendamento não depende de alguém ter aberto a tela de edição
+- [ ] CA-6.4 O agendamento da expiração é registrado ao abrir a tela de edição de novo conteúdo; um site em que todo o conteúdo entra por API ou importação nunca o agenda *(ajuste por paridade: BR-MIGRAR-034; ADR-0006, tabela da Decisão e Consequências; UC-11, passo 5)*
 
 **Regras de negócio que valem aqui**
 
@@ -166,7 +166,7 @@ Nenhum card de descarte nesta feature, e nada mais a declarar fora de escopo.
 
 ## Perguntas em aberto
 
-- [ ] Conflito registrado, não resolvido. US-5 (REQ-052) exige, em CA-5.1, que o agendamento da coleta exista numa instalação nova sem depender de ninguém ter entrado no painel. A resposta 10 de `questions.md`, que cita este card na lista de specs afetadas, decidiu manter o disparo por requisição ao próprio host e declarou que a consequência de um site sem visita nunca executar a própria limpeza é comportamento do produto, não acidente. As duas decisões são humanas e estão em sentidos opostos: construir US-5 como está escrita rompe a paridade, construir a paridade deixa CA-5.1 falso. Este pacote não escolhe.
+- [x] Conflito registrado, **resolvido em 01/11/2026 pelo dono do produto (por delegação): vale a paridade.** US-5 (REQ-052) exige, em CA-5.1, que o agendamento da coleta exista numa instalação nova sem depender de ninguém ter entrado no painel. A resposta 10 de `questions.md`, que cita este card na lista de specs afetadas, decidiu manter o disparo por requisição ao próprio host e declarou que a consequência de um site sem visita nunca executar a própria limpeza é comportamento do produto, não acidente. As duas decisões são humanas e estão em sentidos opostos: construir US-5 como está escrita rompe a paridade, construir a paridade deixa CA-5.1 falso. Este pacote não escolhe. **Decidido:** pela regra "a paridade vence a spec", o título e a história de US-5, CA-5.1 e CA-6.4 foram reescritos para o comportamento do legado (BR-MIGRAR-034, ADR-0006, PT-004, UC-11), junto de UT-052-1, UT-052-6, UT-052-7 e UT-053-4 em `backlog/tests.md`.
 - [ ] CA-5.5 (REQ-052) exige que cada execução registre quantos registros apagou, e o legado não guarda registro nenhum de execução (P7 da constituição). Registro novo que não altera o fluxo é permitido por P7; o critério, porém, torna o registro obrigatório, o que precisa ser aceito explicitamente como divergência.
 - [ ] REQ-051 (dar lixeira à mídia pelo mesmo comportamento do conteúdo) ficou `bloqueado` por decisão humana, e a resposta 9 já a tomou: a exclusão de mídia continua definitiva, sem lixeira e sem aviso. US-8 reparenta anexos ao apagar conteúdo em definitivo, então a assimetria entre conteúdo e mídia precisa estar visível para quem constrói. O card volta à seleção, agora que a decisão existe?
 

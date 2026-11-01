@@ -192,7 +192,7 @@ Como editor, quero aprovar, reter, marcar como spam ou descartar cada comentári
 
 - Moderação é transição de estado, não edição: aprovar move o estado
 - Editar um comentário cujo conteúdo não existe mais cai na capacidade de escrever conteúdo
-- Dois estados não são alcançáveis pela API de status
+- Um estado não é alcançável pela API de status: `post-trashed`, gravado só pela cascata da lixeira do conteúdo *(corrigido de "dois" em 01/11/2026: a fonte nomeia um só — state-machines.md §2: `wp_set_comment_status()` aceita `hold`/`0`, `approve`/`1`, `spam` e `trash` — `wp-includes/comment.php:2814-2815`)*
 
 **Depende de:** US-4 (REQ-068) · REQ-015, fora desta feature
 

@@ -746,7 +746,7 @@ Tirar do ar sem perder, e apagar no prazo
 | `UT-048-2` | guarda agrupado, junto do conteúdo, o estado anterior de cada comentário | `feliz` | O estado anterior de cada comentário é guardado, agrupado, junto do conteúdo |
 | `UT-048-3` | devolve cada comentário ao estado que tinha, em lote por estado | `feliz` | Restaurar o conteúdo devolve cada comentário ao estado que tinha, em lote por estado |
 | `UT-048-4` | recusa o estado de suspensão em cascata pedido pela interface de moderação | `erro` | Esse estado de suspensão não é alcançável pela interface de moderação: só pela cascata |
-| `UT-048-5` | recusa os dois estados inalcançáveis quando pedidos pela superfície de estado | `erro` | Dois estados de comentário não são alcançáveis pela API de status |
+| `UT-048-5` | recusa o estado inalcançável (`post-trashed`) quando pedido pela superfície de estado | `erro` | Um estado de comentário não é alcançável pela API de status (corrigido de "dois" em 01/11/2026: a fonte nomeia um só) |
 | `UT-048-6` | devolve à fila de moderação o comentário cujo estado anterior não foi gravado | `borda` | Se o estado anterior não estiver gravado, o comentário restaurado volta para a fila de moderação |
 
 ### REQ-049 — Restaurar conteúdo da lixeira como rascunho
@@ -791,19 +791,23 @@ Tirar do ar sem perder, e apagar no prazo
 
 - Card bloqueado por decisão humana: no legado o comportamento de fábrica é o oposto do que AC1 pede, e inverter o padrão tem consequência de armazenamento (anexo retido pelo prazo significa arquivo e derivadas retidos pelo prazo). UT-051-1 e UT-051-4 descrevem os dois lados da decisão, e qual deles é o de fábrica depende da resposta.
 
-### REQ-052 — Apagar conteúdo vencido da lixeira por rotina que não depende de visita ao painel
+### REQ-052 — Apagar conteúdo vencido da lixeira por rotina agendada na visita autenticada ao painel
 
 `must` · `pronto` · veredito `aprovado` · 5 de 5 critérios de aceite cobertos
 
 | ID | Nome | Tipo | Prova |
 |---|---|---|---|
-| `UT-052-1` | agenda a coleta numa instalação nova sem ninguém ter entrado no painel | `feliz` | O agendamento da coleta existe numa instalação nova, sem depender de ninguém ter entrado no painel |
+| `UT-052-1` | não registra a coleta sem visita autenticada ao painel e a registra na primeira visita autenticada | `feliz` | Sem visita autenticada ao painel, a tarefa de coleta não é registrada na fila e o conteúdo vencido não é apagado; a primeira visita autenticada ao painel registra a tarefa, e visita ao painel sem sessão válida não a registra |
 | `UT-052-2` | apaga em definitivo o descartado há mais tempo que o prazo e poupa o que está no limite | `borda` | A coleta apaga em definitivo todo conteúdo descartado há mais tempo que o prazo declarado |
 | `UT-052-3` | apaga os comentários descartados pelo mesmo critério de prazo | `feliz` | A coleta apaga, pelo mesmo critério, os comentários descartados |
 | `UT-052-4` | retoma a execução interrompida sem apagar duas vezes nem saltar registro | `erro` | Uma execução interrompida no meio pode ser retomada sem apagar duas vezes nem saltar registro |
 | `UT-052-5` | registra ao fim de cada execução quantos registros apagou | `feliz` | Cada execução registra quantos registros apagou |
-| `UT-052-6` | registra o evento de coleta no caminho público, antes de qualquer exigência de autenticação | `feliz` | R5 — no legado a coleta da lixeira só é agendada por visita autenticada ao painel: um site que ninguém administra nunca agenda sua própria limpeza |
-| `UT-052-7` | limpa a própria lixeira num site em que ninguém nunca administrou | `feliz` | ADR 0006 — retenção agendada por visita ao painel |
+| `UT-052-6` | não registra o evento de coleta em requisição ao painel sem sessão válida: só depois da exigência de autenticação | `feliz` | R5 — no legado a coleta da lixeira só é agendada por visita autenticada ao painel: um site que ninguém administra nunca agenda sua própria limpeza |
+| `UT-052-7` | não limpa a própria lixeira num site em que ninguém nunca administrou | `feliz` | ADR 0006 — retenção agendada por visita ao painel |
+
+**Ajuste por paridade (decidido em 01/11/2026 pelo dono do produto, por delegação)**
+
+- UT-052-1, UT-052-6 e UT-052-7 afirmavam o contrário do legado e foram reescritos pela regra "a paridade vence a spec", com CA-5.1. Fontes: PT-004, cenário *"Um site que ninguém administra nunca executa a própria coleta de lixeira"* (`@critico`: *"nenhuma das duas tem a tarefa de coleta registrada na fila"*; *"Quando uma visita AUTENTICADA ao painel acontece / Então as duas metades registram a tarefa de coleta"*) e cenário *"Visita não autenticada ao painel não registra a coleta"* (`.specify/migration/parity_tests/04-retencao-e-coleta-da-lixeira.feature:34-50`); BR-MIGRAR-034: *"`wp_scheduled_delete` e `delete_expired_transients` são registrados em `wp-admin/admin.php` **depois** de `auth_redirect()`"* e *"Um site que ninguém administra **nunca agenda sua própria limpeza**"* (`.specify/migration/target_business_rules.md:558`); ADR-0006, Consequências: *"sem uma visita autenticada ao painel, `wp_scheduled_delete` e `delete_expired_transients` nunca entram na fila"* (`.specify/adrs/0006-retencao-agendada-por-visita-ao-painel.md:70-74`).
 
 ### REQ-053 — Expirar rascunho automático não aproveitado em sete dias
 
@@ -814,8 +818,12 @@ Tirar do ar sem perder, e apagar no prazo
 | `UT-053-1` | apaga o rascunho automático com mais de sete dias e poupa o que está no limite | `borda` | Rascunho automático com mais de sete dias é apagado pela rotina de coleta |
 | `UT-053-2` | conta o prazo a partir da data do registro | `borda` | O prazo é contado da data do registro |
 | `UT-053-3` | preserva rascunho comum e conteúdo de qualquer outro estado | `feliz` | A rotina não toca em rascunho comum, nem em conteúdo de qualquer outro estado |
-| `UT-053-4` | agenda a coleta sem depender de alguém ter aberto a tela de edição | `feliz` | O agendamento não depende de alguém ter aberto a tela de edição |
+| `UT-053-4` | registra a expiração ao abrir a tela de edição de novo conteúdo, e não a registra quando o conteúdo só entra por API | `feliz` | O agendamento da expiração é registrado ao abrir a tela de edição de novo conteúdo; um site em que todo o conteúdo entra por API ou importação nunca o agenda |
 | `UT-053-5` | seleciona os vencidos por consulta direta sobre a data do registro | `borda` | R4 — rascunho automático expira em sete dias, por consulta direta sobre a data do registro |
+
+**Ajuste por paridade (decidido em 01/11/2026 pelo dono do produto, por delegação)**
+
+- UT-053-4 afirmava o contrário do legado e foi reescrito pela regra "a paridade vence a spec", com CA-6.4. Fontes: BR-MIGRAR-034: *"`wp_scheduled_auto_draft_delete` é registrado ao abrir a tela de edição"* (`.specify/migration/target_business_rules.md:558`, âncora `wp-admin/includes/post.php:798`); ADR-0006: *"alguém abre a tela de **novo conteúdo**"* e *"Um site onde todo o conteúdo entra por API ou importação nunca a agenda"* (`.specify/adrs/0006-retencao-agendada-por-visita-ao-painel.md:31`, `:75-76`); UC-11, passo 5: *"evento separado, registrado ao abrir a tela de edição"* (`.specify/use-cases/UC-11-apagar-conteudo-vencido-da-lixeira.md:40`).
 
 ### REQ-054 — Tolerar estado inconsistente na coleta, sem apagar o que não deve
 
@@ -1116,7 +1124,7 @@ A conversa do site, e quem decide o que entra nela
 
 **Achados do QA**
 
-- BR3 (dois estados não alcançáveis pela API de status) ficou sem teste próprio neste card: o teto de oito foi atingido. O comportamento é provado em REQ-048, por UT-048-5.
+- BR3 (um estado não alcançável pela API de status, `post-trashed`) ficou sem teste próprio neste card: o teto de oito foi atingido. O comportamento é provado em REQ-048, por UT-048-5.
 
 ### REQ-076 — Descartar comentário para a lixeira guardando o estado anterior
 
