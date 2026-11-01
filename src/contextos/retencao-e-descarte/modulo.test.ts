@@ -5,9 +5,9 @@
  *
  * A lista de chaves da superficie cresce aqui a cada tarefa de historia — T003
  * acrescentou `descartar`, T005 `suspenderComentarios` e `restaurarComentarios`,
- * T009 `avisoDeExclusaoDefinitiva`, T011 `coletarALixeiraVencida` e T017
- * `apagarEmDefinitivo` —, e as invariantes de arquitetura continuam as mesmas
- * duas.
+ * T007 `restaurar`, T009 `avisoDeExclusaoDefinitiva`, T011
+ * `coletarALixeiraVencida` e T017 `apagarEmDefinitivo` —, e as invariantes de
+ * arquitetura continuam as mesmas duas.
  *
  * Nao sao os testes de nenhuma historia — esses sao T004, T006, T008 e os demais
  * `[P]` de `tasks.md`, um por caso de `backlog/tests.md`. Aqui se afirma so o que
@@ -126,8 +126,9 @@ test('a superficie do modulo tem exatamente o que as tarefas fechadas entregam',
   // exclusao irreversivel. **T011 acrescentou mais uma**,
   // `coletarALixeiraVencida` (US-5), cuja permissao declarada e NENHUMA — UC-11
   // e literal ("o prazo e a autorizacao"), e e justamente o caso que o P4 manda
-  // escrever em lugar de omitir. A unica que a tabela *Contratos* de `plan.md`
-  // nomeia e ainda nao entrou e restaurar o conteudo, em T007.
+  // escrever em lugar de omitir. **T007 acrescentou a ultima que a tabela
+  // *Contratos* de `plan.md` nomeia**, `restaurar` (US-3), com a **mesma**
+  // capacidade de `descartar`, decidida pelo estado anterior gravado.
   //
   // ⚠️ `registrarAColeta` **nao** esta nesta lista, e a ausencia e a entrega de
   // T011 sobre CA-5.1: poe-la na superficie do modulo diria que este modulo
@@ -143,6 +144,7 @@ test('a superficie do modulo tem exatamente o que as tarefas fechadas entregam',
     'nome',
     'portas',
     'prazoDeRetencao',
+    'restaurar',
     'restaurarComentarios',
     'suspenderComentarios',
   ]);

@@ -25,7 +25,7 @@
       *entrega:* 6 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-048-1, UT-048-2, UT-048-3, UT-048-4, UT-048-5, UT-048-6), com o mesmo dado de entrada, ação e resultado esperado. Os 2 testes de regra de negócio (UT-048-5, UT-048-6) entram na mesma suíte.
       *satisfaz:* CA-2.1, CA-2.2, CA-2.3, CA-2.4
       *depende de:* T005
-- [ ] **T007** Restaurar conteúdo da lixeira como rascunho (US-3)
+- [x] **T007** Restaurar conteúdo da lixeira como rascunho (US-3)
       *entrega:* o comportamento de US-3 existe e os critérios CA-3.1, CA-3.2, CA-3.3, CA-3.4, CA-3.5 passam contra o sistema novo
       *satisfaz:* CA-3.1, CA-3.2, CA-3.3, CA-3.4, CA-3.5
       *depende de:* T001, T002, T003, T005

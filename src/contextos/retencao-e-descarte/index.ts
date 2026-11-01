@@ -8,12 +8,13 @@
  * `./cascata-de-comentarios/`), **T011** (a coleta do que venceu, US-5, em
  * `./coleta/` — com **CA-5.1 e CA-5.5 declarados abertos**, ver `./README.md`) e
  * **T017** (a exclusao definitiva com reposicionamento de filhos e anexos, US-8,
- * em `./exclusao/`). **T009** (US-4) entregou CA-4.1, CA-4.3 e CA-4.4 na pasta do
+ * em `./exclusao/`) e **T007** (a restauracao como rascunho, US-3, em
+ * `./restauracao/`). **T009** (US-4) entregou CA-4.1, CA-4.3 e CA-4.4 na pasta do
  * descarte e **parou em CA-4.2**, por conflito registrado entre o criterio e
  * UC-09 — a tarefa continua aberta em `tasks.md` e a parada esta em
- * `./descarte/aviso-de-exclusao-definitiva.ts`. Restaurar o conteudo, expirar
- * rascunho automatico e tolerar estado inconsistente entram nas tarefas delas
- * (T007, T013 e T015), e a leitura obrigatoria de cada uma esta em `./README.md`.
+ * `./descarte/aviso-de-exclusao-definitiva.ts`. Expirar rascunho automatico e
+ * tolerar estado inconsistente entram nas tarefas delas (T013 e T015), e a
+ * leitura obrigatoria de cada uma esta em `./README.md`.
  *
  * ## A qual bounded context este modulo pertence — e sao dois
  *
@@ -88,6 +89,12 @@ import {
   type PedidoDeExclusao,
   type ResultadoDaExclusao,
 } from './exclusao/index.js';
+import {
+  restaurar,
+  type ContextoDeRestauracao,
+  type PedidoDeRestauracao,
+  type ResultadoDaRestauracaoDoConteudo,
+} from './restauracao/index.js';
 import type {
   PortaDeDados,
   PortaDeFilaAgendada,
@@ -100,6 +107,7 @@ export * from './armazenamento/index.js';
 export * from './descarte/index.js';
 export * from './cascata-de-comentarios/index.js';
 export * from './exclusao/index.js';
+export * from './restauracao/index.js';
 export * from './coleta/index.js';
 
 /**
@@ -163,30 +171,30 @@ export interface OpcoesDeRetencaoEDescarte {
  *
  * Cada historia acrescenta aqui a sua operacao, com a declaracao explicita de
  * permissao que o **P4** da constituicao exige, e nenhuma antes da propria tarefa.
- * Hoje ha nove coisas e **cinco delas sao operacao**: as portas e o prazo de
+ * Hoje ha dez coisas e **seis delas sao operacao**: as portas e o prazo de
  * retencao (T001), o armazenamento dos marcadores (T002), o **descarte** (T003,
  * US-1), a **suspensao** e a **restauracao** dos comentarios em cascata (T005,
- * US-2), o aviso de exclusao definitiva (T009, US-4), a **coleta** (T011, US-5) e
- * a **exclusao definitiva** (T017, US-8). O armazenamento nao declara permissao
+ * US-2), a **restauracao do conteudo** (T007, US-3), o aviso de exclusao
+ * definitiva (T009, US-4), a **coleta** (T011, US-5) e a **exclusao definitiva**
+ * (T017, US-8). O armazenamento nao declara permissao
  * porque nao decide nada — ele le e grava metadado, e quem cobra a capacidade e a
  * operacao que o chama; o aviso declara a **mesma** capacidade do descarte, e a
  * recebe respondida porque no legado a tela ja a perguntou; as duas da cascata e
  * a coleta declaram **nenhuma**, que e o que o legado tem e o caso que o P4 manda
- * escrever em lugar de omitir; e o descarte e a exclusao definitiva declaram **a
- * mesma capacidade**, e isso e leitura do legado e nao economia: nao existe
- * `delete_post_permanently`.
+ * escrever em lugar de omitir; e o descarte, a restauracao e a exclusao definitiva
+ * declaram **a mesma capacidade**, e isso e leitura do legado e nao economia: nao
+ * existem `untrash_post` nem `delete_post_permanently`.
  *
- * As operacoes que a tabela *Contratos* de `plan.md` nomeia, com a permissao que o
- * pacote declara para cada uma — as que estao marcadas como feitas **declaradas e
- * construidas** pela tarefa delas, a de restaurar o conteudo **citada, nao
- * decidida aqui**, para que T007 nasca com a declaracao que o P4 cobra:
+ * As operacoes que a tabela *Contratos* de `plan.md` nomeia, com a permissao
+ * que o pacote declara para cada uma, todas **declaradas e construidas** pela
+ * tarefa delas:
  *
  * | operacao | historia | tarefa | permissao, como o pacote a declara |
  * |---|---|---|---|
  * | descartar para a lixeira | US-1 | **T003, feita** | `delete_post` do registro, *"resolvida conforme autoria e estado"* (UC-09) |
  * | suspender e restaurar os comentarios em cascata | US-2 | **T005, feita** | **nenhuma.** As duas funcoes do legado nao tem portao e sao publicadas; quem verifica e o chamador |
  * | avisar que apagar nao tem volta | US-4 | **T009, feita menos CA-4.2** | `delete_post` do registro, a mesma — e no legado ela decide se a acao **aparece** |
- * | restaurar | US-3 | T007 | decidida **pelo estado anterior gravado no descarte** (CA-3.5, UC-10) |
+ * | restaurar | US-3 | **T007, feita** | `delete_post`, **a mesma de descartar**, decidida **pelo estado anterior gravado no descarte** (CA-3.5, UC-10) |
  * | apagar em definitivo | US-8 | **T017, feita** | `delete_post`, **a mesma de descartar**: o legado nao tem capacidade separada para a exclusao irreversivel (UC-09, fluxo alternativo) |
  * | coletar o que venceu | US-5 | **T011, feita** | **nenhuma.** UC-11 e literal: *"a coleta roda sem usuario autenticado e sem verificacao de capacidade: o prazo e a autorizacao"* |
  *
@@ -289,6 +297,31 @@ export interface ModuloDeRetencaoEDescarte {
     contexto: ContextoDaCascataDeComentarios,
     conteudoId: number,
   ): ResultadoDaRestauracao;
+
+  /**
+   * Devolve o conteudo descartado como **rascunho** — `inherit` no anexo —, e
+   * nao ao estado que ele tinha (US-3, T007). E a acao `untrash` do painel
+   * (`wp-admin/post.php:287`) sobre `wp_untrash_post()`
+   * (`wp-includes/post.php:4168`).
+   *
+   * **Permissao exigida: `delete_post` daquele conteudo — a MESMA de
+   * `descartar`** (`wp-admin/post.php:298`). A traducao a decide **pelo estado
+   * anterior gravado no descarte** quando o conteudo e do proprio ator
+   * (CA-3.5, `wp-includes/capabilities.php:153`); para o conteudo alheio o legado
+   * nao le o marcador. Ver `restauracao/permissao-de-restauracao.ts`.
+   *
+   * ⚠️ **`R2` e default, nao garantia:** o filtro `wp_untrash_post_status` troca
+   * o estado gravado, e a acao "Desfazer" do painel o usa para voltar ao estado
+   * anterior (`wp-admin/edit.php:151`). Ver
+   * `restauracao/estado-na-restauracao.ts`.
+   *
+   * ⚠️ **Os marcadores saem antes da gravacao e nao voltam.** Se ela falhar, o
+   * conteudo fica em `trash` sem marcador, e a coleta nunca mais o alcanca.
+   */
+  restaurar(
+    contexto: ContextoDeRestauracao,
+    pedido: PedidoDeRestauracao,
+  ): ResultadoDaRestauracaoDoConteudo;
 
   /**
    * Apaga o conteudo em definitivo, reposicionando os filhos e os anexos no avo
@@ -417,6 +450,9 @@ export function criarModuloDeRetencaoEDescarte(
     // montado por requisicao e porque ligar aqui faria o modulo guardar estado.
     suspenderComentarios: suspenderComentariosDoConteudo,
     restaurarComentarios: restaurarComentariosDoConteudo,
+    // T007 (US-3): idem. Quem liga a cascata e a composicao da requisicao, com
+    // `cascataNaRestauracao()`.
+    restaurar,
     // T017 (US-8): a mesma coisa, e o contexto dela **estende** o do descarte
     // porque as duas funcoes do legado chamam uma a outra.
     apagarEmDefinitivo,
