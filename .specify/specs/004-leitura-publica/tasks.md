@@ -69,7 +69,7 @@
       *entrega:* o comportamento de US-8 existe e os critérios CA-8.1, CA-8.2, CA-8.3, CA-8.4, CA-8.5 passam contra o sistema novo
       *satisfaz:* CA-8.1, CA-8.2, CA-8.3, CA-8.4, CA-8.5
       *depende de:* T001, T002, T005
-- [ ] **T018** [P] Testes de US-8
+- [x] **T018** [P] Testes de US-8
       *entrega:* 6 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-171-1, UT-171-2, UT-171-3, UT-171-4, UT-171-5, UT-171-6), com o mesmo dado de entrada, ação e resultado esperado. O teste de regra de negócio (UT-171-6) entra na mesma suíte.
       *satisfaz:* CA-8.1, CA-8.2, CA-8.3, CA-8.4, CA-8.5
       *depende de:* T017
