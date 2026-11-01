@@ -22,6 +22,10 @@
  * | 8 | `:7000`-`:7005` | o mesmo `(int)`, o mesmo salto do zero, `get_comment()` |
  * | 9 | `:7007` | o mesmo ramo, com a ordem dos dois marcadores **invertida** |
  *
+ * **T015** (US-7) acrescentou **CA-7.3** nos passos 6 e 9, como registro so de
+ * escrita (`registro-de-inconsistencia.ts`): sem comando pela porta de dados, sem
+ * ramo novo e sem efeito quando a colaboracao falta. Os passos continuam nove.
+ *
  * ## Sete coisas que sao comportamento, e nao estilo
  *
  * 1. ⚠️ **O relogio e lido UMA vez, no passo 1.** As duas varreduras comparam o
@@ -112,6 +116,10 @@
  * registro novo precisaria. Gravar um e decidir no lugar de quem decide.
  */
 
+import {
+  METADADO_DE_COMENTARIO,
+  METADADO_DE_CONTEUDO,
+} from '../armazenamento/index.js';
 import { instanteLimiteDeRetencao } from '../configuracao/index.js';
 // `trash` vem de `descarte/estado-de-lixeira.ts`, dentro do MESMO contexto: a
 // regra de dependencia 3 proibe contexto importar contexto, nao area importar
@@ -120,6 +128,7 @@ import { instanteLimiteDeRetencao } from '../configuracao/index.js';
 // de as duas divergirem em silencio.
 import { ESTADO_DE_LIXEIRA } from '../descarte/index.js';
 import type { ContextoDeColeta } from './contexto-de-coleta.js';
+import { registrarInconsistencia } from './registro-de-inconsistencia.js';
 
 /**
  * O que uma execucao da coleta informa de volta.
@@ -215,16 +224,21 @@ export function coletarALixeiraVencida(
     // so o metadado e segue"*. As duas metades da condicao caem no mesmo ramo:
     // registro inexistente e registro fora da lixeira.
     //
-    // 🔴 Este ramo e tambem CA-7.1 e CA-7.2 de **US-7 / T015**, e nao ha como
-    // porta-lo em outro lugar: ele e uma das duas pernas do `if` desta funcao.
-    // O que T015 acrescenta por cima e **CA-7.3**, o registro da inconsistencia
-    // com identificador e instante — que e registro novo, da mesma familia de
-    // CA-5.5, e esta funcao nao o faz.
+    // Este ramo e tambem CA-7.1 e CA-7.2 de **US-7 / T015**: nao ha como porta-lo
+    // em outro lugar, porque ele e uma das duas pernas do `if` desta funcao.
     if (registro === null || registro.estado !== ESTADO_DE_LIXEIRA) {
       // `:6990` e depois `:6991`: estado, entao instante. A ordem e invertida no
       // laco do comentario — ver o item 3 do cabecalho.
       marcadoresDoConteudo.apagarEstadoAnterior(conteudoId);
       marcadoresDoConteudo.apagarInstanteDoDescarte(conteudoId);
+      // CA-7.3, **depois** dos dois marcadores: e o que faz o evento significar
+      // "tratada". Uma interrupcao entre os dois deixa o registro na varredura
+      // seguinte, e so entao ele e escrito — uma vez, como CA-5.4 pede.
+      registrarInconsistencia(contexto.registroDeInconsistencia, {
+        tipo: METADADO_DE_CONTEUDO,
+        registroId: conteudoId,
+        estadoEncontrado: registro?.estado ?? null,
+      });
       continue;
     }
 
@@ -257,6 +271,12 @@ export function coletarALixeiraVencida(
       // relacao ao conteudo, e preservado assim de proposito.
       marcadoresDoComentario.apagarInstanteDoDescarte(comentarioId);
       marcadoresDoComentario.apagarEstadoAnterior(comentarioId);
+      // CA-7.3, pelo mesmo motivo do laco do conteudo.
+      registrarInconsistencia(contexto.registroDeInconsistencia, {
+        tipo: METADADO_DE_COMENTARIO,
+        registroId: comentarioId,
+        estadoEncontrado: registro?.estado ?? null,
+      });
       continue;
     }
 

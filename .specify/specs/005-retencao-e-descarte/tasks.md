@@ -57,7 +57,7 @@
       *entrega:* 5 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-053-1, UT-053-2, UT-053-3, UT-053-4, UT-053-5), com o mesmo dado de entrada, ação e resultado esperado. O teste de regra de negócio (UT-053-5) entra na mesma suíte.
       *satisfaz:* CA-6.1, CA-6.2, CA-6.3, CA-6.4
       *depende de:* T013
-- [ ] **T015** Tolerar estado inconsistente na coleta, sem apagar o que não deve (US-7)
+- [x] **T015** Tolerar estado inconsistente na coleta, sem apagar o que não deve (US-7)
       *entrega:* o comportamento de US-7 existe e os critérios CA-7.1, CA-7.2, CA-7.3 passam contra o sistema novo
       *satisfaz:* CA-7.1, CA-7.2, CA-7.3
       *depende de:* T001, T002, T011

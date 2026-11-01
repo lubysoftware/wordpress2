@@ -6,8 +6,9 @@ metadado), **T003** (o descarte para a lixeira, US-1), **T005** (a suspensao dos
 comentarios em cascata, US-2), **T007** (a restauracao como rascunho, US-3),
 **T009** (o que cada superficie diz antes de apagar em
 definitivo, US-4), **T011** (a coleta do que
-venceu, US-5 — **com dois dos cinco criterios declarados abertos**) e **T017** (a
-exclusao definitiva com reposicionamento de filhos e anexos, US-8). Este arquivo e
+venceu, US-5 — **com dois dos cinco criterios declarados abertos**), **T015** (a
+tolerancia a estado inconsistente, US-7) e **T017** (a exclusao definitiva com
+reposicionamento de filhos e anexos, US-8). Este arquivo e
 a leitura obrigatoria de quem pegar a tarefa seguinte: ele diz o que ja esta
 decidido, o que esta decidido **em outro lugar**, e o que **ninguem decidiu**.
 
@@ -860,10 +861,8 @@ sistema mais fechado do que o real"*.
   nao ha onde mais ele caiba.** `wp_scheduled_delete()` e um `if`/`else` por
   registro (`wp-includes/functions.php:6989`): **ou** apaga so os dois
   marcadores, **ou** apaga o registro. Logo **CA-7.1 e CA-7.2 de US-7 passam por
-  consequencia** desta tarefa. O que falta a **T015** e **CA-7.3**, o registro da
-  inconsistencia *"com identificador do registro e instante"* — que e registro
-  novo, da mesma familia de CA-5.5, e que esta tarefa **nao** fez pelo mesmo
-  motivo.
+  consequencia** desta tarefa. **CA-7.3** ficou para **T015**, ver *O que T015
+  entrega*.
 - ⚠️ **A ordem das duas exclusoes de marcador e INVERTIDA entre os dois lacos.**
   Conteudo: estado (`:6990`) e depois instante (`:6991`). Comentario: instante
   (`:7008`) e depois estado (`:7009`). Sao quatro comandos por registro
@@ -963,6 +962,55 @@ precisaria — o que a constituicao poe, textualmente, na tabela do que exige
 decisao humana (*"introduzir limite de taxa, prazo de retencao ou qualquer numero
 que o legado nao tem"*). Gravar um aqui seria decidir no lugar de quem decide.
 
+## O que T015 entrega
+
+> *o comportamento de US-7 existe e os criterios CA-7.1, CA-7.2, CA-7.3 passam
+> contra o sistema novo*
+> — `.specify/specs/005-retencao-e-descarte/tasks.md`, T015
+
+| criterio | estado |
+|---|---|
+| **CA-7.1** so a marca e removida | **fechado**: o ramo veio de T011, e T015 o afirma por teste |
+| **CA-7.2** a rotina segue | **fechado**, pelo mesmo caminho |
+| **CA-7.3** cada inconsistencia registrada | **fechado no contrato**, com o limite abaixo |
+
+| arquivo | o que e |
+|---|---|
+| `coleta/registro-de-inconsistencia.ts` | o evento de CA-7.3, so escrita, sobre a porta de `plataforma/registro-de-operacao` |
+| `coleta/us-7-tolerar-estado-inconsistente.test.ts` | as 17 afirmacoes de T015 |
+
+`coletarALixeiraVencida()` ganhou uma chamada em cada ramo de `R6`, e
+`ContextoDeColeta` ganhou o campo **opcional** `registroDeInconsistencia`. A
+superficie do modulo nao mudou: nao ha operacao nova.
+
+- **O registro e so escrita, e ausente e o legado (P7).** Sem a colaboracao a
+  coleta e identica, no resultado e na sequencia de comandos, e ha teste para a
+  igualdade. Nenhum comando sai pela porta de dados por causa do evento. O desenho
+  e o de CA-9.4 em `contextos/midia/envio/registro-de-envio-sem-filtro.ts`.
+- **CA-7.3 nao e CA-5.5, apesar de T011 te-los posto na mesma familia.** `spec.md`
+  lista CA-5.5 como divergencia a aceitar e **nao** lista CA-7.3, e a frase de
+  UC-11 que pesa contra CA-5.5 fala do que foi **apagado**, e o registro
+  inconsistente nao foi. CA-5.5 **continua** como T011 o deixou.
+- **O evento sai depois dos dois marcadores.** E o que faz ele significar
+  "tratada": interrompida entre os dois, a coleta nao escreveu nada, a varredura
+  seguinte reencontra o registro (CA-5.4) e so entao o evento sai, uma vez.
+- **O instante nao vem de `ContextoDeColeta.relogio`.** Aquele e lido **uma** vez
+  e dele sai o instante limite; o evento quer milissegundos do momento do
+  tratamento, e chega pela colaboracao.
+- **O identificador zero nao gera evento.** O salto de `:6983` vem antes da guarda
+  de `R6` e nao ha registro a identificar.
+- **O evento leva `tipo`** (`post` ou `comment`), porque as duas tabelas numeram
+  por conta propria, **e `estadoEncontrado`**, que e `null` quando a linha nao
+  existe. Nenhum dado pessoal entra.
+
+🔴 **O limite de CA-7.3:** o evento chega a `PortaDeCanal`, e o que acontece
+depois nao existe ainda. **T003 da feature `015` esta aberta**, nao ha adaptador
+do canal e a escolha da borda e o prazo de guarda sao os itens 1 e 3 de *O que
+ninguem decidiu* de `plataforma/registro-de-operacao/README.md`. E como o campo e
+opcional, **quem compuser a coleta tem de passar o canal**, ou nada e registrado,
+como no legado. A severidade `'informativo'` tambem e provisoria e vive numa
+constante so, porque a escala e trabalho da mesma T003.
+
 ## O conflito que T001 declarou e nao decidiu
 
 `spec.md` registra, em *Perguntas em aberto*, duas decisoes humanas em sentidos
@@ -1035,7 +1083,8 @@ proibe inventar prazo de retencao para esse registro novo.
   `cascata-de-comentarios/us-2-suspender-comentarios.test.ts`, as 24 de T007 em
   `restauracao/us-3-restaurar-conteudo.test.ts`, as 23 de T009 em
   `descarte/us-4-aviso-de-exclusao-definitiva.test.ts`, as 23 de T011 em
-  `coleta/us-5-coletar-a-lixeira-vencida.test.ts` e as 26 de T017 em
+  `coleta/us-5-coletar-a-lixeira-vencida.test.ts`, as 17 de T015 em
+  `coleta/us-7-tolerar-estado-inconsistente.test.ts` e as 26 de T017 em
   `exclusao/us-8-reparentar-filhos-e-anexos.test.ts`. `modulo.test.ts` ganhou de
   T011 a afirmacao de que **ter a coleta na superficie nao a agenda nem a
   executa** — a contraparte, na composicao, do que
@@ -1066,10 +1115,14 @@ proibe inventar prazo de retencao para esse registro novo.
   avanca alem do prazo ... entao as duas o apagam"* —, que e o `<` estritamente
   menor de `coleta/varredura-do-vencido.ts`, com o relogio controlado que o **P6**
   exige. E fecha o cenario `@critico @invariante` *"A coleta tolera estado
-  inconsistente e nao aborta"*: *"conteudo na lixeira sem o metadado de estado
-  anterior"* e *"com metadado apontando para um estado que nao existe mais"* caem
-  os dois no ramo de `R6`, nenhuma das duas metades aborta, e **nenhum `DELETE`
-  sai quando o `SELECT meta_id` nao devolve linha**.
+  inconsistente e nao aborta"*. ⚠️ **As duas entradas dele NAO caem no ramo de
+  `R6`**, como esta nota dizia ate T015: *"conteudo na lixeira sem o metadado de
+  estado anterior"* e *"com metadado apontando para um estado que nao existe
+  mais"* continuam em `trash`, a guarda de `:6989` so olha o estado do registro e
+  a coleta nao le esse metadado. Os dois seguem para `wp_delete_post()`, se tiverem
+  o instante vencido, e nenhuma das duas metades aborta. `R6` e o caso de CA-7.1,
+  em que o registro **saiu** de `trash`, e ali **nenhum `DELETE` sai quando o
+  `SELECT meta_id` nao devolve linha**.
 - 🔴 **O que a paridade NAO pode conferir de T011, e por que:** o cenario de
   abertura de PT-004, *"Um site que ninguem administra nunca executa a propria
   coleta de lixeira"*, e o conflito de **CA-5.1**. Ele e afirmavel nos dois

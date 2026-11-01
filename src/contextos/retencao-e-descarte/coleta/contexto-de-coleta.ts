@@ -50,6 +50,7 @@ import type {
 } from '../armazenamento/index.js';
 import type { PrazoDeRetencao } from '../configuracao/index.js';
 import type { PortaDeRelogio } from '../portas/index.js';
+import type { RegistroDeInconsistencia } from './registro-de-inconsistencia.js';
 import type { VarreduraDoVencido } from './varredura-do-vencido.js';
 
 /**
@@ -228,4 +229,12 @@ export interface ContextoDeColeta {
 
   /** `wp_delete_comment( $del_comment )`. Ver {@link ExclusaoDeComentarioNaColeta}. */
   readonly exclusaoDefinitivaDeComentario: ExclusaoDeComentarioNaColeta;
+
+  /**
+   * O registro de CA-7.3 (T015, US-7). **Nao e ligacao tardia** e nao faz parte
+   * das quatro da tabela do cabecalho: e acrescimo que o legado nao tem, e
+   * omiti-lo devolve exatamente a coleta do legado (P7). Ver
+   * `registro-de-inconsistencia.ts`.
+   */
+  readonly registroDeInconsistencia?: RegistroDeInconsistencia;
 }
