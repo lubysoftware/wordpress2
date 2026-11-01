@@ -69,7 +69,7 @@
       *entrega:* o comportamento de US-8 existe e os critérios CA-8.1, CA-8.2, CA-8.3, CA-8.4 passam contra o sistema novo
       *satisfaz:* CA-8.1, CA-8.2, CA-8.3, CA-8.4
       *depende de:* T001, T002, T003
-- [ ] **T018** [P] Testes de US-8
+- [x] **T018** [P] Testes de US-8
       *entrega:* 4 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-055-1, UT-055-2, UT-055-3, UT-055-4), com o mesmo dado de entrada, ação e resultado esperado.
       *satisfaz:* CA-8.1, CA-8.2, CA-8.3, CA-8.4
       *depende de:* T017
