@@ -3,20 +3,19 @@
 Tarefas com nota de entrega neste arquivo: **T001** (esqueleto, as tres
 portas e o prazo de retencao), **T002** (os marcadores de lixeira como
 metadado), **T003** (o descarte para a lixeira, US-1), **T005** (a suspensao dos
-comentarios em cascata, US-2), **T009** (o aviso de que apagar nao tem volta,
+comentarios em cascata, US-2), **T007** (a restauracao como rascunho, US-3),
+**T009** (o aviso de que apagar nao tem volta,
 US-4 — **tres dos quatro criterios**, ver o 🔴 abaixo), **T011** (a coleta do que
 venceu, US-5 — **com dois dos cinco criterios declarados abertos**) e **T017** (a
 exclusao definitiva com reposicionamento de filhos e anexos, US-8). Este arquivo e
 a leitura obrigatoria de quem pegar a tarefa seguinte: ele diz o que ja esta
 decidido, o que esta decidido **em outro lugar**, e o que **ninguem decidiu**.
 
-> 🔴 **Se a sua tarefa e T007 (restaurar o conteudo, US-3):** a restauracao dos
-> **comentarios** ja esta feita — `wp_untrash_post_comments()` esta em
-> `cascata-de-comentarios/restaurar-comentarios.ts`, porque CA-2.3 esta na lista
-> de criterios de T005. O que T007 acrescenta e a **posicao** da chamada:
-> **depois** da gravacao do estado `draft` e **antes** da acao `untrashed_post`
-> (`wp-includes/post.php:4242`), com os dois marcadores do conteudo ja apagados
-> (`:4228`-`:4229`). Nao reimplemente a cascata.
+> 🔴 **Se a sua tarefa e T008 (os testes de US-3), ou qualquer uma que toque a
+> gravacao do estado:** a ordem dos treze passos, a falha que deixa o conteudo
+> preso na lixeira e o sufixo `__trashed` que **ninguem recebeu** estao em *O que
+> T007 entrega*. A forma de `contexto-de-restauracao.ts` e a montagem de
+> `us-3-restaurar-conteudo.test.ts` servem aos oito casos de UT-049.
 
 > 🔴 **Se a sua tarefa e T006 (os testes de US-2):** **UT-048-5 pede *"cada um
 > dos dois estados inalcancaveis"* e a analise nomeia um so.** Nao invente o
@@ -416,6 +415,72 @@ e permissivo"*: a declaracao esta na interface do modulo e na secao de
   suspende os comentarios dele do mesmo jeito. E superficie publicada, e e assim
   que `wp_delete_post()` a usa.
 
+## O que T007 entrega, e so isso
+
+**T007** — *"o comportamento de US-3 existe e os criterios CA-3.1, CA-3.2, CA-3.3,
+CA-3.4, CA-3.5 passam contra o sistema novo"*.
+
+| arquivo | o que e | criterio |
+|---|---|---|
+| `restauracao/restaurar-da-lixeira.ts` | `restaurar`, a acao `untrash`, e `restaurarDaLixeira`, que e `wp_untrash_post()` — os treze passos na ordem do legado | CA-3.3, CA-3.4 |
+| `restauracao/estado-na-restauracao.ts` | `draft`, `inherit`, e `wp_untrash_post_set_previous_status()` | CA-3.1, CA-3.2 |
+| `restauracao/permissao-de-restauracao.ts` | `delete_post`, as quatro superficies e os textos delas | CA-3.5 |
+| `restauracao/contexto-de-restauracao.ts` | o que chega por argumento, e os quatro pontos de extensao | — |
+| `cascata-de-comentarios/ligacao-com-a-restauracao.ts` | o passo 12 preenchido com a cascata de T005 | — |
+| `restauracao/us-3-restaurar-conteudo.test.ts` | as 24 afirmacoes de T007 | — |
+
+A operacao entrou na superficie do modulo (`restaurar`), com a declaracao de
+permissao que o **P4** cobra, e `modulo.test.ts` passou a congelar **onze** chaves.
+O nome dos tipos leva *"do conteudo"* porque `ResultadoDaRestauracao` ja e o da
+cascata, e `export *` de dois barris com o mesmo nome o esconderia sem erro.
+
+**De onde veio a leitura do legado.** `~/Downloads/wordpress` nao existe na
+maquina em que T007 rodou, e nao ha PHP nem Docker. A leitura foi feita na arvore
+da etiqueta `7.1.2` de `github.com/WordPress/WordPress`, conferida por
+`version.php` (`$wp_version` 7.1.2, `$wp_db_version` 61833) e pelas ancoras que
+este modulo ja citava. A execucao contra o oraculo de `scripts/oraculo` **nao
+foi feita**.
+
+**O que esta tarefa achou e vale para as seguintes:**
+
+- 🔴 **A ordem de UC-10 nao e a do legado, e ficou a do legado.** O fluxo principal
+  numera *"grava o status"* antes de *"apaga os metadados"*; o legado apaga em
+  `wp-includes/post.php:4228`-`:4229` e grava em `:4231`. Nenhuma decisao humana
+  fala da ordem, logo vale o **P1**, e a sequencia esta afirmada por teste.
+- 🔴 **Falha de gravacao prende o conteudo na lixeira.** Com os marcadores ja
+  apagados e sem transacao, o conteudo fica em `trash` sem `_wp_trash_meta_time`:
+  a coleta varre por esse marcador e nunca mais o alcanca. A permissao do autor
+  tambem cai para `delete_posts`. Os comentarios ficam `post-trashed` e a memoria
+  deles fica gravada. E o inverso da falha do descarte, que sobra marcador, e
+  **nao** e o estado que `R6` tolera: T015 nao passa por aqui.
+- 🔴 **O sufixo `__trashed` nao tem dono.** `wp_insert_post()` acrescenta o sufixo
+  ao identificador de URL no descarte (`:4903`), guarda o original em
+  `_wp_desired_post_slug` (`:8621`) e os devolve na restauracao (`:4874`-`:4881`).
+  `conteudo/gravacao/gravar.ts` deixa o passo para *"feature 005"* e `tasks.md`
+  desta feature nao o recebe em tarefa nenhuma: T003 e T007 tratam a gravacao como
+  porta de BC-01. Enquanto ninguem o portar, descartar **nao** libera o
+  identificador e restaurar nao apaga esse metadado — que CA-3.3 pode ou nao
+  incluir em *"os dados de descarte"*. T007 nao alargou para dentro de BC-01: o
+  contrato esta escrito em `ConteudoNaRestauracao.gravarEstado`, e a decisao de
+  onde ele mora e de quem abre tarefa.
+- ⚠️ **O "Desfazer" devolve o estado anterior.** `R2` e default: `wp-admin/edit.php:151`
+  pendura `wp_untrash_post_set_previous_status()` no filtro quando `doaction=undo`.
+  A superficie da midia nao faz isso (`wp-admin/upload.php:312`), e o anexo
+  "desfeito" volta `inherit`. O alvo oferece `estadoAnteriorNaRestauracao`; a tela
+  que a pendura nao existe nesta arvore.
+- ⚠️ **CA-3.5 vale para o conteudo do proprio ator.** Para o alheio o legado nao
+  le o marcador, e publicado de outra pessoa exige so `delete_others_posts` na
+  lixeira. Esta afirmado por teste, e e o limite que UT-049-6 e UT-049-8 precisam
+  respeitar.
+- ⚠️ **Sem o marcador agrupado os comentarios nao voltam.** A regra de US-2 *"volta
+  para a fila de moderacao"* e a do valor guardado `post-trashed` (`:4363`); sem
+  marcador nenhum, a cascata para em `:4342` e eles continuam `post-trashed` num
+  conteudo ja em rascunho.
+- **A acao `untrash` nao tem a trava de edicao** que a acao `trash` tem
+  (`wp-admin/post.php:265`). A API REST e o XML-RPC nao chamam `wp_untrash_post()`:
+  os quatro chamadores estao no painel, e a tabela esta em
+  `restauracao/permissao-de-restauracao.ts`.
+
 ## A contagem que T005 encontrou e nao decidiu: os "dois estados"
 
 US-2 carrega a regra de negocio *"Dois estados de comentario nao sao alcancaveis
@@ -788,8 +853,8 @@ novo e e decisao humana — ela muda o produto.
 A operacao entrou na superficie do modulo (`coletarALixeiraVencida`), com a
 declaracao de permissao que o **P4** cobra — **nenhuma** —, e `modulo.test.ts`
 passou a congelar **dez** chaves — a de T011 somada as de T005, T009 e T017, que
-entraram em paralelo. Da tabela *Contratos*, so a restauracao do conteudo (T007)
-continua so citada.
+entraram em paralelo. A restauracao do conteudo (T007) entrou depois, e fechou a
+tabela *Contratos*.
 
 ### A permissao e NENHUMA, e e por isso que ela esta escrita
 
@@ -979,7 +1044,8 @@ proibe inventar prazo de retencao para esse registro novo.
   `modulo.test.ts` e `configuracao/prazo-de-retencao.test.ts` (4), as 19 de
   T002 em `armazenamento/armazenamento.test.ts`, as 19 de T003 em
   `descarte/us-1-descartar-conteudo.test.ts`, as 21 de T005 em
-  `cascata-de-comentarios/us-2-suspender-comentarios.test.ts`, as 23 de T009 em
+  `cascata-de-comentarios/us-2-suspender-comentarios.test.ts`, as 24 de T007 em
+  `restauracao/us-3-restaurar-conteudo.test.ts`, as 23 de T009 em
   `descarte/us-4-aviso-de-exclusao-definitiva.test.ts`, as 23 de T011 em
   `coleta/us-5-coletar-a-lixeira-vencida.test.ts` e as 26 de T017 em
   `exclusao/us-8-reparentar-filhos-e-anexos.test.ts`. `modulo.test.ts` ganhou de

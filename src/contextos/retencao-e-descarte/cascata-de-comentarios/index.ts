@@ -11,7 +11,7 @@
  * Porque as duas operacoes daqui tem **chamadores diferentes em historias
  * diferentes** e nao tem portao de capacidade nenhum. A suspensao e chamada por
  * `wp_trash_post()` (US-1, em `descarte/`) e a restauracao por
- * `wp_untrash_post()` (US-3, T007, que ainda nao existe) — e as duas sao funcoes
+ * `wp_untrash_post()` (US-3, T007, em `restauracao/`) — e as duas sao funcoes
  * **publicadas** do nucleo, chamaveis direto por extensao, por
  * `wp_delete_post()` e pelas superficies. Meter a cascata dentro de `descarte/`
  * amarraria a metade de restauracao a uma pasta em que o chamador dela nao mora.
@@ -23,6 +23,7 @@
  * | `estado-de-suspensao.ts` | `post-trashed`, e o vocabulario que a API de estado aceita | CA-2.4 |
  * | `contexto-da-cascata.ts` | o que chega por argumento, e a **ausencia** de capacidade como declaracao | — |
  * | `ligacao-com-o-descarte.ts` | o passo 11 de `wp_trash_post()`, preenchido | — |
+ * | `ligacao-com-a-restauracao.ts` | o passo 12 de `wp_untrash_post()`, preenchido por **T007** | — |
  * | `us-2-suspender-comentarios.test.ts` | os quatro criterios, e a sequencia de comandos | — |
  *
  * **O que esta area nao tem:** a restauracao do **conteudo** (T007, US-3 — ela
@@ -61,3 +62,4 @@ export type {
 } from './contexto-da-cascata.js';
 
 export { cascataNoDescarte } from './ligacao-com-o-descarte.js';
+export { cascataNaRestauracao } from './ligacao-com-a-restauracao.js';
