@@ -53,7 +53,7 @@
       *entrega:* o comportamento de US-6 existe e os critérios CA-6.1, CA-6.2, CA-6.3, CA-6.4, CA-6.5, CA-6.6 passam contra o sistema novo
       *satisfaz:* CA-6.1, CA-6.2, CA-6.3, CA-6.4, CA-6.5, CA-6.6
       *depende de:* T001, T002, T003
-- [ ] **T014** [P] Testes de US-6
+- [x] **T014** [P] Testes de US-6
       *entrega:* 8 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-043-1, UT-043-2, UT-043-3, UT-043-4, UT-043-5, UT-043-6, UT-043-7, UT-043-8), com o mesmo dado de entrada, ação e resultado esperado. Os 2 testes de regra de negócio (UT-043-7, UT-043-8) entram na mesma suíte.
       *satisfaz:* CA-6.1, CA-6.2, CA-6.3, CA-6.4, CA-6.5, CA-6.6
       *depende de:* T013
