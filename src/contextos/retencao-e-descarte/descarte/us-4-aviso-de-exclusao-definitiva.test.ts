@@ -2,19 +2,16 @@
  * Testes da entrega de **T009** (US-4): *"o comportamento de US-4 existe e os
  * criterios CA-4.1, CA-4.2, CA-4.3, CA-4.4 passam contra o sistema novo"*.
  *
- * 🔴 **Tres dos quatro criterios estao afirmados aqui. CA-4.2 nao esta**, e a
- * razao nao e falta de teste: o legado **nao pede confirmacao nenhuma** no
- * caminho de conteudo, e UC-09 diz isso com estas palavras enquanto CA-4.2 diz o
- * contrario. A caixa de PARADA de `aviso-de-exclusao-definitiva.ts` tem o censo
- * que sustenta a leitura. O que se afirma abaixo, no lugar de CA-4.2, e a
- * **ausencia** — do mesmo jeito que a porta falsa de T002 registra comando para
- * que *"nenhum comando"* seja afirmavel. Trocar essa afirmacao por uma
- * confirmacao exige a decisao humana que falta (P1).
+ * **CA-4.2 afirma uma ausencia:** o legado **nao pede confirmacao nenhuma** no
+ * caminho de conteudo, e a decisao humana de 2026-10-29 alinhou o criterio a isso
+ * (caixa de DECISAO de `aviso-de-exclusao-definitiva.ts`). Ela se afirma do mesmo
+ * jeito que a porta falsa de T002 registra comando para que *"nenhum comando"*
+ * seja afirmavel. Trocar essa afirmacao por uma confirmacao e divergir do
+ * observavel (P1).
  *
  * **Nao sao os testes de US-4**: esses sao **T010**, cinco casos registrados em
  * `backlog/tests.md` (UT-050-1 a UT-050-5), que se **transcrevem** do catalogo e
- * nao se reconstroem — e UT-050-2 e a transcricao de CA-4.2, logo esbarra na
- * mesma parada.
+ * nao se reconstroem.
  *
  * A area de paridade destes criterios e a **4** da Decisao 2 de
  * `parity_specs.md` (*"HTML de tema e painel: comportamento de caso de uso"*)
@@ -343,8 +340,8 @@ test('CA-4.3 a acao em massa troca o rotulo pela mesma condicao da linha', () =>
     { acao: 'apagar-em-definitivo', rotulo: 'Delete permanently' },
   ]);
 
-  // `:443`: sem `delete_posts` do tipo, nenhuma das duas aparece — e `Restore`
-  // em lote nao e governado por essa capacidade, mas por `edit_posts` (`:435`).
+  // `:444`: sem `delete_posts` do tipo, nenhuma das duas aparece — e `Restore`
+  // em lote nao e governado por essa capacidade, mas por `edit_posts` (`:436`).
   assert.deepEqual(
     acoesEmMassa(SEM_LIXEIRA, { ...visao, podeApagarEmLote: false }),
     [],
@@ -383,7 +380,7 @@ test('CA-4.4 com a lixeira desligada nenhuma superficie oferece restaurar', () =
   assert.ok(!massa.some((acao) => acao.acao === 'restaurar'));
 
   // O editor nunca oferece restaurar, com lixeira ou sem: a tela de um registro
-  // em `trash` nem abre (`wp-admin/post.php:153`, `409`).
+  // em `trash` nem abre (`wp-admin/post.php:154`, `409`).
   assert.notEqual(
     acaoNoEditor(registro(), SEM_LIXEIRA, PODE)?.acao,
     'restaurar',
@@ -455,14 +452,14 @@ test('CA-4.4 a barra de estados some por CONTAGEM, nao por registro de estado', 
 
 // ── CA-4.2: a ausencia, afirmada ────────────────────────────────────────────
 
-test('🔴 CA-4.2 nenhuma superficie de conteudo pede confirmacao ao ator, no legado', () => {
-  // O censo esta na caixa de PARADA de `aviso-de-exclusao-definitiva.ts`: o
-  // unico `confirm(` de exclusao do site e governado por `MEDIA_TRASH`, e os
-  // links de conteudo nao tem `onclick` nem ouvinte.
+test('CA-4.2 nenhuma superficie de conteudo pede confirmacao ao ator', () => {
+  // O censo esta na caixa de DECISAO de `aviso-de-exclusao-definitiva.ts`:
+  // `showNotice.warn()` nao tem chamador de conteudo, os links de conteudo nao tem
+  // `onclick`, e o unico ouvinte de `a.submitdelete` (`wp-admin/js/post.js:352`)
+  // nao confirma.
   //
-  // ESTE TESTE E A PARADA, e nao a satisfacao de CA-4.2: ele afirma o que o
-  // legado faz. Trocar qualquer `null` por texto e divergir do observavel, o que
-  // o P1 so permite com decisao humana registrada e citada aqui.
+  // Trocar qualquer `null` por texto e divergir do observavel, o que o P1 so
+  // permite com decisao humana registrada e citada aqui.
   assert.deepEqual(CONFIRMACAO_PEDIDA_AO_ATOR, {
     'painel-editor': null,
     'painel-linha-da-lista': null,
@@ -472,10 +469,10 @@ test('🔴 CA-4.2 nenhuma superficie de conteudo pede confirmacao ao ator, no le
   });
 });
 
-test('🔴 CA-4.2 o texto que o criterio descreve existe no legado, e esta ligado a MEDIA_TRASH', () => {
-  // `wp-admin/js/common.js:548`, chamado so de `meta-boxes.php:477` e
-  // `class-wp-media-list-table.php:835`. Quem decidir CA-4.2 nao precisa
-  // inventar frase: esta e a frase do produto.
+test('CA-4.2 a confirmacao de exclusao do legado existe, e nao e do conteudo', () => {
+  // `wp-admin/js/common.js:548`, chamado de midia (`meta-boxes.php:477`,
+  // `class-wp-media-list-table.php:835`, `media.js:197`) e de termo (`tags.js:29`
+  // e `:168`).
   assert.equal(
     CONFIRMACAO_DE_EXCLUSAO_DE_MIDIA,
     "You are about to permanently delete these items from your site.\nThis action cannot be undone.\n'Cancel' to stop, 'OK' to delete.",
@@ -510,7 +507,7 @@ test('a API recusa o descarte sem forca quando nao reconhece lixeira: 501, com t
 
 test('⚠️ a recusa da API NAO fala em irreversibilidade: ela ensina o parametro, e o pedido forcado nao ve nada', () => {
   // `:1136`: com `force`, apaga e devolve o registro em `previous`, sem nenhuma
-  // mensagem. E o mais perto que o legado chega de CA-4.2 sem ser CA-4.2.
+  // mensagem. E o mais perto que o legado chega de uma confirmacao sem ser uma.
   assert.equal(
     recusaDeLixeiraNaoSuportadaNaApi(SEM_LIXEIRA, { forcar: true }),
     null,

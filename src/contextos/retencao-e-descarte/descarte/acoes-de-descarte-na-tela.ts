@@ -65,7 +65,7 @@
  * - no editor **nao existe restaurar em nenhum caso**, e a razao e outra tela:
  *   abrir para edicao um registro em `trash` morre em `wp_die` com **409** e
  *   *"You cannot edit this item because it is in the Trash. Please restore it and
- *   try again."* (`wp-admin/post.php:153`-`:154`).
+ *   try again."* (`wp-admin/post.php:154`-`:155`).
  *
  * **Logo CA-4.4 e verdadeiro por consequencia, nao por regra**: com a lixeira
  * desligada nenhum registro chega ao estado `trash`, logo nenhuma linha oferece
@@ -86,13 +86,13 @@
  *   `null` a quem nao pode (`link-template.php:1573`). E a mesma capacidade de
  *   US-1, e a decisao esta em `permissao-de-descarte.ts`: aqui ela chega como
  *   resposta, no campo `podeApagar`, porque quem monta a tela ja a perguntou.
- * - **A acao em massa `Bulk edit`** (`:441`) e a de restaurar em lote, que estao
- *   sob `edit_posts` e nao sob `delete_posts` (`:435` e `:443`) — as duas entram
+ * - **A acao em massa `Bulk edit`** (`:440`) e a de restaurar em lote, que estao
+ *   sob `edit_posts` e nao sob `delete_posts` (`:436` e `:444`) — as duas entram
  *   aqui so no que o descarte decide; o `Bulk edit` e de BC-01.
  * - **Os pontos de extensao que reescrevem estas listas**, que sao contrato
  *   publico (**P2**) e estao declarados em {@link GANCHOS_DAS_ACOES_NA_TELA}.
  * - **A confirmacao pedida ao ator** (CA-4.2), que esta em
- *   `aviso-de-exclusao-definitiva.ts` — e **nao esta resolvida**.
+ *   `aviso-de-exclusao-definitiva.ts` — e e **nenhuma**.
  */
 
 import { lixeiraEstaLigada, type PrazoDeRetencao } from '../configuracao/index.js';
@@ -283,7 +283,7 @@ export function enderecoDeExclusao(
  *
  * E **uma acao, ou nenhuma**: o editor nunca oferece duas, e **nunca oferece
  * restaurar** — ver CA-4.4 no cabecalho, e o `wp_die` de 409 em
- * `wp-admin/post.php:153`.
+ * `wp-admin/post.php:154`.
  *
  * ⚠️ **O editor nao forca a exclusao**, e e `get_delete_post_link()` quem
  * resolve o endereco pela propria leitura da constante (`meta-boxes.php:370`).
@@ -402,9 +402,9 @@ export function acoesNaLinha(
 export interface VisaoDaListaDeConteudo {
   /** `$this->is_trash` (`class-wp-posts-list-table.php:437`). */
   readonly naVisaoDeLixeira: boolean;
-  /** `current_user_can( $post_type_obj->cap->edit_posts )` (`:435`). */
+  /** `current_user_can( $post_type_obj->cap->edit_posts )` (`:436`). */
   readonly podeEditarEmLote: boolean;
-  /** `current_user_can( $post_type_obj->cap->delete_posts )` (`:443`). */
+  /** `current_user_can( $post_type_obj->cap->delete_posts )` (`:444`). */
   readonly podeApagarEmLote: boolean;
 }
 
@@ -412,13 +412,13 @@ export interface VisaoDaListaDeConteudo {
  * **As acoes em massa de descarte** (`class-wp-posts-list-table.php:432`-`:452`).
  *
  * ⚠️ **Duas capacidades diferentes, e nao e a de US-1.** Restaurar em lote esta
- * sob `delete_posts`? **Nao**: esta sob **`edit_posts`** (`:435`), enquanto
- * descartar e apagar em lote estao sob `delete_posts` (`:443`). As duas sao
+ * sob `delete_posts`? **Nao**: esta sob **`edit_posts`** (`:436`), enquanto
+ * descartar e apagar em lote estao sob `delete_posts` (`:444`). As duas sao
  * capacidades **do tipo**, nao a meta-capacidade `delete_post` **do registro** —
  * a tela em massa nao tem registro para perguntar sobre, e e por isso que a
  * recusa por registro so acontece depois, em `wp-admin/edit.php:123`.
  *
- * `Bulk edit` (`:441`) **nao entra aqui**: e de BC-01, e esta funcao devolve so
+ * `Bulk edit` (`:440`) **nao entra aqui**: e de BC-01, e esta funcao devolve so
  * o que o descarte decide. Quem montar a lista completa concatena as duas.
  */
 export function acoesEmMassa(

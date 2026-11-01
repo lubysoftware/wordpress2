@@ -83,8 +83,8 @@
  *   `class-wp-posts-list-table.php:1638`,
  *   `wp-includes/link-template.php:1577`). O que se confirma e a outra metade —
  *   *"o ator nao e avisado da diferenca"*: **nenhuma confirmacao e pedida**, e e
- *   isso que colide com CA-4.2 e deixa aquele criterio parado; ver a caixa de
- *   PARADA de `aviso-de-exclusao-definitiva.ts`.
+ *   isso que CA-4.2 afirma; ver a caixa de DECISAO de
+ *   `aviso-de-exclusao-definitiva.ts`.
  * - **Nao restaura.** `wp_untrash_post()` (`:4168`) e **T007** (US-3), e o que
  *   ela faz com os marcadores que esta operacao grava e o oposto na ordem
  *   inversa — ver a tabela de `armazenamento/marcadores-de-lixeira.ts`.

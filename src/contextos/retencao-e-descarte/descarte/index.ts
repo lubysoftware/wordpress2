@@ -11,8 +11,7 @@
  *
  * Entrega de **T003**: *"o comportamento de US-1 existe e os criterios CA-1.1,
  * CA-1.2, CA-1.3, CA-1.4, CA-1.5 passam contra o sistema novo"*. Entrega de
- * **T009**: o mesmo para US-4 — **menos CA-4.2**, que esta parado por conflito
- * registrado (ver `aviso-de-exclusao-definitiva.ts`)
+ * **T009**: o mesmo para US-4
  * (`.specify/specs/005-retencao-e-descarte/tasks.md`).
  *
  * | arquivo | o que e | tarefa |
@@ -24,8 +23,8 @@
  * | `us-1-descartar-conteudo.test.ts` | os cinco criterios de US-1, e a sequencia de comandos que a area 3 da Decisao 2 compara | T003 |
  * | `lixeira-desligada.ts` | CA-4.1 — a pergunta *"ha lixeira?"* nas **tres** formas em que o legado a faz | **T009** |
  * | `acoes-de-descarte-na-tela.ts` | CA-4.3 e CA-4.4 — o que a tela oferece antes da acao, como **dado** | **T009** |
- * | `aviso-de-exclusao-definitiva.ts` | o que cada superficie diz ao ator, e a **PARADA de CA-4.2** | **T009** |
- * | `us-4-aviso-de-exclusao-definitiva.test.ts` | CA-4.1, CA-4.3 e CA-4.4, mais a ausencia que CA-4.2 contradiz | **T009** |
+ * | `aviso-de-exclusao-definitiva.ts` | CA-4.2 — o que cada superficie diz ao ator, e a **DECISAO** que fixou a ausencia de confirmacao | **T009** |
+ * | `us-4-aviso-de-exclusao-definitiva.test.ts` | os quatro criterios de US-4 | **T009** |
  *
  * **O que esta pasta nao tem, com a tarefa de cada um:** a suspensao dos
  * comentarios (T005), a restauracao (T007), a coleta do que venceu (T011), a

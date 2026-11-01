@@ -108,8 +108,8 @@ export const PRAZO_DE_RETENCAO_DE_FABRICA: PrazoDeRetencao = {
  *
  * **O que esta funcao devolve, e o que ela nao faz.** Ela responde *"ha
  * lixeira?"*. **Apagar em definitivo quando a resposta e nao** e a operacao de
- * descarte — **T003** (US-1) e **T009** (US-4), com o aviso de irreversibilidade
- * que CA-4.2 cobra. T001 declara o numero e a borda dele; o efeito e da tarefa que
+ * descarte — **T003** (US-1) e **T009** (US-4), sem confirmacao nenhuma ao ator
+ * (CA-4.2). T001 declara o numero e a borda dele; o efeito e da tarefa que
  * implementa a operacao.
  *
  * **Zero e o unico valor que desliga, e valor negativo NAO desliga.** Em PHP

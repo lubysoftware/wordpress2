@@ -145,8 +145,8 @@ export interface ConteudoNoDescarte {
  * reparenteia filhos e anexos ao avo em lugar de apaga-los
  * (`wp-includes/post.php:3908`), e as versoes anteriores vao em cascata. Declarar
  * o ponto de delegacao agora, na posicao exata, e o que impede que a ordem se
- * perca depois — e **T009** (US-4) e quem acrescenta, por cima desta linha, o
- * aviso de que apagar nao tem volta (CA-4.2).
+ * perca depois — e **T009** (US-4) fixou que, por cima desta linha, nenhuma
+ * confirmacao e pedida ao ator (CA-4.2).
  */
 export type ExclusaoDefinitivaNoDescarte = (conteudoId: number) => boolean;
 

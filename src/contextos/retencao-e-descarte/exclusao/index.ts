@@ -29,7 +29,7 @@
  * **O que esta pasta nao tem:** a exclusao de **midia** (desviada para BC-06 no
  * passo 3, e decidida pela resposta 9), a coleta do que venceu (T011, que e quem
  * chama esta operacao por prazo), a restauracao (T007) e o aviso ao ator — que
- * **nao existe no legado** e cujo criterio, CA-4.2, continua parado em
+ * **nao existe no legado**, e CA-4.2 afirma essa ausencia em
  * `../descarte/aviso-de-exclusao-definitiva.ts`.
  */
 
