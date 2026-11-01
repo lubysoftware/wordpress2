@@ -33,7 +33,7 @@
       *entrega:* 8 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-049-1, UT-049-2, UT-049-3, UT-049-4, UT-049-5, UT-049-6, UT-049-7, UT-049-8), com o mesmo dado de entrada, ação e resultado esperado. Os 2 testes de regra de negócio (UT-049-7, UT-049-8) entram na mesma suíte.
       *satisfaz:* CA-3.1, CA-3.2, CA-3.3, CA-3.4, CA-3.5
       *depende de:* T007
-- [ ] **T009** Avisar que apagar é irreversível quando a lixeira está desligada (US-4)
+- [x] **T009** Avisar que apagar é irreversível quando a lixeira está desligada (US-4)
       *entrega:* o comportamento de US-4 existe e os critérios CA-4.1, CA-4.2, CA-4.3, CA-4.4 passam contra o sistema novo
       *satisfaz:* CA-4.1, CA-4.2, CA-4.3, CA-4.4
       *depende de:* T001, T002, T003

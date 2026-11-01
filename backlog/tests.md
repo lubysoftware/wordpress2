@@ -771,7 +771,7 @@ Tirar do ar sem perder, e apagar no prazo
 | ID | Nome | Tipo | Prova |
 |---|---|---|---|
 | `UT-050-1` | apaga em definitivo quando a lixeira está desligada | `borda` | Com a lixeira desligada, o pedido de descarte apaga em definitivo |
-| `UT-050-2` | declara na confirmação que a ação não tem volta | `feliz` | Nesse caso a confirmação pedida ao ator diz, com estas palavras, que a ação não tem volta |
+| `UT-050-2` | não pede confirmação ao ator antes de apagar com a lixeira desligada | `feliz` | Nesse caso nenhuma confirmação é pedida ao ator: no caminho de conteúdo o pedido apaga sem diálogo, como no legado (UC-09, fluxo *Lixeira desligada*) |
 | `UT-050-3` | distingue na tela descartar de apagar em definitivo antes da ação | `feliz` | A diferença entre descartar e apagar em definitivo é visível na tela antes da ação, não depois |
 | `UT-050-4` | omite a ação de restaurar quando a lixeira está desligada | `borda` | Com a lixeira desligada, a tela não oferece ação de restaurar |
 | `UT-050-5` | retém por 30 dias com a lixeira ligada e torna o apagamento irreversível com ela em zero | `borda` | R1 — lixeira de 30 dias, e desligá-la torna apagar irreversível |

@@ -91,8 +91,8 @@
  *   dentro das colaboracoes das etapas 2 e 6 — o cenario dos *"tres contadores"*
  *   de PT-003 se confere do lado deles.
  * - **Nao avisa ninguem.** Nenhuma confirmacao e pedida em nenhuma superficie de
- *   conteudo antes desta operacao: e o 🔴 de CA-4.2, que **continua parado** em
- *   `../descarte/aviso-de-exclusao-definitiva.ts`. T017 nao o move.
+ *   conteudo antes desta operacao: e o que CA-4.2 afirma, em
+ *   `../descarte/aviso-de-exclusao-definitiva.ts`.
  * - **Nao limpa cache** (`:3998`-`:4004`): nao ha cache de objeto nesta arvore,
  *   e a borda 5 de `target_architecture.md` manda mante-lo desligado nas duas
  *   metades durante a coexistencia.

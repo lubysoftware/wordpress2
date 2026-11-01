@@ -683,8 +683,8 @@ test('com a lixeira desligada o descarte apaga em definitivo, na primeira linha'
   // A primeira linha e `! EMPTY_TRASH_DAYS` (`wp-includes/post.php:4085`), e ela
   // vem ANTES da leitura do passo 2: a unica leitura aqui e a da superficie, e
   // nenhum marcador, nenhuma cascata e nenhum dos tres pontos de extensao
-  // acontece. O ator **nao** e avisado da diferenca, e e assim no legado (UC-09;
-  // o aviso de CA-4.2 e T009).
+  // acontece. O ator **nao** e avisado da diferenca, e e assim no legado (UC-09
+  // e CA-4.2).
   assert.deepEqual(semLixeira.sequencia, [
     `le-conteudo:${CONTEUDO_ID}`,
     `apaga-em-definitivo:${CONTEUDO_ID}`,

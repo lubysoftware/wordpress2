@@ -3,62 +3,49 @@
  * desligada"*: o que cada superficie diz ao ator **antes** de a exclusao
  * definitiva acontecer.
  *
- * Entrega de **T009** da feature `005-retencao-e-descarte`, e e tambem onde a
- * tarefa **para**: tres dos quatro criterios de US-4 sao comportamento do legado
- * e estao portados (CA-4.1 em `descartar-para-a-lixeira.ts` e
- * `lixeira-desligada.ts`, CA-4.3 e CA-4.4 em `acoes-de-descarte-na-tela.ts`).
- * **CA-4.2 nao e**, e a caixa abaixo e a razao.
+ * Entrega de **T009** da feature `005-retencao-e-descarte`. CA-4.1 esta em
+ * `descartar-para-a-lixeira.ts` e `lixeira-desligada.ts`, CA-4.3 e CA-4.4 em
+ * `acoes-de-descarte-na-tela.ts`, e **CA-4.2** esta aqui: ele afirma a
+ * **ausencia** de confirmacao, e a caixa abaixo e a razao.
  *
- * ┌─ PARADA: CA-4.2 PEDE CONFIRMACAO QUE O LEGADO NAO PEDE ──────────────────┐
+ * ┌─ DECISAO: NO CAMINHO DE CONTEUDO NAO HA CONFIRMACAO ─────────────────────┐
  * │                                                                          │
- * │ **CA-4.2 de `spec.md` e o fluxo alternativo de UC-09 dizem coisas        │
- * │ opostas sobre o mesmo instante, e T009 NAO escolhe entre eles.**         │
+ * │ **Decisao humana registrada em 2026-10-29**, em resposta a parada de     │
+ * │ T009: *"Siga o codigo do legado: no caminho de conteudo nao ha           │
+ * │ confirmacao nenhuma ao apagar com a lixeira desligada (UC-09, Lixeira    │
+ * │ desligada)."* CA-4.2 e UT-050-2 foram alinhados a ela; antes pediam uma  │
+ * │ confirmacao dizendo que a acao nao tem volta, o oposto do fluxo          │
+ * │ *Lixeira desligada* de UC-09: *"o ator nao e avisado da diferenca"*.     │
  * │                                                                          │
- * │ CA-4.2 (REQ-050, `backlog/tests.md` UT-050-2): *"nesse caso a            │
- * │ confirmacao pedida ao ator diz, com estas palavras, que a acao nao tem   │
- * │ volta"*.                                                                 │
- * │                                                                          │
- * │ `.specify/use-cases/UC-09-descartar-conteudo-na-lixeira.md`, fluxo       │
- * │ alternativo *Lixeira desligada*, palavra por palavra: *"Apagar passa a   │
- * │ ser irreversivel, e o ator NAO e avisado da diferenca"*. A secao *O que  │
- * │ um porte precisa saber* do mesmo caso de uso repete: *"o mesmo botao,    │
- * │ dois comportamentos irreconciliaveis"*.                                  │
- * │                                                                          │
- * │ **A arvore analisada confirma UC-09 quanto a confirmacao, e nao          │
- * │ quanto ao botao.** O censo de `confirm(` em `wp-admin/js/` tem **uma**   │
- * │ ocorrencia de exclusao de conteudo do site, `showNotice.warn()`          │
- * │ (`wp-admin/js/common.js:548`), e ela tem **dois** chamadores — os dois   │
- * │ governados por `MEDIA_TRASH`, nunca por `EMPTY_TRASH_DAYS`:              │
- * │   · `wp-admin/includes/meta-boxes.php:477` (caixa do anexo)              │
- * │   · `wp-admin/includes/class-wp-media-list-table.php:835` (midia)        │
- * │ O caminho de CONTEUDO nao tem nenhum: o `submitdelete` do editor         │
- * │ (`meta-boxes.php:370`) e as duas acoes da linha                          │
- * │ (`class-wp-posts-list-table.php:1623` e `:1633`) sao links sem           │
- * │ `onclick`, e nao ha ouvinte de `.submitdelete` em nenhum `.js` do        │
- * │ painel. A acao em massa tambem nao confirma.                             │
+ * │ **O censo que sustenta a ausencia**, conferido na arvore 7.1.2:          │
+ * │   · `showNotice.warn()` (`wp-admin/js/common.js:548`) e a confirmacao    │
+ * │     de exclusao do painel, e NENHUM chamador e de conteudo nem le        │
+ * │     `EMPTY_TRASH_DAYS`: midia, sob `MEDIA_TRASH`                         │
+ * │     (`wp-admin/includes/meta-boxes.php:477`,                             │
+ * │     `wp-admin/includes/class-wp-media-list-table.php:835`), a acao em    │
+ * │     massa de midia (`wp-admin/js/media.js:197`) e a exclusao de termo    │
+ * │     (`wp-admin/js/tags.js:29` e `:168`).                                 │
+ * │   · O `submitdelete` do editor (`meta-boxes.php:370`) e as duas acoes    │
+ * │     da linha (`class-wp-posts-list-table.php:1623` e `:1633`) sao links  │
+ * │     sem `onclick`.                                                       │
+ * │   · O unico ouvinte de `a.submitdelete` e `wp-admin/js/post.js:352`, e   │
+ * │     ele nao confirma: so cancela o clique em botao `disabled` (`:355`),  │
+ * │     e com `submitdelete` devolve sem fazer mais nada (`:360`).           │
+ * │   · A acao em massa de conteudo tambem nao confirma.                     │
  * │                                                                          │
  * │ E o legado **sabe** pedir confirmacao nessa mesma caixa: a tela de link  │
- * │ herdada poe `onclick="return confirm( ... )"` no proprio                 │
- * │ `submitdelete` (`meta-boxes.php:1137`). Logo a ausencia no conteudo nao  │
- * │ e limitacao tecnica: e o produto.                                        │
+ * │ herdada poe `onclick="return confirm( ... )"` no proprio `submitdelete`  │
+ * │ (`meta-boxes.php:1137`). Logo a ausencia no conteudo e o produto.        │
  * │                                                                          │
- * │ **Por que isto nao se resolve aqui.** Acrescentar a confirmacao e        │
- * │ acrescentar comportamento observavel que o original nao tem, e o **P1**  │
- * │ exige *"uma decisao humana registrada, citada no codigo que divergiu"*;  │
- * │ `pending_decisions.md` nao tem decisao sobre isto, `discard_log.md` nao  │
- * │ descarta nada desta historia e as cinco entradas de                      │
- * │ `screen_deviation_log.md` nao cobrem acrescentar dialogo a uma tela      │
- * │ (`DEV-001` e formato de spec, `DEV-002` e captura, `DEV-003` a `005`     │
- * │ sao outras telas). Nao acrescentar deixa CA-4.2 e UT-050-2 falsos. As    │
- * │ duas fontes sao humanas e estao em sentidos opostos, que e exatamente o  │
- * │ caso que a constituicao poe na tabela *Nao negociavel*.                  │
+ * │ ⚠️ **O editor de blocos fica fora das cinco superficies abaixo.** Ele    │
+ * │ pergunta *"Are you sure you want to move "%s" to the trash?"* com        │
+ * │ lixeira ou sem (`wp-includes/js/dist/editor.js:28705` e `:89034`), e     │
+ * │ esse dialogo nao fala em irreversibilidade. O pedido que segue e um      │
+ * │ `DELETE` sem `force` (`:79029`), que a API recusa com `501` quando o     │
+ * │ prazo e zero: nada se apaga — salvo com `rest_{tipo}_trashable`          │
+ * │ ligado por extensao. Esse lado cliente e dependencia externa adotada     │
+ * │ como esta (Lacuna 2 de `pending_decisions.md`), nao deste porte.         │
  * │                                                                          │
- * │ **E a mesma forma do bloqueio de T019 da feature `002`** (US-9 pede      │
- * │ aviso que UC-07 nega): o ledger de T009 fica **aberto**, e quem decidir  │
- * │ encontra aqui os dois textos que o legado ja tem para isto —             │
- * │ {@link CONFIRMACAO_DE_EXCLUSAO_DE_MIDIA} e                               │
- * │ {@link confirmacaoDeExclusaoDeLink}. Nao e preciso inventar frase nova,  │
- * │ e nao e deste agente ligar nenhuma das duas ao conteudo.                 │
  * └──────────────────────────────────────────────────────────────────────────┘
  *
  * ---
@@ -76,8 +63,8 @@
  * ⚠️ **A unica superficie que para e a API, e ela nao para por irreversibilidade:
  * para por falta de suporte a lixeira.** O texto nao fala em "nao tem volta" —
  * ele ensina o parametro. E uma recusa de `501 Not Implemented`, e e o mais perto
- * que o legado chega de CA-4.2 **sem ser** CA-4.2: o cliente que repete o pedido
- * com `force=true` apaga em definitivo sem ver mais nenhuma mensagem.
+ * que o legado chega de uma confirmacao **sem ser** uma: o cliente que repete o
+ * pedido com `force=true` apaga em definitivo sem ver mais nenhuma mensagem.
  *
  * ⚠️ **E e por causa dessa recusa que o prazo negativo e observavel na API** mesmo
  * com o painel descartando normalmente: `$supports_trash` e
@@ -102,19 +89,16 @@ export type SuperficieDoDescarte =
   | 'xml-rpc';
 
 /**
- * **CA-4.2, como o legado responde hoje: nenhuma superficie de conteudo pede
- * confirmacao.**
+ * **CA-4.2: nenhuma superficie de conteudo pede confirmacao.**
  *
  * As cinco entradas sao `null`, e cada `null` e uma leitura, nao uma omissao —
- * ver a caixa de PARADA do cabecalho para o censo de `confirm(` que as sustenta.
+ * ver a caixa de DECISAO do cabecalho para o censo que as sustenta.
  * A tabela existe **como dado** para que a ausencia seja afirmavel por teste, do
  * mesmo jeito que `armazenamento/porta-falsa.ts` registra comando para que
  * *"nenhum comando"* seja afirmavel.
  *
- * 🔴 **Se a decisao humana que falta disser que a confirmacao deve existir**,
- * e aqui que ela entra — uma entrada por superficie que a pede, com a linha do
- * legado ou a referencia a resposta que autorizou (P1). Enquanto a decisao nao
- * existir, mudar qualquer valor desta tabela e divergir sem registro.
+ * Mudar qualquer valor desta tabela e divergir do observavel (P1): a decisao
+ * humana de 2026-10-29 fixou a ausencia.
  */
 export const CONFIRMACAO_PEDIDA_AO_ATOR: Readonly<
   Record<SuperficieDoDescarte, string | null>
@@ -131,28 +115,26 @@ export const CONFIRMACAO_PEDIDA_AO_ATOR: Readonly<
 
   Literais, com a condicao que as liga. **Declaradas e nao usadas**, pela mesma
   postura de `MENSAGEM_DE_CONTEUDO_INEXISTENTE_NO_PAINEL` em
-  `permissao-de-descarte.ts`: sao os textos que quem decidir CA-4.2 iria
-  procurar, e sem eles a decisao inventaria frase que o produto nao tem.
-  **Nenhuma das duas esta ligada ao conteudo, e ligar uma delas e a decisao que
-  falta** — nao e deste agente.
+  `permissao-de-descarte.ts`: sao a prova de que a ausencia no conteudo e do
+  produto. **Nenhuma das duas se liga ao conteudo** (decisao de 2026-10-29).
 
   | texto | quem o mostra | condicao | linha |
   |---|---|---|---|
-  | de midia | caixa do anexo e lista de midia | `! MEDIA_TRASH` | `common.js:548`, chamada em `meta-boxes.php:477` e `class-wp-media-list-table.php:835` |
+  | de midia e de termo | caixa do anexo, lista de midia e exclusao de termo | `! MEDIA_TRASH` na midia; nenhuma constante no termo | `common.js:548`, chamada em `meta-boxes.php:477`, `class-wp-media-list-table.php:835`, `media.js:197` e `tags.js:29` e `:168` |
   | de link | a tela de link herdada | `action=edit` e `manage_links` | `meta-boxes.php:1137` |
 */
 
 /**
- * `wp-admin/js/common.js:548` — o **unico** texto do legado que diz, com estas
- * palavras, que a acao nao tem volta. Governado por `MEDIA_TRASH`, **nunca** por
- * `EMPTY_TRASH_DAYS`.
+ * `wp-admin/js/common.js:548` — o texto de `showNotice.warn()`, a confirmacao de
+ * exclusao de midia e de termo, **nunca** governada por `EMPTY_TRASH_DAYS`. Fora
+ * dele, *"This action cannot be undone"* so aparece num `confirm` do painel na
+ * revogacao de senha de aplicacao (`application-passwords.js:85` e `:116`).
  *
  * O `\n` e literal: e um `window.confirm()`, nao HTML.
  *
  * ⚠️ **Este texto contradiz BR-MIGRAR-032 e a resposta 9, que dizem que apagar
  * midia e *"definitivo, sem lixeira e sem aviso"*.** Sem lixeira, sim; **sem
- * aviso, nao**: o aviso e justamente o unico que o legado tem, e e a frase que
- * CA-4.2 descreve. A contradicao e de REQ-051, que esta `bloqueado`, e fica
+ * aviso, nao**. A contradicao e de REQ-051, que esta `bloqueado`, e fica
  * registrada aqui porque foi esta tarefa que a encontrou.
  */
 export const CONFIRMACAO_DE_EXCLUSAO_DE_MIDIA =
@@ -199,7 +181,7 @@ export const CODIGO_HTTP_DE_LIXEIRA_NAO_SUPORTADA_NA_API = 501;
  * ```
  *
  * Argumentos `(suporta, post)`, e a posicao e **depois** da leitura da constante
- * e **antes** da pergunta de capacidade (`:1124`). O bloco de documentacao do
+ * e **antes** da pergunta de capacidade (`:1125`). O bloco de documentacao do
  * legado e explicito sobre o poder dele: *"Pass false to disable Trash support
  * for the post"* — e passar `true` **liga** a lixeira na API de uma instalacao
  * com o prazo em zero, caso em que o `DELETE` sem `force` chama

@@ -85,7 +85,7 @@ Como autor, quero saber que neste site apagar não tem volta, para não descobri
 **Critérios de aceite**
 
 - [ ] CA-4.1 Com a lixeira desligada, o pedido de descarte apaga em definitivo
-- [ ] CA-4.2 Nesse caso a confirmação pedida ao ator diz, com estas palavras, que a ação não tem volta
+- [ ] CA-4.2 Nesse caso nenhuma confirmação é pedida ao ator: no caminho de conteúdo o pedido apaga sem diálogo, como no legado (UC-09, fluxo *Lixeira desligada*)
 - [ ] CA-4.3 A diferença entre descartar e apagar em definitivo é visível na tela antes da ação, não depois
 - [ ] CA-4.4 Com a lixeira desligada, a tela não oferece ação de restaurar
 

@@ -9,10 +9,9 @@
  * `./coleta/` — com **CA-5.1 e CA-5.5 declarados abertos**, ver `./README.md`) e
  * **T017** (a exclusao definitiva com reposicionamento de filhos e anexos, US-8,
  * em `./exclusao/`) e **T007** (a restauracao como rascunho, US-3, em
- * `./restauracao/`). **T009** (US-4) entregou CA-4.1, CA-4.3 e CA-4.4 na pasta do
- * descarte e **parou em CA-4.2**, por conflito registrado entre o criterio e
- * UC-09 — a tarefa continua aberta em `tasks.md` e a parada esta em
- * `./descarte/aviso-de-exclusao-definitiva.ts`. Expirar rascunho automatico e
+ * `./restauracao/`). **T009** (US-4) entregou os quatro criterios na pasta do
+ * descarte, com CA-4.2 realinhado ao legado por decisao humana de 2026-10-29 —
+ * ver `./descarte/aviso-de-exclusao-definitiva.ts`. Expirar rascunho automatico e
  * tolerar estado inconsistente entram nas tarefas delas (T013 e T015), e a
  * leitura obrigatoria de cada uma esta em `./README.md`.
  *
@@ -124,10 +123,9 @@ export * from './coleta/index.js';
  * novo por conta propria, devolvendo `null` a quem nao pode
  * (`wp-includes/link-template.php:1573`).
  *
- * 🔴 **CA-4.2 nao esta aqui, e a falta e deliberada.** `confirmacaoPedidaAoAtor`
- * e a tabela do que o legado pede hoje — **nada**, nas cinco superficies de
- * conteudo —, e o criterio pede o oposto do que UC-09 afirma. A caixa de PARADA
- * esta em `descarte/aviso-de-exclusao-definitiva.ts`.
+ * **CA-4.2 e a ausencia.** `confirmacaoPedidaAoAtor` e a tabela do que o legado
+ * pede — **nada**, nas cinco superficies de conteudo. A caixa de DECISAO esta em
+ * `descarte/aviso-de-exclusao-definitiva.ts`.
  */
 export interface AvisoDeExclusaoDefinitiva {
   /** `get_delete_post_link()` — a acao da rota e o `nonce` (CA-4.3). */
@@ -193,7 +191,7 @@ export interface OpcoesDeRetencaoEDescarte {
  * |---|---|---|---|
  * | descartar para a lixeira | US-1 | **T003, feita** | `delete_post` do registro, *"resolvida conforme autoria e estado"* (UC-09) |
  * | suspender e restaurar os comentarios em cascata | US-2 | **T005, feita** | **nenhuma.** As duas funcoes do legado nao tem portao e sao publicadas; quem verifica e o chamador |
- * | avisar que apagar nao tem volta | US-4 | **T009, feita menos CA-4.2** | `delete_post` do registro, a mesma — e no legado ela decide se a acao **aparece** |
+ * | avisar que apagar nao tem volta | US-4 | **T009, feita** | `delete_post` do registro, a mesma — e no legado ela decide se a acao **aparece** |
  * | restaurar | US-3 | **T007, feita** | `delete_post`, **a mesma de descartar**, decidida **pelo estado anterior gravado no descarte** (CA-3.5, UC-10) |
  * | apagar em definitivo | US-8 | **T017, feita** | `delete_post`, **a mesma de descartar**: o legado nao tem capacidade separada para a exclusao irreversivel (UC-09, fluxo alternativo) |
  * | coletar o que venceu | US-5 | **T011, feita** | **nenhuma.** UC-11 e literal: *"a coleta roda sem usuario autenticado e sem verificacao de capacidade: o prazo e a autorizacao"* |
@@ -237,9 +235,8 @@ export interface ModuloDeRetencaoEDescarte {
    * primeira linha, e **nenhuma confirmacao e pedida ao ator** — `R1`/BR-MIGRAR-030
    * e UC-09 (*"a mesma acao, dois comportamentos irreconciliaveis"*). O que
    * **muda** antes da acao e o rotulo, a acao da rota e o `nonce`, e isso e
-   * {@link ModuloDeRetencaoEDescarte.avisoDeExclusaoDefinitiva} (T009, CA-4.3);
-   * a confirmacao que CA-4.2 cobra **nao existe no legado e continua sem decisao
-   * humana**. A cascata de exclusao, com o reparenteamento de filhos e anexos, e
+   * {@link ModuloDeRetencaoEDescarte.avisoDeExclusaoDefinitiva} (T009, CA-4.3 e
+   * CA-4.2). A cascata de exclusao, com o reparenteamento de filhos e anexos, e
    * **T017**, e entra pelo contexto no ponto exato em que o legado a chama.
    *
    * O contexto chega por argumento, e nao pela composicao, porque identidade,
@@ -375,11 +372,9 @@ export interface ModuloDeRetencaoEDescarte {
    * `apagado-em-definitivo` sem emitir marcador, estado, cascata nem ponto de
    * extensao.
    *
-   * 🔴 **CA-4.2 esta PARADO.** O criterio exige confirmacao que o legado nao
-   * pede em nenhuma superficie de conteudo, e UC-09 afirma a ausencia palavra
-   * por palavra. T009 **nao escolheu** entre as duas fontes: `tasks.md`
-   * continua com a tarefa aberta e a caixa de PARADA, com o censo que sustenta
-   * a leitura, esta em `descarte/aviso-de-exclusao-definitiva.ts`.
+   * **CA-4.2 afirma a ausencia:** nenhuma superficie de conteudo pede
+   * confirmacao, como no legado e em UC-09 (decisao humana de 2026-10-29). O
+   * censo esta na caixa de DECISAO de `descarte/aviso-de-exclusao-definitiva.ts`.
    */
   readonly avisoDeExclusaoDefinitiva: AvisoDeExclusaoDefinitiva;
 
