@@ -2,8 +2,8 @@
  * Modulo de midia — BC-04 de `target_architecture.md`.
  *
  * Feature `006-biblioteca-de-midia`, tarefas fechadas **T001**, **T002**,
- * **T003**, **T005**, **T007** e **T019**. O que existe aqui e o que as seis
- * entregam: T001, *"o modulo carrega com as portas de dados, de sistema de
+ * **T003**, **T005**, **T007**, **T013** e **T019**. O que existe aqui e o que
+ * as sete entregam: T001, *"o modulo carrega com as portas de dados, de sistema de
  * arquivos e de processamento de imagem declaradas, e os tamanhos de fabrica do
  * legado registrados como dado"*; T002, *"o anexo existe como registro de
  * conteudo com estado herdado, e o metadado que descreve as derivadas e gravado
@@ -11,20 +11,22 @@
  * comportamento de US-1 existe e os criterios CA-1.1 a CA-1.6 passam contra o
  * sistema novo"*; T005, *"o comportamento de US-2 existe e os criterios CA-2.1 a
  * CA-2.4 passam contra o sistema novo"*; T007, *"o comportamento de US-3 existe
- * e os criterios CA-3.1 a CA-3.4 passam contra o sistema novo"*; T019, *"o
+ * e os criterios CA-3.1 a CA-3.4 passam contra o sistema novo"*; T013, *"o
+ * comportamento de US-6 existe e os criterios CA-6.1, CA-6.2 e CA-6.3 passam
+ * contra o sistema novo"*; T019, *"o
  * comportamento de US-9 existe e os criterios CA-9.1 a CA-9.4 passam contra o
  * sistema novo"*.
  *
- * **As quatro regras de negocio implementadas sao as de US-1, US-2, US-3 e
- * US-9** — o envio com validacao do tipo real do arquivo, em `envio/`; a
+ * **As cinco regras de negocio implementadas sao as de US-1, US-2, US-3, US-6
+ * e US-9** — o envio com validacao do tipo real do arquivo, em `envio/`; a
  * visibilidade herdada do anexo, em `visibilidade/`, que e a metade de leitura
  * de `P2` (a metade de gravacao e de BC-01 e ja existia); a geracao das
  * derivadas de cada tamanho registrado, em `derivadas/`; e o contorno do filtro
  * de tipo com registro, tambem em `envio/`, porque no legado ele e um ramo de
- * `_wp_handle_upload()` e nao uma operacao propria. A reducao na ingestao, o
- * relato de falha, a escolha da derivada, a transformacao e o descarte do
- * arquivo entram nas tarefas delas (T009 em diante), e a leitura obrigatoria de
- * cada uma esta em `./README.md`.
+ * `_wp_handle_upload()` e nao uma operacao propria; e a lista de origens
+ * responsivas com o teto de `M3`, em `origens-responsivas/`. A reducao na
+ * ingestao, o relato de falha, a transformacao e o descarte do arquivo entram
+ * nas tarefas delas, e a leitura obrigatoria de cada uma esta em `./README.md`.
  *
  * A pasta e `contextos/midia/` porque e assim que `target_architecture.md`
  * nomeia BC-04 no esboco de arvore; a feature se chama `006-biblioteca-de-midia`
@@ -59,6 +61,11 @@ import {
   type ResultadoDaRegeracao,
 } from './derivadas/index.js';
 import {
+  calcularOrigensResponsivas,
+  type ContextoDeOrigensResponsivas,
+  type PedidoDeOrigensResponsivas,
+} from './origens-responsivas/index.js';
+import {
   enviarArquivo,
   type ContextoDeEnvio,
   type PedidoDeEnvio,
@@ -82,6 +89,7 @@ import {
 export * from './armazenamento/index.js';
 export * from './derivadas/index.js';
 export * from './envio/index.js';
+export * from './origens-responsivas/index.js';
 export * from './portas/index.js';
 export * from './tamanhos/index.js';
 export * from './visibilidade/index.js';
@@ -99,10 +107,11 @@ export interface PortasDeMidia {
  * Cada historia acrescenta aqui a sua operacao, com a declaracao explicita de
  * permissao que o P4 da constituicao exige, e nenhuma antes da propria tarefa.
  * Hoje ha as portas e os tamanhos de fabrica, de T001, o armazenamento, de T002,
- * e **quatro** operacoes: **uma** de T003 — {@link ModuloDeMidia.enviarArquivo}
- * —, **uma** de T005 — {@link ModuloDeMidia.visibilidadeDoAnexo} — e **duas**
+ * e **cinco** operacoes: **uma** de T003 — {@link ModuloDeMidia.enviarArquivo}
+ * —, **uma** de T005 — {@link ModuloDeMidia.visibilidadeDoAnexo} —, **duas**
  * de T007, {@link ModuloDeMidia.criarDerivadasDeImagem} e {@link
- * ModuloDeMidia.regerarDerivadasQueFaltam}. As duas de T007 sao **uma**
+ * ModuloDeMidia.regerarDerivadasQueFaltam}, e **uma** de T013 — {@link
+ * ModuloDeMidia.calcularOrigensResponsivas}. As duas de T007 sao **uma**
  * historia: US-3 pede a geracao no envio (CA-3.1) e, no mesmo criterio CA-3.3,
  * *"uma acao explicita para regerar"* — e no legado sao duas funcoes, com duas
  * superficies e duas respostas de permissao diferentes.
@@ -125,7 +134,7 @@ export interface PortasDeMidia {
  * | enviar arquivo ✔ | US-1 | T003 | `upload_files`, mais `edit_post` do destino quando ha destino — UC-12 nomeia as duas, CA-1.1 as cobra |
  * | visibilidade do anexo ✔ | US-2 | T005 | **nenhuma**, e e declaracao e nao omissao: e esta leitura que alimenta a decisao de capacidade (`capabilities.php:350`) — ver {@link ModuloDeMidia.visibilidadeDoAnexo} |
  * | gerar derivadas ✔ | US-3 | T007 | o pacote nao declara nenhuma, e o legado nao pergunta: **a superficie declara a dela** — ver {@link ModuloDeMidia.regerarDerivadasQueFaltam} |
- * | servir derivada | US-6 | T013 | nenhuma: a historia e do visitante, e a rastreabilidade dela aponta UC-01 |
+ * | servir derivada ✔ | US-6 | T013 | **nenhuma**: a historia e do visitante, a rastreabilidade dela aponta UC-01, e `wp_calculate_image_srcset()` nao pergunta capacidade nem le o estado do anexo — ver {@link ModuloDeMidia.calcularOrigensResponsivas} |
  * | transformar imagem | US-7 | T015 | *"a capacidade de editar aquele anexo"* (CA-7.1), sem que o pacote a nomeie |
  * | restaurar original | US-7 | T015 | a mesma (CA-7.4) |
  * | apagar anexo | US-8 | T017 | `plan.md` registra so o erro *"sem permissao"*, sem nomear capacidade — e o apagamento e **definitivo** (`R3`) |
@@ -286,6 +295,33 @@ export interface ModuloDeMidia {
   ): ResultadoDaRegeracao;
 
   /**
+   * A lista de origens responsivas de uma imagem — o valor do atributo
+   * `srcset` (US-6, T013). E `wp_calculate_image_srcset()`
+   * (`wp-includes/media.php:1444`), com o teto de `M3` em `:1545`.
+   *
+   * **Permissao exigida: nenhuma, e e declaracao explicita** (P4). A historia
+   * e do visitante, a rastreabilidade aponta UC-01, e a funcao do legado nao
+   * pergunta capacidade nem le o estado do anexo: quem decide se a imagem e
+   * vista e quem decide se o conteudo que a carrega e visto.
+   *
+   * Devolve `null` onde o legado devolve `false` — anexo sem derivada
+   * (CA-6.3), `src` que nao esta no metadado, origem unica —, e `null` e
+   * *"sem marcacao de alternativas"*. O teto e `2048` (`M3`) e muda so pelo
+   * interceptador de {@link ContextoDeOrigensResponsivas.filtrosDoTeto}
+   * (CA-6.2), que e o `max_srcset_image_width` do legado.
+   *
+   * **O que esta operacao NAO faz:** nao le o metadado (chega no pedido, como
+   * no legado), nao monta a tag nem o atributo `sizes`, e nao resolve o `src`
+   * pelo nome do tamanho. As cinco restricoes que os criterios nao dizem e o
+   * legado faz estao no cabecalho de
+   * `origens-responsivas/calcular-origens-responsivas.ts`.
+   */
+  calcularOrigensResponsivas(
+    contexto: ContextoDeOrigensResponsivas,
+    pedido: PedidoDeOrigensResponsivas,
+  ): string | null;
+
+  /**
    * Os seis tamanhos de fabrica do legado, na ordem dele (`M2`,
    * BR-MIGRAR-058; CA-3.2).
    *
@@ -322,6 +358,7 @@ export function criarModuloDeMidia(portas: PortasDeMidia): ModuloDeMidia {
     visibilidadeDoAnexo,
     criarDerivadasDeImagem,
     regerarDerivadasQueFaltam,
+    calcularOrigensResponsivas,
     tamanhosDeFabrica: TAMANHOS_DE_IMAGEM_DE_FABRICA,
   };
 }

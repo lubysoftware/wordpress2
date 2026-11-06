@@ -49,7 +49,7 @@
       *entrega:* 5 testes automatizados, um por caso registrado em `../../../backlog/tests.md` (UT-060-1, UT-060-2, UT-060-3, UT-060-4, UT-060-5), com o mesmo dado de entrada, ação e resultado esperado. O teste de regra de negócio (UT-060-5) entra na mesma suíte.
       *satisfaz:* CA-5.1, CA-5.2, CA-5.3, CA-5.4
       *depende de:* T011
-- [ ] **T013** Servir a derivada adequada ao espaço em que a imagem aparece (US-6)
+- [x] **T013** Servir a derivada adequada ao espaço em que a imagem aparece (US-6)
       *entrega:* o comportamento de US-6 existe e os critérios CA-6.1, CA-6.2, CA-6.3 passam contra o sistema novo
       *satisfaz:* CA-6.1, CA-6.2, CA-6.3
       *depende de:* T001, T002, T007

@@ -4,8 +4,9 @@ Feature `006-biblioteca-de-midia`. Tarefas fechadas com nota de entrega neste
 arquivo: **T001** (esqueleto, as tres portas e os tamanhos de fabrica), **T002**
 (a forma de armazenamento do anexo e das derivadas), **T003** (o envio com
 validacao do tipo real, US-1), **T005** (a visibilidade herdada do anexo, US-2),
-**T007** (a geracao das derivadas de cada tamanho registrado, US-3) e **T019**
-(o contorno do filtro de tipo, com o registro de quem o usou, US-9). Este
+**T007** (a geracao das derivadas de cada tamanho registrado, US-3), **T013**
+(a lista de origens responsivas com o teto de `M3`, US-6) e **T019** (o
+contorno do filtro de tipo, com o registro de quem o usou, US-9). Este
 arquivo e a leitura obrigatoria de quem pegar a tarefa seguinte: ele diz o que ja
 esta decidido, o que esta decidido **em outro lugar**, e o que **ninguem**
 decidiu.
@@ -42,11 +43,13 @@ mesmo artefato em disco e compartilham o modo de falha de `M4`"*.
 > o legado. T019 topou nisso ao fechar US-9 e **nao resolveu**, porque o
 > mecanismo e da feature `001`. Esta na secao *O que T019 NAO portou*.
 
-> 🔴 **E se a sua tarefa le o estado de um anexo (T013, T017, e quem compor a
+> 🔴 **E se a sua tarefa le o estado de um anexo (T017, e quem compor a
 > requisicao):** o valor da coluna **nao e** a visibilidade. `inherit` e a
-> instrucao de ir buscar uma, e quem resolve e `visibilidade/` (T005). Ler a
-> coluna direto, como `media.php:1575` faz para pular o item na lixeira, e
-> **tambem** do legado — mas e outra pergunta. Esta na secao *O que T005 entrega*.
+> instrucao de ir buscar uma, e quem resolve e `visibilidade/` (T005). Esta na
+> secao *O que T005 entrega*. ⚠️ **Correcao de T013:** este aviso citava
+> `media.php:1575` como leitura da coluna para pular item na lixeira; a linha e
+> o filtro de **imagem editada** de `wp_calculate_image_srcset()`, e aquela
+> funcao nao le estado nenhum. T013 nao le o estado do anexo.
 
 ---
 
@@ -564,6 +567,71 @@ instalacao e multisite"*. Fica registrado aqui e em
 
 ---
 
+## O que T013 entrega, e so isso
+
+A linha da tarefa: *"o comportamento de US-6 existe e os criterios CA-6.1,
+CA-6.2, CA-6.3 passam contra o sistema novo"*. E a quinta historia implementada
+deste modulo, e a primeira de **leitura publica**: e
+`wp_calculate_image_srcset()` (`wp-includes/media.php:1444`), cujo teto em
+`:1545` e a ancora da rastreabilidade (`M3`, BR-MIGRAR-059).
+
+| arquivo | o que e | criterios |
+|---|---|---|
+| `origens-responsivas/calcular-origens-responsivas.ts` | a funcao inteira, passo a passo, com `wp_image_matches_ratio()` (`:738`) | CA-6.1, CA-6.2, CA-6.3, `M3` |
+| `origens-responsivas/contexto-de-origens-responsivas.ts` | o endereco base, a cifra e o `Host:` da requisicao, e os interceptadores do teto | CA-6.2 |
+| `origens-responsivas/endereco-da-origem.ts` | `wp_basename()`, `trailingslashit()`, `_wp_get_attachment_relative_path()`, o recorte de `parse_url()` e `set_url_scheme( ..., 'https' )` | — |
+| `origens-responsivas/us-6-servir-derivada-adequada.test.ts` | os 23 testes da entrega | os tres |
+
+### As quatro decisoes de T013 que a proxima tarefa precisa conhecer
+
+1. **Devolve o valor do atributo, nao a tag.** Tela entra como dado: montar
+   `<img>` (`wp_get_attachment_image()`, `:1169`), calcular `sizes`
+   (`wp_calculate_image_sizes()`, `:1696`) e resolver o `src` pelo nome do
+   tamanho (`image_downsize()`) sao da borda. `null` e o `false` do legado, e o
+   chamador do legado so emite o atributo quando ha valor (`:1245`) — e isso
+   que fecha CA-6.3.
+2. **O metadado chega no pedido**, na projecao de T002 (`MetadadoDeAnexo`),
+   como no legado: quem le e o chamador (`wp_get_attachment_metadata()` em
+   `:1239` e `:1416`). A operacao nao toca porta nenhuma, e ha teste.
+3. **O teto e `2048` e so muda pelo interceptador** `max_srcset_image_width`,
+   que e o *"configuravel"* de CA-6.2 — o legado nao tem opcao nem constante
+   para ele. E o **unico** ponto de extensao emitido; os outros quatro do
+   caminho estao nomeados na posicao (P2), porque o barramento e `REQ-162`.
+4. **Permissao: nenhuma**, e e declaracao (P4). A funcao do legado nao pergunta
+   capacidade e nao le o estado do anexo.
+
+### Cinco restricoes do legado que os criterios nao dizem, e que um porte perde
+
+Todas reproduzidas, porque o cenario de `M3` em PT-014 compara a lista **byte a
+byte**: (1) so entra derivada da **mesma proporcao** do `src`, com um pixel de
+tolerancia — *"as derivadas existentes"* de CA-6.1 nao sao todas; (2) **o teto
+nao vale para o proprio `src`** (`! $is_src`, `:1584`); (3) o `src` vai
+**primeiro**, e duas derivadas da mesma largura viram uma, na posicao da
+primeira; (4) sem o `src` no metadado, ou com uma origem so, **nao ha lista**
+(`:1635`); (5) miniatura GIF tira o inteiro da lista, e `src` editado
+(`-e{13 digitos}`) so aceita arquivos da mesma edicao. O detalhe de cada uma, com
+a ancora, esta no cabecalho de `calcular-origens-responsivas.ts`.
+
+⚠️ **O contrato do `plan.md` descreve outra funcao do legado:** *"servir
+derivada | identificador e espaco de exibicao | o arquivo da derivada adequada |
+nenhum: sem derivada adequada, serve a maior disponivel"* e `image_downsize()`,
+que escolhe o `src` pelo nome do tamanho e cai no arquivo inteiro quando nao ha
+derivada. Nao contradiz o legado, mas nao e o que os tres criterios de US-6
+pedem: eles sao todos sobre a **lista**, porque no legado quem escolhe a derivada
+pelo espaco e o **navegador**, a partir da lista e do `sizes`. Fica para quem
+portar `image_downsize()`.
+
+### O que T013 NAO portou, com o motivo de cada coisa
+
+| o que | ancora | por que |
+|---|---|---|
+| `wp_get_attachment_image_srcset()` | `media.php:1408` | depende de `wp_get_attachment_image_src()` → `image_downsize()`, que nenhuma historia desta feature descreve |
+| `wp_calculate_image_sizes()` e o `sizes="auto"` | `media.php:1696`, `:2117` | nenhum criterio de US-6 fala do atributo `sizes` |
+| `wp_image_add_srcset_and_sizes()` e `wp_filter_content_tags()` | `media.php:1874`, `:1987` | e a reescrita do HTML do conteudo, que e da leitura publica; chamam esta funcao |
+| os pontos `wp_calculate_image_srcset_meta`, `wp_calculate_image_srcset` e `set_url_scheme` | `media.php:1460`, `:1632`; `link-template.php:3965` | `REQ-162`, escopo recusado; nomeados na posicao |
+
+---
+
 ## Por que estas tres portas, e nao outras
 
 **Dados e sistema de arquivos** sao duas das cinco bordas de AD-08, e as duas
@@ -969,6 +1037,16 @@ O que **T019** acrescenta a essa lista — e o que ele NAO acrescenta:
   ausencia: num envio pelo contorno o `post_mime_type` gravado e o **afirmado
   pelo cliente** (`file.php:974`-`:976`), e ha teste para o valor exato. Um
   oraculo comparado so por "o anexo existe" nao veria a diferenca.
+
+O que **T013** acrescenta a essa lista:
+
+- O cenario **`M3`** de PT-014 (*"a lista de origens responsivas para no limite
+  do legado"*) fecha nas tres linhas: a lista e comparada como **texto**, nenhuma
+  derivada acima de 2048 entra, e o limite e o mesmo havendo derivada maior. ⚠️
+  O cenario nao exercita o caso em que o **`src`** e maior que o limite — ai o
+  legado o inclui (`! $is_src`, `:1584`), e ha teste para isso; um oraculo que
+  so comparasse *"nenhuma inclui derivada acima do limite"* reprovaria o
+  legado.
 
 ⚠️ `parity_specs.md` registra que a suite de *characterization tests* **nao
 existe** nesta arvore, e que a paridade de tela tem de ser derivada secao por

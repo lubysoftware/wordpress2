@@ -215,10 +215,13 @@ test('a superficie do modulo tem exatamente o que as tarefas fechadas entregaram
   // (`wp-includes/capabilities.php:350`). **T007** trouxe duas, e as duas
   // declaram que a permissao e da SUPERFICIE — porque o legado nao pergunta
   // capacidade nenhuma nelas e porque as duas superficies que as chamam
-  // perguntam coisas diferentes. A pauta do que entra em cada tarefa esta na
+  // perguntam coisas diferentes. **T013** trouxe `calcularOrigensResponsivas`,
+  // cuja declaracao tambem e "nenhuma": a historia e do visitante e o legado
+  // nao pergunta capacidade. A pauta do que entra em cada tarefa esta na
   // tabela do `index.ts`.
   assert.deepEqual(Object.keys(modulo).sort(), [
     'armazenamento',
+    'calcularOrigensResponsivas',
     'criarDerivadasDeImagem',
     'enviarArquivo',
     'nome',
